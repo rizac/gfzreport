@@ -18,7 +18,7 @@ import os
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath('./extensions'))
+sys.path.insert(0, os.path.abspath('../core'))
 
 # -- General configuration ------------------------------------------------
 
@@ -36,8 +36,9 @@ sys.path.insert(0, os.path.abspath('./extensions'))
 extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
-    'images_grid'  # this is the custom one
-    'images_grid'  # this is the custom one
+    'extensions.mapfig',  # this is the custom one
+    'extensions.imggrid',  # this is the custom one
+    'extensions.mapimg',  # this is the custom one
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -55,9 +56,9 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'reportgen'
-copyright = u'2016, gfz potsdam section 2.4'
-author = u'riccardo zaccarelli'
+project = u'report'
+copyright = u''
+author = u''
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -83,7 +84,7 @@ language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = []
+exclude_patterns = ['_templates/input_rsts']
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -114,6 +115,11 @@ todo_include_todos = False
 
 
 # -- Options for HTML output ----------------------------------------------
+
+# a custom html writer which converts psf images to iframes
+# see 
+html_translator_class = 'writers.html.HTMLTranslator'
+
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
@@ -214,25 +220,67 @@ htmlhelp_basename = 'reportgendoc'
 # -- Options for LaTeX output ---------------------------------------------
 
 latex_elements = {
+
+# not toc:
+'tableofcontents': u'',
+
 # The paper size ('letterpaper' or 'a4paper').
-#'papersize': 'letterpaper',
+'papersize': 'a4paper',
 
 # The font size ('10pt', '11pt' or '12pt').
 #'pointsize': '10pt',
 
-# Additional stuff for the LaTeX preamble.
-#'preamble': '',
-
 # Latex figure (float) alignment
 #'figure_align': 'htbp',
+
+# Additional stuff for the LaTeX preamble.
+'preamble': r"""
+% ==================================
+% Custom preamble defined in conf.py
+% ==================================
+
+% To edit, see conf.py -> latex_elements -> preamble
+
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry} % see geometry.pdf on how to lay out the page. There's lots.
+\geometry{a4paper} % or letter or a5paper or ... etc
+\usepackage{graphicx}
+\usepackage{amsmath}
+% The following package is needed for textdegree
+\usepackage{textcomp}
+\usepackage[multidot]{grffile}
+\usepackage{color,colortbl}
+\definecolor{LightGray}{gray}{0.9}
+\usepackage{natbib}
+\bibliographystyle{plainnat}
+\usepackage[usenames,dvipsnames]{xcolor}
+% \usepackage[colorlinks=true,linkcolor=blue,urlcolor=NavyBlue,citecolor=Fuchsia]{hyperref}
+% \urlstyle{same}
+
+% packages temporarily commented out:
+
+% % DRAFT version only
+% \newcommand{\remark}[1]{{\color{green} \bf [ \footnotesize #1 ]}}
+% % To mark parts which need to be replaced by the user, with instructions
+% \newcommand{\templatetext}[1]{\textcolor{OliveGreen}{[ #1 ]}}
+% \usepackage[utf8]{inputenc} % default in sphinx, no need to import
+% \usepackage{longtable}  % default in sphinx, no need to import
+% \usepackage{array} % for defining a new column type
+% \usepackage{varwidth} %for the varwidth minipage environment
+
+% ======================
+% End of custom preamble
+% ======================
+"""
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
-#  author, documentclass [howto, manual, or own class]).
+#  author, documentclass [howto, manual, or own class]). For info see:
+# http://www.sphinx-doc.org/en/stable/config.html#confval-latex_documents
+# NOTE: TITLE MUST BE EMPTY IF YOU WANT TO USE THE TITLE (TOP LEVEL ONE) IN THE .rst
 latex_documents = [
-    (master_doc, 'reportgen.tex', u'reportgen Documentation',
-     u'riccardo zaccarelli', 'manual'),
+    (master_doc, project + '.tex', u'',
+     author, 'howto'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -261,7 +309,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'reportgen', u'reportgen Documentation',
+    (master_doc, project, u'' if not project else project + u' Documentation',
      [author], 1)
 ]
 
@@ -275,8 +323,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'reportgen', u'reportgen Documentation',
-     author, 'reportgen', 'One line description of project.',
+    (master_doc, project, u'' if not project else project + u' Documentation',
+     author, project, 'One line description of project.',
      'Miscellaneous'),
 ]
 
