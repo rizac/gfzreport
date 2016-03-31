@@ -1,0 +1,23 @@
+{# layout.html #}
+{# Import the theme's layout. #}
+{% extends "!layout.html" %}
+
+{% set css_files = css_files + ['_static/style.css'] %}
+
+{%- block extrahead %} 
+<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+<!-- Include Leaflet JavaScript file: -->
+<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+<!-- Load Esri Leaflet from CDN -->
+<!-- <script src="https://cdn.jsdelivr.net/leaflet.esri/2.0.0-beta.8/esri-leaflet.js"></script>-->
+<script src="http://cdn-geoweb.s3.amazonaws.com/esri-leaflet/1.0.0-rc.6/esri-leaflet.js"></script>
+
+
+ <!--  <script type="text/javascript">
+       MathJax.Hub.Config({
+           "HTML-CSS": {
+               scale: 90
+           }
+       });
+  </script> -->      
+{% endblock %}
