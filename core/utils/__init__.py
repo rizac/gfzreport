@@ -25,11 +25,13 @@ def ispy2():
     """
     return 2 <= sys.version_info[0] < 3
 
+
 def ispy3():
     """
     :return: True if the current python version is 3
     """
     return 3 <= sys.version_info[0] < 4
+
 
 def isstr(val):
     """
@@ -257,6 +259,7 @@ def load_module(filepath, name=None):
         # (Although this has been deprecated in Python 3.4.)
 
     # raise SystemError("unsupported python version: "+ str(sys.version_info))
+
 
 def ensurefiler(filepath):
     """Checks that filepath denotes a valid file, raises an OSError if not.

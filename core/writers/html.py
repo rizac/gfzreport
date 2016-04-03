@@ -1,4 +1,6 @@
 '''
+Class extending sphinx.writers.html.SmartyPantsHTMLTranslator
+It overrides images as pdf using iframes instead of img tags
 Created on Mar 18, 2016
 
 @author: riccardo
@@ -10,61 +12,52 @@ import re
 
 class HTMLTranslator(whtml.SmartyPantsHTMLTranslator):
 
-    # regexp tags. Actually FIXME: modify them for images only!!!
-    regpdf = re.compile(r"\s*<\s*(a|img)\s+(.*)\s*(/\s*|>\s*<\s*/\1\s*)>",
-                        re.IGNORECASE)
-    regtag = re.compile(r"(?<!\w)(?:alt|href)\s*=\s*(['" + r'"' + r"])(.*?)\1(?!\w)",
-                        re.IGNORECASE)
+    imgre = re.compile(r"\s*<\s*img\s+(.*)\s*/\s*>", re.IGNORECASE)
 
-    def visit_image(self, node):
+    @staticmethod
+    def is_pdf_node(node):
+        """
+            Returns True if the node is a node referencing a pdf document
+            This includes e.g. img and anchor tags
+        """
+        uri_key = 'uri'
+        if uri_key not in node.attributes:
+            uri_key = 'refuri'  # anchors have refuri as key
+            if uri_key not in node.attributes:
+                return False
+        return node.attributes.get(uri_key, '').lower()[-4:] == ".pdf"
 
-        whtml.SmartyPantsHTMLTranslator.visit_image(self, node)
-        if node.attributes.get('uri', '').lower()[-4:] != ".pdf":
-            return
-
-        # NOTE: super class PUTS images inside anchors. Therefore, we need to modify image tag
-        # if pdf, BUT ALSO remove anchors before and later.
-        # use a flag to set it in depart_reference later
-        self._pdf_image_in_progress = True
-
-        string = HTMLTranslator.regpdf.sub(r"\2", self.body[-1])
-        if string != self.body[-1]:
-            mobj = self.regtag.match(string)
-            if mobj:
-                string = string[:mobj.start()] + string[mobj.end():]
-
-        self.body[-1] = "<iframe " + string + "></iframe>"
-        # return ret
+    def visit_reference(self, node):
+        """
+            Calls the super method and removes the appended nodes in case of pdf anchor
+            Note: Calling the super method seems to be mandatory
+        """
+        self.do_and_replace(node, whtml.SmartyPantsHTMLTranslator.visit_reference)
 
     def depart_reference(self, node):
-        # FIXME: is this executed in the same thread as visit_image?
-        # are we sure that setting an attribute works? probably yes
-        if not hasattr(self, '_pdf_image_in_progress') or not self._pdf_image_in_progress:
-            whtml.SmartyPantsHTMLTranslator.depart_reference(self, node)
-            return
+        self.do_and_replace(node, whtml.SmartyPantsHTMLTranslator.depart_reference)
 
-        self._pdf_image_in_progress = False
+    def visit_image(self, node):
+        whtml.SmartyPantsHTMLTranslator.visit_image(self, node)
+        if self.is_pdf_node(node):
+            # replace img tag just added via a regexp:
+            matchobj = HTMLTranslator.imgre.match(self.body[-1])
+            if matchobj and len(matchobj.groups()) == 1:
+                self.body[-1] = "<iframe " + matchobj.group(1).strip() + "></iframe>"
+                return
 
-        # sphinx might append empty nodes:
-        while len(self.body) and not self.body[-1]:
-            self.body.pop(-1)
-        # empty self.body. Should not be the case. However, call super method
-        # and return
-        if not len(self.body):
-            whtml.SmartyPantsHTMLTranslator.depart_reference(self, node)
-            return
+            raise ValueError("%s not matching, expected <img>" % self.body[-1])
 
-        img_tag = self.body.pop(-1)
+    def depart_image(self, node):
+        self.do_and_replace(node, whtml.SmartyPantsHTMLTranslator.depart_image)
 
-        # again, jumpt to the first nonemtp node:
-        while len(self.body) and not self.body[-1]:
-            self.body.pop(-1)
+    def do_and_replace(self, node, method):
+        """Executes the given method and replaces nodes appended in case node is a pdf node"""
+        oldlen = len(self.body)
+        method(self, node)
+        if self.is_pdf_node(node):
+            self.body = self.body[:oldlen]
 
-        self.body[-1] = img_tag
-
-
-if __name__ == "__main__":
-    h = HTMLTranslator.regpdf.match("<a href='er'>< / a>")
-    assert h
-    h = HTMLTranslator.regpdf.match("<img src='er'/>")
-    assert h
+#     def __init__(self, *args, **kwds):
+#         # call super method:
+#         whtml.SmartyPantsHTMLTranslator.__init__(self, *args, **kwds)

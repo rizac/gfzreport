@@ -217,6 +217,10 @@ html_static_path = ['_static']
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'reportgendoc'
 
+# enabble numfig. See
+# http://www.sphinx-doc.org/en/stable/config.html#confval-numfig 
+numfig = True
+
 # -- Options for LaTeX output ---------------------------------------------
 
 latex_elements = {

@@ -211,6 +211,7 @@ class MapHandler(object):
         return self
 
     def get_bb(self):  # EXPERIMENTAL. CALCULATE BBOX. LATER
+        raise NotImplementedError()
         if self.fig is None:
             raise ValueError('no figure set. Call set_fig first')
 #         r = self.fig.canvas.get_renderer()

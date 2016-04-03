@@ -7,46 +7,18 @@
 
 # NOTE: TEMPLATE TO BE USED. DOWNLOADEDFROM THE SPHINX EXTENSIONS HERE:
 # https://bitbucket.org/birkenfeld/sphinx-contrib/src/558d80ca46aa?at=default
-# import re
-import urllib
-# import urllib2
-# from xml.dom import minidom
-
 from docutils import nodes  # , utils
 from docutils.parsers.rst import directives
 from docutils.parsers.rst.directives import images
-
 from sphinx.util.compat import Directive
-# from __builtin__ import None  # FIXME: what was this?!!!
 from uuid import uuid4  # FIXME: sphinx provides a self uuid!
-# try:
-#     from hashlib import sha1 as sha
-# except ImportError:
-#     from sha import sha
-from sphinx.util import ensuredir, relative_uri
-import posixpath
+from sphinx.util import ensuredir
 import os
 from map import plotmap
 import pandas as pd
-# from sphinx.writers.html import HTMLTranslator
-# from sphinx.writers.latex import LatexTranslator
 import csv
 import numpy as np
 from core.utils.hash import get_hash as utils_get_hash
-
-# def get_hashid(options):
-#     hashkey = str(options)
-#     # hashid = sha(hashkey).hexdigest()
-#     return hash(hashkey)
-
-# this is a global dict which handles several mappings between directive options
-# FIXME: not used, clean up!!
-_options_manager = dict(
-                        directive_key=['lon_key', 'lat_key', 'name_key'],
-                        directive_def_value=['lon', 'lat', 'name'],
-                        types=[float, float, None],  # None: do not cast
-                        map_func_arg_names=['lons', 'lats', 'labels']
-                        )
 
 
 def read_csv(filepath, required_columns, additional_delimiters=[' ', ';']):
@@ -113,7 +85,7 @@ class mapimg(nodes.image):
             self._custom_data = {}
             # FIXME: check hash
             # self._custom_data['id'] = get_hashid((attributes[key] for key in sorted(attributes)))
-            pts = read_csv(uri, [attributes[k] for k in _options_manager['directive_key']])
+            pts = read_csv(uri, [attributes[k] for k in ('lat_key', 'lon_key', 'name_key')])
             pts = transpose_csv(pts)
             self._custom_data['data'] = pts
         except ValueError as verr:
@@ -141,27 +113,12 @@ class MapImgDirective(images.Image):
         # replace image nodes (theoretically, at most one) with mapimg nodes
         for i, nod in enumerate(nodes):
             if isinstance(nod, nodes.image):
-                # note that self.options has already been 
+                # note that self.options has already been
                 # worked out in the super constructor
                 # important cause it does checks and modifications
                 nodes[i] = mapimg(self.block_text, **self.options)
 
         return nodes
-
-#         node = nodes[0]
-#         try:
-#             own_opts = self.own_option_spec
-#             reference = directives.uri(self.arguments[0])
-#             self.options['uri'] = reference
-#             pts = read_csv(self.options['uri'], [self.options[k] for k in own_opts])
-#             node['options'] = self.options
-#             node['_points'] = parse_pts(pts, self.options)
-#             node['img_hash'] = get_hashid(self.options)
-#         except ValueError as verr:
-#             document = self.reporter.document
-#             return [document.reporter.warning(str(verr), line=self.lineno)]
-#             # image_node.points_error_msg = str(verr)
-#         return [node]
 
 
 def transpose_csv(csv_data):  # FIXME: use pandas read_csv
@@ -202,7 +159,8 @@ def visit_mapimg_node_html(self, node):
     for lon, lat, labl in zip(data['lons'], data['lats'], data['labels']):
         markers.append('[' + str(lat) + ',' + str(lon) + ']')
 
-    add_to_map_js = "\n".join("markersArray.push(L.marker(" + mrk +").addTo(map));" for mrk in markers)
+    add_to_map_js = "        \n".join("markersArray.push(L.marker(" + mrk + ").addTo(map));"
+                                      for mrk in markers)
 
     html = """
         <div id='map{0}' class=map></div>
@@ -290,7 +248,7 @@ def get_hash(node_data):
 
 # from sphinx.writers.latex import LaTeXTranslator
 def visit_mapimg_node_latex(self, node):
-    """FIXME: self is what?!!!
+    """self is the builder, although not well documented FIXME: setuo this doc!
     http://www.sphinx-doc.org/en/stable/_modules/sphinx/application.html
     """
 

@@ -32,19 +32,23 @@ def flattened_list(*args, **kw):
 
     while len(args):
         val = args.pop(0)
+        if isnumpy(val):
+            val = val.tolist()
+            # note: to list converts also "scalars" to their python equivalent, so val might be
+            # e.g., a string now, or a list, or a number, etc
+            # http://stackoverflow.com/questions/4565749/how-detect-length-of-a-numpy-array-with-only-one-element)
         if isstr(val) or not hasattr(val, "__iter__"):
             ret_list.append(val)
             continue
-        if isnumpy(val):
-            val = val.tolist()
-            # Note: in this case it might be that val is NOT a python list, e.g. np.array(5). See
-            # http://stackoverflow.com/questions/4565749/how-detect-length-of-a-numpy-array-with-only-one-element)
-        if type(val) == dict:
-            lst = []
-            for key in sorted(val):
-                lst.append(key)
-                lst.append(val[key])
-            val = lst
+
+        if not type(val) == list:
+            if type(val) == dict:
+                # flatten the dict into list. See
+                # http://stackoverflow.com/questions/1679384/converting-python-dictionary-to-list
+                val = reduce(lambda x, y: x+y, ([k, val[k]] for k in sorted(val)), [])
+            else:
+                val = list(val)
+
         args = val + args
 
     return ret_list
