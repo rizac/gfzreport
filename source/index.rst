@@ -1,5 +1,6 @@
-# ZE 2012-2014 Madagascar Seismic Profile
-
+=======================================
+ZE 2012-2014 Madagascar Seismic Profile
+=======================================
 
 :authors: F.Tilmann, X. Yuan, G. Rümpker, Elisa Rindraharisaona
 
@@ -28,20 +29,15 @@
  occurred just off its western edge. In addition, in May 2013 we have deployed 25 short period sensors
  in the eastern part of the study area, where there is some so-far poorly characterised seismicity.
 
+----------------
+Data acquisition
+----------------
 
-## Data acquisition
-
-### Experiment design
+Experiment design
+-----------------
 
 **Basic Design** The station distribution is shown in :numref:`stations_figure` and 
 :numref:`stations_table` summarises the most important information about each station.
-Three different types of instruments were used in this experiment. The main profile had a nominal
-average station spacing of 17 km and was equipped EDL dataloggers and mostly CMG-3ESPs sensors.
-A few Trillium 240s were approximately equally spaced throughout the array. The power to these
-stations was supplied by solar panels. The permanent GEOFON station VOI forms an integral part
-of the array, and no temporary station was deployed in the immediate neighbourhood.
-The areal array comprises Cube data loggers and Mark L4C 1 Hz sensors. These stations ran off
-batteries without recharging.
 
 .. _stations_figure:
 
@@ -58,6 +54,14 @@ batteries without recharging.
 .. csv-table:: 
    :file: ../test-data/source/stations_example.csv
 
+Three different types of instruments were used in this experiment. The main profile had a nominal
+average station spacing of 17 km and was equipped EDL dataloggers and mostly CMG-3ESPs sensors.
+A few Trillium 240s were approximately equally spaced throughout the array. The power to these
+stations was supplied by solar panels. The permanent GEOFON station VOI forms an integral part
+of the array, and no temporary station was deployed in the immediate neighbourhood.
+The areal array comprises Cube data loggers and Mark L4C 1 Hz sensors. These stations ran off
+batteries without recharging.
+
 **Sensor orientation** All stations were oriented along magnetic north. The declination at the location
 of station MS13 approximately at the centre of the array at the time of deployment (May 11, 2012) was
 19°19' W, changing by 1'/year in west direction) (Source: http://www.ngdc.noaa.gov/geomag-web/
@@ -66,16 +70,18 @@ in the station metadata information in the GEOFON database; the variation of the
 through Madagascar has not been taken into account, though, but should be small compared to the
 random orientation error.
 
-
-## Data pre-processing
+-------------------
+Data pre-processing
+-------------------
 
 The Cube data were converted to miniseed format using the c2m code written by Trond Ryberg 1 [X].
 This code interpolates linearly between the raw data samples in order to ensure an even sampling rate
 of the output file. It assumes a linear drift between GPS fixes, when GPS reception is temporarily
 lost.
 
-
-## Data Quality
+------------
+Data Quality
+------------
 
 An overview of instrument uptimes is given in :numref:`timing_accuracy` and the noise levels for all stations and components
 are shown in :numref:`pdfs-images`.
@@ -85,7 +91,8 @@ are shown in :numref:`pdfs-images`.
 .. imgages-grid:: ../test-data/source/pdfs
    :columns: "_HHE*.pdf" _HHN*.pdf _HHZ*.pdf
 
-### Data recovery
+Data recovery
+-------------
 
 A relatively large amount of data was lost due to vandalism ranging from loss of power because of
 theft of the solar panels due to complete loss of data loggers. Some data was lost to technical issues,
@@ -95,7 +102,8 @@ The security issues made it necessary to relocate some of the stations (MS06 and
 and AM16) and change the sensor type mid-experiment at some others (MS01, MS02, MS03, MS17,
 MS25).
 
-### Timing accuracy
+Timing accuracy
+---------------
 
 An overview of the timing accuracy is given for the broadband stations in :numref:`timing_accuracy`.
 In spite of a large number of gaps without GPS for station MS09, MS24 and other stations, particularly in 2014, the
@@ -157,8 +165,9 @@ errors beyond 40 days. Actual errors encountered in the Madagascar experiment mi
 | AM16A   | 2014-01-12 | 2014-02-11 | 30       | 16/40             |
 +---------+------------+------------+----------+-------------------+
 
-
-## Aknowledgments
+--------------
+Aknowledgments
+--------------
 
 We thank Prof. G´erard Rambolamana (Institute and Observatory of Geophysics in Antananarivo
 - IOGA) for supporting this initiative and letting us use storage space at the institute and Mirana
@@ -173,4 +182,4 @@ data is funded by the DFG. The data are additionally being used in the context o
 postdoctoral fellowhip to one of us (E. R.). Most of the instrumentation was provided by the GIPP
 (Geophysical Instrument Pool Potsdam); the University of Potsdam loaned us solar panels.
 
-TODO: bib citations, footnotes, abstract (both html and latex)
+TODO: bib citations, footnotes

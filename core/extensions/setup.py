@@ -9,107 +9,82 @@ from core.writers.latex import LatexTranslator
 
 
 def source_read_handler(app, docname, source):
-    normalize_sec_headers(source)
+    source[0] = normalize_sec_headers(source[0])
 
 
 def normalize_sec_headers(string, list_of_under_and_overlines=[("#", "#"),
                                                                ("*", "*"),
-                                                               (None,  "="),
-                                                               (None, "-"),
-                                                               (None, "^"),
-                                                               (None, "\"")]):
-    """Normalizes section titles of the string representing an rst document by adding rst
-    decorations to them. Returns the normalized string.
-    Long explanation (http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html#sections):
-    rst understands the nesting level of sections by means of clustering the same
-    symbols, thus:
+                                                               "=",
+                                                               "-",
+                                                               "^",
+                                                               "\""]):
+    """Normalizes section titles by replacing all github markdown section title symbols (#) with the
+    corresponding rst one. Note that contrarily to the github markdown style, rst understands the
+    nesting level of sections by means of clustering the same symbols. If not otherwise specified
+    in list_of_under_and_overlines, the correspondence is:
 
-    title
-    =====
+    Markdown symbol rst symbol        coventionally assigned for
+    =============== ================= ===================================================================
+    #               # (with overline) parts
+    ##              * (with overline) chapters
+    ###             =                 sections
+    ####            -                 subsections
+    #####           ^                 subsubsections
+    ######          "                 paragraphs
 
-    chapter
-    -------
+    * Note: that's a convention, it does not correspond to the latex keyword
 
-    another chapter
-    ---------------
-
-    But this is complex to organize when we provide a template file to be filled with the values of
-    a config file (where we might in turn change title, chapter etcetera). Thus we make use in the
-    template of the github markdown syntax with #:
-    # title
-    ## section
-    ### subsection
-    And we convert it here according to the following convention
-    (as in http://www.sphinx-doc.org/en/stable/rest.html#sections)
-    = with overline, for titles
-    - with overline, for chapters
-    = for sections
-    - for subsections
-    ^ for subsubsections
-    " for paragraphs
+    For info see
+    - http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html#sections
+    - http://www.sphinx-doc.org/en/stable/rest.html#sections
+    :param: string the string to be searched and substituted
+    :param: list_of_under_and_overlines a list of 6 elements specifying the rst decorators. If
+    missing defaults to the list representing the table above. Otherwise each element is either a
+    character string, denoting the underline symbol, or a list/tuple ot 2 character strings,
+    denoting under- and overline symbols, respectuvely. Note that for each element ("^", None)
+    equals "^"
     """
     reg = re.compile("^(#+)\\s(.*?)$", re.MULTILINE)
-    decorators = [("=", "="), ("-", "-"), ("=", None), ("-", None), ("^", None), ('"', None)]
     for matchobj in list(reg.finditer(string))[::-1]:
         grp = matchobj.groups()
         if len(grp) == 2:  # groups count starts from group 0
-            indx = len(grp[0])-1
-            decorator = decorators[-1] if indx >= len(decorators) else decorators[indx]
+            indx = len(grp[0])
+            decorator = list_of_under_and_overlines[min(6, indx) - 1]
             str_to_decorate = grp[1]
-            start_ = matchobj.start()
-            end_ = matchobj.end()
-            string = string[:start_] + decorate_title(str_to_decorate, decorator) + string[end_:]
+            rst_str = decorate_title(str_to_decorate,
+                                     *(list(decorator) if hasattr(decorator, "__iter__")
+                                       else [decorator]))
+            string = string[:matchobj.start()] + rst_str + string[matchobj.end():]
 
     return string
 
 
-def decorate_title(string, tuple_of_under_and_overline):
+def decorate_title(string, underline_symbol, overline_symbol=None):
     """
         Decorates a string title as in rst format
         :param string: the string represetning the title
-        :param tuple_of_under_and_overline: a tuple or list of two 1-character strings, representing
-        the decorator character for under (element 0) and overline (element 1). None is allowed (and
-        it's self explanatory)
+        :param underline_symbol: A 1-character string, representing the decorator character for
+            underline
+        :param overlline_symbol: A 1-character string, representing the decorator character for
+            overline
 
         :Examples:
-        decorate_string("sea", ("=", None)) returns:
-        ===
-        sea
+        decorate_string("sea", "=") returns:
 
-        decorate_string("abc", ("=", "-")) returns:
-        ===
         sea
+        ===
+
+        decorate_string("abc", "=", "-") returns:
+
         ---
+        sea
+        ===
     """
     lens = len(string)
-    if tuple_of_under_and_overline[0] is not None:
-        string = (lens * tuple_of_under_and_overline[0] + "\n") + string
-    if tuple_of_under_and_overline[1] is not None:
-        string += "\n" + (lens * tuple_of_under_and_overline[0])
+    string = "{0}\n{1}".format(string, lens * underline_symbol)
+    if overline_symbol:
+        string = "{0}\n{1}".format(lens * overline_symbol, string)
     return string
-
-def replace_sec_headers(source, headers=[("#", "#"),
-                                         ("*", "*"),
-                                         (None,  "="),
-                                         (None, "-"),
-                                         (None, "^"),
-                                         (None, "\"")]):
-    reg = re.compile("^(#+) (.*)")
-    i = 0   # external counter cause it will be modified in the loop
-    for src in source:
-        mobj = reg.match(src)
-        if mobj and len(mobj.groups()) == 2:
-            sectitle = mobj.group(2)
-            source[i] = sectitle
-            header = headers[min(6, len(mobj.group(1))) - 1]
-            j = i
-            if header[0]:
-                source.insert(j-1, header[0] * len(sectitle))
-                i += 1
-            if header[1]:
-                source.insert(j+1, header[1] * len(sectitle))
-                i += 1
-        i += 1
 
 
 def setup(app):
