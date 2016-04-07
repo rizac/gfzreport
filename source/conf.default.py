@@ -39,6 +39,7 @@ extensions = [
     'extensions.mapfig',  # this is the custom one
     'extensions.imggrid',  # this is the custom one
     'extensions.mapimg',  # this is the custom one
+    'extensions.abstract',  # this is the custom one
 ]
 
 # Add any paths that contain templates here, relative to this directory.

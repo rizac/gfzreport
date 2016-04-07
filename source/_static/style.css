@@ -38,3 +38,34 @@ div.sphinxsidebar{
     border-radius: 10px;
     background-color: floralwhite;
 }
+
+p{
+	text-align: justify;
+}
+
+table.source_imggrid_directive, table.source_imggrid_directive td{
+	border: 0px !important;
+	box-shadow: none !important;
+}
+
+div.leaflet-container {
+    border: 1px solid #888;
+    -moz-box-shadow: 2px 2px 4px #eee;
+    -webkit-box-shadow: 2px 2px 4px #eee;
+    box-shadow: 2px 2px 4px #eee;
+}
+
+/* override alabaster stuff otherwise overridden by this style (for mobile devices) */
+@media screen and (max-width: 875px){
+	div.sphinxsidebar {
+		position: static;
+		border: 0px;
+	    display: block;
+	    /* float: none; */
+	    width: 102.5%;
+	    margin: 50px -30px -20px -30px;
+	    padding: 10px 20px;
+	    background: #333;
+	    color: #FFF;
+	}
+}

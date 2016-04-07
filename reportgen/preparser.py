@@ -10,7 +10,6 @@ import re, sys, os
 from jinja2 import Template
 # import ast
 from types import ModuleType
-from jinja2.defaults import LSTRIP_BLOCKS
 
 
 def read_config(config_file, fileformat=None):

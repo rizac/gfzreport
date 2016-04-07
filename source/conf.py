@@ -39,6 +39,7 @@ extensions = [
     'extensions.mapfig',  # this is the custom one
     'extensions.imggrid',  # this is the custom one
     'extensions.mapimg',  # this is the custom one
+    'extensions.setup',  # this is the custom one
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -119,6 +120,9 @@ todo_include_todos = False
 # a custom html writer which converts psf images to iframes
 # see 
 html_translator_class = 'writers.html.HTMLTranslator'
+
+# THIS DOES NOT WORK. TOO BAD!!
+# latex_translator_class = 'writers.latex.LatexTranslator'
 
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -274,7 +278,10 @@ latex_elements = {
 % ======================
 % End of custom preamble
 % ======================
-"""
+""",
+
+'figure_align': '!ht',  # instead of 'htbp',
+
 }
 
 # Grouping the document tree into LaTeX files. List of tuples

@@ -121,7 +121,7 @@ class ImgsGridDirective(ListTable):
         else:
             reference = directives.uri(file_path)
             options['uri'] = reference
-            node = nodes.image(".. image: %s" % file_path, uri=options['uri'])  # , **options)
+            node = nodes.image(".. image: %s" % file_path, uri=options['uri'], width='100%')  # , **options)
         return node
 
     def run(self):

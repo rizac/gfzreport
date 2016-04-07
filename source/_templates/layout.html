@@ -2,24 +2,58 @@
 {# Import the theme's layout. #}
 {% extends "!layout.html" %}
 
+{%- block doctype %}
+<!DOCTYPE html>
+{%- endblock %}
+
 {% set css_files = css_files + ['_static/style.css'] %}
 
-{%- block extrahead %} 
-<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
-<!-- Include Leaflet JavaScript file: -->
-<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
-<!-- Load Esri Leaflet from CDN -->
-<!-- <script src="https://cdn.jsdelivr.net/leaflet.esri/2.0.0-beta.8/esri-leaflet.js"></script>-->
-<script src="http://cdn-geoweb.s3.amazonaws.com/esri-leaflet/1.0.0-rc.6/esri-leaflet.js"></script>
+{%- block extrahead %}
 
-
- <!--  <script type="text/javascript">
-       MathJax.Hub.Config({
-           "HTML-CSS": {
-               scale: 90
-           }
-       });
-  </script> -->      
+	<!-- 
+		>>>>>>>>>>>>>>> GFZ-REPORT EXTENSION
+	 -->
+	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+	<!-- Include Leaflet JavaScript file: -->
+	<script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+	<!-- Load Esri Leaflet from CDN (Note: first link buggy, use stable version below) -->
+	<!-- <script src="https://cdn.jsdelivr.net/leaflet.esri/2.0.0-beta.8/esri-leaflet.js"></script>-->
+	<script src="http://cdn-geoweb.s3.amazonaws.com/esri-leaflet/1.0.0-rc.6/esri-leaflet.js"></script>
+	
+	<!-- Add resize of the iframes -->
+	<script type="text/javascript">
+		jQuery('document').ready(function(){
+			return;
+			var tagName = "iframe";
+			jQuery(tagName).each(
+				function(i, elm){
+					  var $if = jQuery(elm);
+					  jQuery('<' +tagName + '>').
+		 		      css({'width': '100vw', 'height': '100vh'}).
+		 		  	  attr('src', $if.attr('src')).
+		 		  	  appendTo('body').
+		 		  	  load({'src': $if}, function(evtdata) {
+							var $tmp = $(this);
+							var w1 = $tmp.width();
+		 					var h1 = $tmp.height();
+		 					$tmp.remove();
+		 					var $source_if = evtdata.data.src;
+		 					var w2 = $source_if.width() * 1.0; // convert to float
+		 					var cssH = Math.round(0.5 + w2*h1/w1);
+		 					$source_if.css({'height': cssH + 'px'});
+		 					console.log($tmp.attr('src')+" "+$source_if.attr('src')+": "+ w2 +"," + $source_if.height()+" "+w1+","+h1);
+				  });
+				}
+			);
+		  });
+	  	// var hgt = iframe.contentWindow.document.body.scrollHeight + "px";
+	  	//jQuery(iframe).height(hgt); // sets the inner height regardless of the box-sizing property. FIXME: check it?
+	  	//iframe.height = hgt;
+	</script>
+	<!-- 
+		<<<<<<<<<<<<<< GFZ-REPORT EXTENSION
+	 -->
+	
 {% endblock %}
 
 
