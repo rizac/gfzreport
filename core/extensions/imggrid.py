@@ -117,7 +117,10 @@ class ImgsGridDirective(ListTable):
     def toimgnode(self, file_path):
         options = self.options
         if not file_path:
-            node = nodes.warning("'%s' not found")  # FIXME: Add admonitions.Warning!
+            # we cannot set a leaf text node, we need to set a node to which classes are
+            # "spreadable". so the workaround is:
+            node = nodes.paragraph('', *[nodes.Text('')])
+            # node = nodes.warning("'%s' not found")  # FIXME: Add admonitions.Warning!
         else:
             reference = directives.uri(file_path)
             options['uri'] = reference
@@ -149,8 +152,28 @@ class ImgsGridDirective(ListTable):
         # add custom class:
         if 'source_imggrid_directive' not in table_node['classes']:
             table_node['classes'] += ['source_imggrid_directive']
+
+        # use a longtable class by default so the latex is rendering it with newlines before and after:
+#         if 'longtable' not in table_node['classes']:
+#             table_node['classes'] += ['longtable']
+
+        title, messages = self.make_title()
         self.add_name(table_node)
-        return [table_node]
+        if title:
+            table_node.insert(0, title)
+        return [table_node] + messages
+
+    def make_title(self):
+        """Overrides make title to take the content instead of the first argument"""
+        if self.content:
+            title_text = self.content
+            text_nodes, messages = self.state.inline_text(title_text,
+                                                          self.lineno)
+            title = nodes.title(title_text, '', *text_nodes)
+        else:
+            title = None
+            messages = []
+        return title, messages
 
 
 def setup(app):

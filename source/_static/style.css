@@ -69,3 +69,8 @@ div.leaflet-container {
 	    color: #FFF;
 	}
 }
+
+*.data-editable{
+	background-color: yellow;
+	border: 1px solid #f00;
+}

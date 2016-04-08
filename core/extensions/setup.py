@@ -6,10 +6,15 @@ Created on Apr 4, 2016
 '''
 import re
 from core.writers.latex import LatexTranslator
-
+from docutils import nodes
 
 def source_read_handler(app, docname, source):
     source[0] = normalize_sec_headers(source[0])
+    source[0] = replace_math_dollar(source[0])
+
+
+def replace_math_dollar(source):
+    return re.sub("\\$(.*?)\\$", ":math:`\\1`", source)  # flags=re.MULTILINE)
 
 
 def normalize_sec_headers(string, list_of_under_and_overlines=[("#", "#"),
@@ -86,10 +91,53 @@ def decorate_title(string, underline_symbol, overline_symbol=None):
         string = "{0}\n{1}".format(lens * overline_symbol, string)
     return string
 
+def test_doc_read(app, doctree):
+#     print "\n\n\n"
+#     for obj in doctree.traverse(nodes.section):
+#         print "\n"
+#         print str(obj.children[0]) + " " + str(len(obj.children)) + " children, parent " + str(type(obj.parent))
+#         children = list(obj.children)
+#         for par in children:
+#             if isinstance(par, nodes.paragraph) and len(par.children) == 0:
+#                 par.attributes['classes'].append("data-editable")
+#         
+#         print "\n"
+#     print "\n\n\n"
+    
+    for obj in doctree.traverse(nodes.Text):
+        # if len(obj.children) == 0:
+        parent = obj.parent
+        if not isinstance(parent, nodes.paragraph):  # len(parent) > 1:
+            continue
+        parent.attributes['classes'].append("data-editable")
+
+#         print "\n"
+#         print str(obj.children[0]) + " " + str(len(obj.children)) + " children, parent " + str(type(obj.parent))
+#         children = list(obj.children)
+#         for par in children:
+#             if isinstance(par, nodes.paragraph) and len(par.children) == 0:
+#                 par.attributes['classes'].append("data-editable")
+        
+    
+#     for img in doctree.traverse(nodes.image):
+#         if not hasattr(img, 'gnuplot'):
+#             continue
+# 
+#         text = img.gnuplot['text']
+#         options = img.gnuplot['options']
+#         try:
+#             fname, outfn, hashid = render_gnuplot(app, text, options)
+#             img['uri'] = fname
+#         except GnuplotError, exc:
+#             app.builder.warn('gnuplot error: ' + str(exc))
+#             img.replace_self(nodes.literal_block(text, text))
+#             continue
+
 
 def setup(app):
     app.set_translator('latex', LatexTranslator)
     app.connect('source-read', source_read_handler)
+    app.connect('doctree-read', test_doc_read)
 
 
 #     app.add_node(nodes.field,

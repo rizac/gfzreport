@@ -27,4 +27,5 @@ def serve_static_file(app, dirbasename, filename):
 
 def get_main_page():
     main_page = open("build/index.html").read()
-    return re.sub("<\\s*p(\\s|>)", "<p contenteditable=\"true\"\\1", main_page)
+    return main_page
+    # return re.sub("<\\s*p(\\s|>)", "<p contenteditable=\"true\"\\1", main_page)
