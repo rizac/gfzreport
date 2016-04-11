@@ -6,28 +6,15 @@ ZE 2012-2014 Madagascar Seismic Profile
 
 :revision: 1.1
 
-:abstract: The island of Madagascar occupies a key region in both the assembly and the multi-stage
- breakup of Gondwanaland, itself part of the super-continent Pangaea. Madagascar consists of an
- amalgamation of continental material, with the oldest rocks being of Archaean age. Its ancient
- fabric is characterised by several shear zones, some of them running oblique to the N-S trend,
- in particular in the south of the island. More recently during the Neogene, moderate volcanism
- has occurred in the Central and Northern part of the island, and there are indications of uplift
- throughout Eastern Madagascar over the last 10 Ma. Although Madagascar is now located within
- the interior of the African plate and far away from major plate boundaries (>1000 km from the
- East African rift system and even further from the Central and South-West Indian Ridges), its
- seismic activity indicates that some deformation is taking place, and present-day kinematic models
- based on geodetic data and earthquake moment tensors in the global catalogues identify a
- diffuse N-S-oriented minor boundary separating two microplates, which appears to pass through
- Madagascar. In spite of the presence of Archaean and Proterozoic rocks continent-wide scale studies
- indicate a thin lithosphere (<120 km) throughout Madagascar, but are based on sparse data
- and cannot resolve the difference between eastern and western Madagascar. We have operated an
- ENE-WSW oriented linear array of 25 broadband stations in southern Madagascar, extending from
- coast to coast and sampling the sedimentary basins in the west as well as the metamorphic rocks
- in the East, cutting geological boundaries seen at the surface at high angle. The array crosses the
- prominent Bongolava-Ranotsara shear zone which is thought to have been formed during Gondwanaland
- assembly. The array recorded the magnitude 5.3 earthquake of January 25, 2013 which
- occurred just off its western edge. In addition, in May 2013 we have deployed 25 short period sensors
- in the eastern part of the study area, where there is some so-far poorly characterised seismicity.
+:abstract: The island of Madagascar occupies a key 
+
+:str: STR 16/xx - Data
+
+:doi: DOI: 10.2312/GFZ.b103-1601
+
+:subtitle: 
+
+:subsubtitle: 
 
 ----------------
 Data acquisition
@@ -47,15 +34,6 @@ of the array, and no temporary station was deployed in the immediate neighbourho
 The areal array comprises Cube data loggers and Mark L4C 1 Hz sensors. These stations ran off
 batteries without recharging.
 
-.. _stations_figure:
-
-.. map-figure:: ../test-data/source/stations_example.csv
-   :name_key: Name
-   :lat_key: Lat
-   :lon_key: Lon 
-   :align: center
-   
-   here the network figure caption
 
 .. _stations_table:
 
@@ -87,10 +65,6 @@ Data Quality
 An overview of instrument uptimes is given in :numref:`timing_accuracy` and the noise levels for all stations and components
 are shown in :numref:`pdfs-images`.
 
-.. _pdfs-images:
-
-.. imgages-grid:: ../test-data/source/pdfs
-   :columns: "_HHE*.pdf" _HHN*.pdf _HHZ*.pdf
 
 Data recovery
 -------------
@@ -114,12 +88,6 @@ station MS05 was found to be off by 60 s between 02/10/2012 and 05/02/2013, such
 time is delayed with respect to the real time (equivalently seismic traces are apparently shifted to
 
 .. _timing_accuracy:
-
-.. figure:: ../test-data/source/2012_2014_2_time.pdf
-   :align: center
-   :width: 100%
-
-   gps timing quality caption
 
 earlier time). Data recorded in the period from 12/07/2012 to 29/09/2012 and from 06/02/2013 to
 28/04/2013 only showed noise with no discernible seismic signals or ambient displacement noise. There

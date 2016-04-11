@@ -8,6 +8,7 @@ import re
 from core.writers.latex import LatexTranslator
 from docutils import nodes
 
+
 def source_read_handler(app, docname, source):
     source[0] = normalize_sec_headers(source[0])
     source[0] = replace_math_dollar(source[0])
@@ -92,6 +93,11 @@ def decorate_title(string, underline_symbol, overline_symbol=None):
     return string
 
 def test_doc_read(app, doctree):
+    """
+        This method is here only as a reminder of how to add listeners to events
+        It is empty
+        For info, see 
+    """
 #     print "\n\n\n"
 #     for obj in doctree.traverse(nodes.section):
 #         print "\n"
@@ -104,12 +110,20 @@ def test_doc_read(app, doctree):
 #         print "\n"
 #     print "\n\n\n"
     
-    for obj in doctree.traverse(nodes.Text):
-        # if len(obj.children) == 0:
-        parent = obj.parent
-        if not isinstance(parent, nodes.paragraph):  # len(parent) > 1:
-            continue
-        parent.attributes['classes'].append("data-editable")
+#     for obj in doctree.traverse():
+#         if obj.line and obj.rawsource:
+#             try:
+#                 obj.attributes['data-line'] = str(obj.line)
+#                 obj.attributes['data-rawsource'] = str(obj.rawsource)
+#             except UnicodeEncodeError as exc:
+#                 p = 9
+
+#     for obj in doctree.traverse(nodes.Text):
+#         # if len(obj.children) == 0:
+#         parent = obj.parent
+#         if not isinstance(parent, nodes.paragraph):  # len(parent) > 1:
+#             continue
+#         parent.attributes['classes'].append("data-editable")
 
 #         print "\n"
 #         print str(obj.children[0]) + " " + str(len(obj.children)) + " children, parent " + str(type(obj.parent))
@@ -132,7 +146,7 @@ def test_doc_read(app, doctree):
 #             app.builder.warn('gnuplot error: ' + str(exc))
 #             img.replace_self(nodes.literal_block(text, text))
 #             continue
-
+    pass
 
 def setup(app):
     app.set_translator('latex', LatexTranslator)

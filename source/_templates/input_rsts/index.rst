@@ -92,6 +92,8 @@ are shown in :numref:`pdfs-images`.
 .. imgages-grid:: ../test-data/source/pdfs
    :columns: "_HHE*.pdf" _HHN*.pdf _HHZ*.pdf
 
+   a nice caption
+
 Data recovery
 -------------
 

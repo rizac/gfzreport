@@ -4,16 +4,20 @@ Created on Apr 4, 2016
 @author: riccardo
 '''
 from docutils.nodes import SkipNode
-from sphinx.writers.latex import LaTeXTranslator as LT
+from sphinx.writers.latex import LaTeXTranslator as LT, FOOTER, HEADER
 from collections import OrderedDict as odict
-import re
+from sphinx.builders import latex
 
 class LatexTranslator(LT):
+#     default_elements = LT.default_elements.copy()
+#     default_elements.update({'postamble': ''})
 
     def __init__(self, document, builder):
         LT.__init__(self, document, builder)  # FIXME: check why new style super call does not work
+        self.elements.update({'latex_epilog': builder.config.latex_elements.get("epilog", "")})
         self.field_list = odict()  # preserves order
         self.field_list_start = []
+        self.rst_bib_fields = {}
 
     def visit_field_list(self, node):
         self.field_list_start = len(self.body)
@@ -30,8 +34,13 @@ class LatexTranslator(LT):
                               self.abstract_text_reminder, '\n', r'\end{abstract}'])
 
     def visit_field(self, node):
-        field_name = node.children[0].rawsource
-        field_text = node.children[1].rawsource
+        field_name = node.children[0].rawsource.lower().strip()
+        field_text = node.children[1].rawsource.strip()  # FIXME: remove strip below!!!
+
+        # add biblioraphic fields to be put in the latex preamble
+        # as newcommand. Note, we replace nwelines with latex counterpart
+        self.rst_bib_fields[field_name] = field_text.strip()
+
         if field_name in ("author", "authors"):
             self.elements.update({'author': field_text.strip()})
             raise SkipNode()  # do not call the children node rendering, and do not call depart node
@@ -49,28 +58,25 @@ class LatexTranslator(LT):
     def depart_field(self, node):
         LT.depart_field(self, node)  # superclass simply passes
 
-#     def visit_table(self, node):
-#         # set here the actual length of the body
-#
-#         self._body_len_before_table = len(self.body)
-#         LT.visit_table(self, node)
-#         if 'source_imggrid_directive' in node['classes']:
-#             self._tmp_caption = self.table.caption
-#             self.table.caption = None
+    def visit_figure(self, node):
+        # set here the actual length of the body
+        if 'source_imggrid_directive' in node['classes']:
+            self._tmp_swap_method = self.depart_table
+            self.depart_table = self.depart_table_inside_gridfigure
+        LT.visit_figure(self, node)
 
-    def depart_table(self, node):
-        if 'source_imggrid_directive' not in node['classes']:
-            LT.depart_table(self, node)
-            return
+    def depart_figure(self, node):
+        LT.depart_figure(self, node)
+        if 'source_imggrid_directive' in node['classes']:
+            # restore the normal depart table method:
+            self.depart_table = self._tmp_swap_method
 
-        # we have an imagesgrid, which must be rendered as figure 
+    def depart_table_inside_gridfigure(self, node):
+        # we have an imagesgrid, which must be rendered as figure
         # the code below is copied from the super-method for the case at hand
         # (\begin{tabulary}{\linewidth}{LLL})
+        # removing all the cases for longtable, which we do not want here
         self.popbody()
-        # images-grid case: add a figure before and after:
-        align = '\\centering'
-        self.body.append('\n\\begin{figure}[%s]\n%s\n' % \
-                         (self.elements['figure_align'], align))
 
         if self.table.has_verbatim:
             self.body.append('\n\\begin{tabular}')
@@ -111,7 +117,41 @@ class LatexTranslator(LT):
         self.unrestrict_footnote(node)
         self.table = None
         self.tablebody = None
-        self.body.append("\\end{figure}")
+
+    @staticmethod
+    def latexise(text):
+        text_ = text.replace("\\", "\\textbackslash").\
+             replace("^", "\\textasciicircum").\
+             replace("~", "\\textasciitilde")  # .\
+             # replace("\n", "\\newline ")
+
+        escaped = ["&", "%", "$", "#", "_", "{", "}"]
+        return "".join("\\" + a if a in escaped else a for a in text_)
+
+    def astext(self):
+        # build a dict of bibliographic fields, and inject them as newcommand 
+        # in the latex header
+
+        commands = ("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+                    "%% GENERATED COMMANDS FROM BIBLIOGRAPHIC FIELDS IN THE SOURCE RST:\n" +
+                    "\n".join("\\newcommand{\\rst" + name + "}{" + self.latexise(definition) + "}"
+                              for name, definition in self.rst_bib_fields.iteritems()) +
+                    "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+                    "%% CUSTOM PREAMBLE DEFINED IN THE SOURCE RST CONFIG FILE:\n" +
+                    "%(preamble)s\n"
+                    "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+                    )
+        HEADER_ = HEADER.replace(r"%(preamble)s", commands)
+
+        FOOTER_ = FOOTER.replace("\\end{document}", "%(latex_epilog)s\n\\end{document}")
+
+        return (HEADER_ % self.elements +
+                self.highlighter.get_stylesheet() +
+                u''.join(self.body) +
+                '\n' + self.elements['footer'] + '\n' +
+                self.generate_indices() +
+                FOOTER_ % self.elements)
+
 
 #
 #

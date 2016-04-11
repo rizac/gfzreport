@@ -239,49 +239,12 @@ latex_elements = {
 #'pointsize': '10pt',
 
 # Latex figure (float) alignment
-#'figure_align': 'htbp',
+'figure_align': '!ht',  # 'htbp',
 
 # Additional stuff for the LaTeX preamble.
-'preamble': r"""
-% ==================================
-% Custom preamble defined in conf.py
-% ==================================
+'preamble': open("_static/gfz-latex-preamble.tex").read(),
 
-% To edit, see conf.py -> latex_elements -> preamble
-
-\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry} % see geometry.pdf on how to lay out the page. There's lots.
-\geometry{a4paper} % or letter or a5paper or ... etc
-\usepackage{graphicx}
-\usepackage{amsmath}
-% The following package is needed for textdegree
-\usepackage{textcomp}
-\usepackage[multidot]{grffile}
-\usepackage{color,colortbl}
-\definecolor{LightGray}{gray}{0.9}
-\usepackage{natbib}
-\bibliographystyle{plainnat}
-\usepackage[usenames,dvipsnames]{xcolor}
-% \usepackage[colorlinks=true,linkcolor=blue,urlcolor=NavyBlue,citecolor=Fuchsia]{hyperref}
-% \urlstyle{same}
-
-% packages temporarily commented out:
-
-% % DRAFT version only
-% \newcommand{\remark}[1]{{\color{green} \bf [ \footnotesize #1 ]}}
-% % To mark parts which need to be replaced by the user, with instructions
-% \newcommand{\templatetext}[1]{\textcolor{OliveGreen}{[ #1 ]}}
-% \usepackage[utf8]{inputenc} % default in sphinx, no need to import
-% \usepackage{longtable}  % default in sphinx, no need to import
-% \usepackage{array} % for defining a new column type
-% \usepackage{varwidth} %for the varwidth minipage environment
-
-% ======================
-% End of custom preamble
-% ======================
-""",
-
-'figure_align': '!ht',  # instead of 'htbp',
-
+'epilog' : 'what?'
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
@@ -314,6 +277,11 @@ latex_documents = [
 # If false, no module index is generated.
 #latex_domain_indices = True
 
+# A list of file names, relative to the configuration directory, to copy to the build directory 
+# when building LaTeX output. 
+# (Note: cxhanged in version 1.2: This overrides the files which is provided from Sphinx such as sphinx.sty)
+latex_additional_files = ['_static/sphinx.sty', '_static/sphinxhowto.cls', '_static/gfzlogo_lr.png',
+                          '_static/gfzlogo_ul.png', '_static/gfzlogo_ur.pdf', '_static/gfz-bg.pdf']
 
 # -- Options for manual page output ---------------------------------------
 

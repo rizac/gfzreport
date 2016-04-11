@@ -12,7 +12,7 @@ from docutils.nodes import SkipNode
 from docutils import nodes
 
 
-try: 
+try:
     from BeautifulSoup import BeautifulSoup
 except ImportError:
     from bs4 import BeautifulSoup
