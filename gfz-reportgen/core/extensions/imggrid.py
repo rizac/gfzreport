@@ -3,7 +3,7 @@
     Implements the sphinx directive imggrid:
     .. imgages-grid:: folder
 """
-
+import os
 import re
 # import urllib
 # import urllib2

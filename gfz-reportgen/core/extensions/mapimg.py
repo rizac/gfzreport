@@ -19,7 +19,7 @@ import pandas as pd
 import csv
 import numpy as np
 from core.utils.hash import get_hash as utils_get_hash
-
+from core.extensions.setup import relfn2path
 
 def read_csv(filepath, required_columns, additional_delimiters=[' ', ';']):
     """
@@ -38,6 +38,7 @@ def read_csv(filepath, required_columns, additional_delimiters=[' ', ';']):
         columns
         :return: a list of dicts of the form {row1: value1, ..., rowN: valueN}
     """
+    filepath = relfn2path(filepath)
     ret = None
     if not additional_delimiters:
         additional_delimiters = []
@@ -89,8 +90,9 @@ class mapimg(nodes.image):
             pts = transpose_csv(pts)
             self._custom_data['data'] = pts
         except ValueError as verr:
-            document = self.reporter.document
-            return [document.reporter.warning(str(verr), line=self.lineno)]
+            pass  # FIXME: do something?
+#             document = self.reporter.document
+#             return [document.reporter.warning(str(verr), line=self.lineno)]
             # image_node.points_error_msg = str(verr)
 
 

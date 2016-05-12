@@ -8,8 +8,24 @@ import re
 from core.writers.latex import LatexTranslator
 from docutils import nodes
 
+# the sphinx environment, saved here for access from other extensions
+app = None
 
-def source_read_handler(app, docname, source):
+def app_builder_inited(app_):
+    global app
+    app = app_
+
+def relfn2path(self, filename):
+    """Return paths to a file referenced from a document, relative to
+    documentation root and absolute.
+
+    In the input "filename", absolute filenames are taken as relative to the
+    source dir, while relative filenames are relative to the dir of the
+    containing document.
+    """
+    return app.env.relfn2path(filename)
+
+def app_source_read(app, docname, source):
     source[0] = normalize_sec_headers(source[0])
     source[0] = replace_math_dollar(source[0])
 
@@ -92,12 +108,15 @@ def decorate_title(string, underline_symbol, overline_symbol=None):
         string = "{0}\n{1}".format(lens * overline_symbol, string)
     return string
 
-def test_doc_read(app, doctree):
+def app_doctree_read(app, doctree):
     """
         This method is here only as a reminder of how to add listeners to events
         It is empty
         For info, see 
     """
+    a= app.builder.env
+    b = app.builder
+    g = 9
 #     print "\n\n\n"
 #     for obj in doctree.traverse(nodes.section):
 #         print "\n"
@@ -150,9 +169,9 @@ def test_doc_read(app, doctree):
 
 def setup(app):
     app.set_translator('latex', LatexTranslator)
-    app.connect('source-read', source_read_handler)
-    app.connect('doctree-read', test_doc_read)
-
+    app.connect('source-read', app_source_read)
+    app.connect('doctree-read', app_doctree_read)
+    app.connect('builder-inited', app_builder_inited)
 
 #     app.add_node(nodes.field,
 #                  # html=(visit_field_html, depart_field_html),
