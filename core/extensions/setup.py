@@ -131,8 +131,8 @@ def test_doc_read(app, doctree):
 #         for par in children:
 #             if isinstance(par, nodes.paragraph) and len(par.children) == 0:
 #                 par.attributes['classes'].append("data-editable")
-        
-    
+
+
 #     for img in doctree.traverse(nodes.image):
 #         if not hasattr(img, 'gnuplot'):
 #             continue

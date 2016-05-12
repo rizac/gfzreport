@@ -25,38 +25,95 @@ class LatexTranslator(LT):
 
     def depart_field_list(self, node):
         LT.depart_field_list(self, node)
-        if len(self.body) == self.field_list_start+2:
-            # remove field list stuff
-            self.body = self.body[:-2]
+        # remove all biblio fields, they are handled below
+        self.body = self.body[:self.field_list_start]
+#         if len(self.body) == self.field_list_start+2:
+#             # remove field list stuff
+#             self.body = self.body[:-2]
 
         if hasattr(self, "abstract_text_reminder"):
             self.body.extend([r'\begin{abstract}', '\n',
                               self.abstract_text_reminder, '\n', r'\end{abstract}'])
 
-    def visit_field(self, node):
-        field_name = node.children[0].rawsource.lower().strip()
-        field_text = node.children[1].rawsource.strip()  # FIXME: remove strip below!!!
+#     def visit_field_old(self, node):
+#         field_name = node.children[0].rawsource.lower().strip()
+#         field_text = node.children[1].rawsource.strip()  # FIXME: remove strip below!!!
+# 
+#         # add biblioraphic fields to be put in the latex preamble
+#         # as newcommand. Note, we replace nwelines with latex counterpart
+#         self.rst_bib_fields[field_name] = field_text.strip()
+# 
+#         if field_name in ("author", "authors"):
+#             self.elements.update({'author': field_text.strip()})
+#             raise SkipNode()  # do not call the children node rendering, and do not call depart node
+# 
+#         if field_name == "revision":
+#             self.elements.update({'release': field_text.strip()})
+#             raise SkipNode()  # do not call the children node rendering, and do not call depart node
+# 
+#         if field_name == "abstract":
+#             self.abstract_text_reminder = field_text.strip()
+#             raise SkipNode()  # do not call the children node rendering, and do not call depart node
+# 
+#         LT.visit_field(self, node)
+#         h = 9
+# 
+#     def visit_field(self, node):
+# 
+#         field_name = node.children[0].rawsource.lower().strip()
+# 
+#         len_ = len(self.body)
+#         LT.visit_field(self, node)
+#         return
+#         field_text = "".join(self.body[len_:]).strip()
+#         self.body = self.body[len_:]
+# 
+#         # add biblioraphic fields to be put in the latex preamble
+#         # as newcommand. Note, we replace nwelines with latex counterpart
+#         self.rst_bib_fields[field_name] = field_text
+# 
+#         if field_name in ("author", "authors"):
+#             self.elements.update({'author': field_text})
+#             # raise SkipNode()  # do not call the children node rendering, and do not call depart node
+# 
+#         if field_name == "revision":
+#             self.elements.update({'release': field_text})
+#             # raise SkipNode()  # do not call the children node rendering, and do not call depart node
+# 
+#         if field_name == "abstract":
+#             self.abstract_text_reminder = field_text
+#             # raise SkipNode()  # do not call the children node rendering, and do not call depart node
+# 
+#     def depart_field(self, node):
+#         LT.depart_field(self, node)  # superclass simply passes
+# 
+#     def visit_field_body(self, node):
+#         LT.visit_field_body(self, node)
+#         h = 9
+#         str(node.parent.children[0].children[0])
 
-        # add biblioraphic fields to be put in the latex preamble
-        # as newcommand. Note, we replace nwelines with latex counterpart
-        self.rst_bib_fields[field_name] = field_text.strip()
-
+    def depart_field_name(self, node):
+        LT.depart_field_name(self, node)
+        field_name = str(node.children[0])  # be consistent with depart field_body (use the same method!)
+        self.rst_bib_fields[field_name] = len(self.body)
+        
+    def depart_field_body(self, node):
+        LT.depart_field_body(self, node)
+        field_name = str(node.parent.children[0].children[0])
+        start = self.rst_bib_fields[field_name]
+        field_value = "".join(self.body[start:]).strip()
+        self.rst_bib_fields[field_name] = field_value
         if field_name in ("author", "authors"):
-            self.elements.update({'author': field_text.strip()})
-            raise SkipNode()  # do not call the children node rendering, and do not call depart node
+            self.elements.update({'author': field_value})  # FIXME: raw text or field value??
+            # raise SkipNode()  # do not call the children node rendering, and do not call depart node
 
         if field_name == "revision":
-            self.elements.update({'release': field_text.strip()})
-            raise SkipNode()  # do not call the children node rendering, and do not call depart node
+            self.elements.update({'release': field_value})
+            # raise SkipNode()  # do not call the children node rendering, and do not call depart node
 
         if field_name == "abstract":
-            self.abstract_text_reminder = field_text.strip()
-            raise SkipNode()  # do not call the children node rendering, and do not call depart node
-
-        LT.visit_field(self, node)
-
-    def depart_field(self, node):
-        LT.depart_field(self, node)  # superclass simply passes
+            self.abstract_text_reminder = field_value
+        h = 9
 
     def visit_figure(self, node):
         # set here the actual length of the body
@@ -118,23 +175,40 @@ class LatexTranslator(LT):
         self.table = None
         self.tablebody = None
 
-    @staticmethod
-    def latexise(text):
-        text_ = text.replace("\\", "\\textbackslash").\
-             replace("^", "\\textasciicircum").\
-             replace("~", "\\textasciitilde")  # .\
-             # replace("\n", "\\newline ")
-
-        escaped = ["&", "%", "$", "#", "_", "{", "}"]
-        return "".join("\\" + a if a in escaped else a for a in text_)
-
+#     @staticmethod
+#     def latexise(text):
+#         text_ = text.replace("\\", "\\textbackslash").\
+#              replace("^", "\\textasciicircum").\
+#              replace("~", "\\textasciitilde")  # .\
+#              # replace("\n", "\\newline ")
+# 
+#         escaped = ["&", "%", "$", "#", "_", "{", "}"]
+#         return "".join("\\" + a if a in escaped else a for a in text_)
+    def visit_Text(self, node):
+        """
+            Calls the super method, and then replaces invalid characters
+            For the moment, it just replaces the tilde operator with 
+            \texttildelow
+        """
+        len_ = len(self.body)
+        LT.visit_Text(self, node)
+        for i in xrange(len_, len(self.body)):
+            bdy = self.body[i]
+            for bchar in bdy:
+                # NOTE: the tilde we are interested in, and for which latex complains, is not the
+                # ASCII TILDE, but a tilde operator whose ordinal is 8764
+                # that's why this cumbersome way to do it:
+                if ord(bchar) == 8764:
+                    self.body[i] = self.body[i].replace(bchar, "\\texttildelow" )
+                    break
+        
     def astext(self):
         # build a dict of bibliographic fields, and inject them as newcommand 
         # in the latex header
 
         commands = ("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
-                    "%% GENERATED COMMANDS FROM BIBLIOGRAPHIC FIELDS IN THE SOURCE RST:\n" +
-                    "\n".join("\\newcommand{\\rst" + name + "}{" + self.latexise(definition) + "}"
+                    "%% AUTO-GENERATED COMMANDS FROM BIBLIOGRAPHIC FIELDS IN THE SOURCE RST:\n" +
+                    "\n".join("\\newcommand{\\rst" + name + "}{" + definition + "}"
                               for name, definition in self.rst_bib_fields.iteritems()) +
                     "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
                     "%% CUSTOM PREAMBLE DEFINED IN THE SOURCE RST CONFIG FILE:\n" +

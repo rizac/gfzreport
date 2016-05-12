@@ -18,18 +18,18 @@ import os
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath('../core'))
-
+sys.path.insert(0, os.path.abspath("../core"))
+print sys.path[0]
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-#needs_sphinx = '1.0'
+# needs_sphinx = '1.0'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 
-# We added root path by uncommenting the relative line above (sys.path.insert...) 
+# We added root path by uncommenting the relative line above (sys.path.insert...)
 # this way we can add any extension here below
 # (http://www.sphinx-doc.org/en/stable/config.html#confval-extensions)
 
@@ -51,7 +51,7 @@ templates_path = ['_templates']
 source_suffix = '.rst'
 
 # The encoding of source files.
-#source_encoding = 'utf-8-sig'
+# source_encoding = 'utf-8-sig'
 
 # The master toctree document.
 master_doc = 'index'
@@ -236,7 +236,7 @@ latex_elements = {
 'papersize': 'a4paper',
 
 # The font size ('10pt', '11pt' or '12pt').
-#'pointsize': '10pt',
+'pointsize': '12pt',
 
 # Latex figure (float) alignment
 'figure_align': '!ht',  # 'htbp',
@@ -244,7 +244,7 @@ latex_elements = {
 # Additional stuff for the LaTeX preamble.
 'preamble': open("_static/gfz-latex-preamble.tex").read(),
 
-'epilog' : 'what?'
+'epilog' : open("_static/gfz-latex-epilog.tex").read(),
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
@@ -281,7 +281,8 @@ latex_documents = [
 # when building LaTeX output. 
 # (Note: cxhanged in version 1.2: This overrides the files which is provided from Sphinx such as sphinx.sty)
 latex_additional_files = ['_static/sphinx.sty', '_static/sphinxhowto.cls', '_static/gfzlogo_lr.png',
-                          '_static/gfzlogo_ul.png', '_static/gfzlogo_ur.pdf', '_static/gfz-bg.pdf']
+                          '_static/gfzlogo_ul.png', '_static/gfzlogo_ur.pdf', '_static/gfz-bg.pdf',
+                          '_static/creative_common1.png', '_static/creative_common2.png']
 
 # -- Options for manual page output ---------------------------------------
 

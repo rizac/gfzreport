@@ -1,4 +1,5 @@
 # added by me:
+.DS_Store
 test-data
 tmp
 tests

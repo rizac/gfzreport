@@ -12,38 +12,43 @@
 
 % \usepackage[colorlinks=true,linkcolor=blue,urlcolor=NavyBlue,citecolor=Fuchsia]{hyperref}
 % \urlstyle{same}
+\definecolor{gfzblue}{RGB}{7,90,154} 
 
-\newcommand{\printbgpic}{%
-\makebox[0pt][l]{%
-      \raisebox{-1.08\totalheight}[0pt][0pt]{%
-        \hbox{\hspace{-1.5\textwidth}\includegraphics[width=3\textwidth]{gfz-bg.pdf}}%
-      }%
-    }%
+% create the command to print the picture background:
+% arguments are the x and y coordinates (the latter negtive to shift up)
+\newcommand{\printBgPic}[2]{%
+	\makebox[0pt][l]{%
+		\raisebox{#2}[0pt][0pt]{%
+		\hbox{\hspace{#1}\includegraphics[width=3\textwidth]{gfz-bg.pdf}}%
+    	}%
+	}%
 }
 
+% create the command to print the logos in the title page:
 \newcommand{\printbgpiccorners}{%
+\makebox[0pt][l]{% make it in a box to behave like a html float (out of doc flow)
 	% upper right picture
 	\begin{tikzpicture}[remember picture, overlay]
-  		\node [anchor=north east, inner xsep=2cm, inner ysep=1in + \voffset]  at (current page.north east)
-  			{\includegraphics{gfzlogo_ur.pdf}};
+		\node [anchor=north east, inner xsep=2cm, inner ysep=1.2in + \voffset]  at (current page.north
+		east) {\includegraphics{gfzlogo_ur.pdf}};
 	\end{tikzpicture}%
 	% upper left
 	\begin{tikzpicture}[remember picture, overlay]
-  		\node [anchor=north west, inner xsep=2cm, inner ysep=1in + \voffset]  at (current page.north west)
-  			{\includegraphics{gfzlogo_ul.png}};
+		\node [anchor=north west, inner xsep=2cm, inner ysep=0.6in + \voffset]  at (current page.north
+		west) {\includegraphics{gfzlogo_ul.png}};
 	\end{tikzpicture}%
 	% lower left
 	\begin{tikzpicture}[remember picture, overlay]
-  		\node [anchor=south west, inner xsep=2cm, inner ysep=1in + \voffset]  at (current page.south west)
-  			{www.gfz-potsdam.de};
+		\node [anchor=south west, inner xsep=2cm, inner ysep=1in + \voffset]  at (current page.south west)
+			{www.gfz-potsdam.de};
 	\end{tikzpicture}%
 	% lower right:
 	\begin{tikzpicture}[remember picture, overlay]
-  		\node [anchor=south east, inner xsep=2cm, inner ysep=1in + \voffset]  at (current page.south east)
-  			{\includegraphics{gfzlogo_lr.png}};
+		\node [anchor=south east, inner xsep=2cm, inner ysep=1in + \voffset]  at (current page.south east)
+			{\includegraphics{gfzlogo_lr.png}};
 	\end{tikzpicture}%
+}%
 }
-
 
 % setup footers and headers in the "normal" document pages
 \pagestyle{fancy}
@@ -53,75 +58,113 @@
 \lhead{} % no left header
 \rhead{} % no right header
 \chead{} % no center header
-\lfoot{\rststr. GFZ German Research Centre for Geosciences. \\ \rstdoi}
+\lfoot{\scriptsize \rststr. GFZ German Research Centre for Geosciences. \\ \rstdoi}
 \cfoot{} % no center foot
-\rfoot{\thepage} % print the page
+\rfoot{\footnotesize \thepage} % print the page
 
-% maketitle macro
+% maketitle macro (subdivided in several steps):
+
+% start with makeatletter cause we will use the @ as keyword in maketitke
 \makeatletter
-% new command title
-\renewcommand{\maketitle}{
-  % 1) copied from sphinxhowto.cls (the original one, in the annexed one is commented out to override the maketitle, as we are doing)
-  \ifsphinxpdfoutput
-    \begingroup
-    % These \defs are required to deal with multi-line authors; it
-    % changes \\ to ', ' (comma-space), making it pass muster for
-    % generating document info in the PDF file.
-    \def\\{, }
-    \def\and{and }
-    \pdfinfo{
-      /Author (\@author)
-      /Title (\@title)
-    }
-    \endgroup
-  \fi
+% create the command that makes the title string:
+% arguments width, y. E.g. \maketitlestring{.8\linewidth}{20em}
+% Note: the title box right side will be fixed to the right page side, so the
+% title will be right aligned if width < \textwidth
+\newcommand{\maketitletext}[2]{
+	% leave the space below!! (problems ith vspace?) otherwise 
 
-  % 2) title page
-  % custom make title:
-  % print background picture:
-  \printbgpic
-  % print corner pictures
-  \printbgpiccorners
-  % \vspace*{20em}
-  {\Huge \par}
-  {\Huge \par}
-  {\Huge \par}
-  {\Huge \par}
-  {\Huge \par}
-  {\Huge \par}
-  {\Huge \par}
-  {\Huge \par}
-  {\Huge \par}
-  {\Huge \par}
-  {\Huge \par}
-  {\Huge \par}
-  \hfill\begin{tabular}{@{}p{.8\linewidth}@{}}
-	%\multicolumn{1}{@{}c@{}}{Some title} \\  % this is if we wanted to center the title inside the tabular (we don't)
-	{\large Authors \par} \\
-	{\@author \par} \\
-	{\Huge \@title \par}\\
-  	{\large \rstsubtitle \par} \\
-  	{\large \rstsubsubtitle \par} \\
-  	{\large Scientific Technical Report \rststr} \\
-  	{\par \normalsize GIPP Experiment- and Data Archive}
-	% \lipsum[4]
-  \end{tabular}
-  
- %  	\begin{flushright}
- %  	\vspace*{20em}
- %  	\large Authors \\
- %  	\large \replace{\@author}{-}{\newline }
- %  	\Huge \@title\\
- %  	\vspace{1em}
-	% \large \@author
- %  	\end{flushright}
-  	
-  
-  % FIXME: what are these?
-  % \@thanks
-  \setcounter{footnote}{0}
-  % \let\thanks\relax\let\maketitle\relax
-  
-  \clearpage  % this must be issued for an article docclass, as howto is 
+	\vspace*{#2}%
+	\hfill\begin{tabular}{@{}p{#1}@{}}
+		%\multicolumn{1}{@{}c@{}}{Some title} \\  % this is if we wanted to center the title inside the tabular (we don't)
+		{\large Authors \par \@author \par} \\
+		{\LARGE \sffamily \bfseries \color{gfzblue} \@title \par}\\
+	  	{\Large \sffamily \bfseries \color{gfzblue} \rstsubtitle \par} \\
+	  	{\large \sffamily \bfseries \color{gfzblue} \rstsubsubtitle \par} \\
+	  	{\Large Scientific Technical Report \rststr} \\
+	  	{\par \normalsize GIPP Experiment- and Data Archive}
+	\end{tabular}
+	% add a space below for the same reason (unkwnown) we added one above (FIXME. check why)
+
 }
 \makeatother
+
+% reset the maketitle command:
+\renewcommand{\maketitle}{
+	% 1) copied from sphinxhowto.cls (the original one, in the annexed one is commented out to
+	% override the maketitle, as we are doing)
+	\ifsphinxpdfoutput
+		\begingroup
+		% These \defs are required to deal with multi-line authors; it
+		% changes \\ to ', ' (comma-space), making it pass muster for
+		% generating document info in the PDF file.
+		\def\\{, }
+		\def\and{and }
+		\pdfinfo{
+		  /Author (\@author)
+		  /Title (\@title)
+		}
+		\endgroup
+	\fi
+
+  	% 2) title page
+  	% custom make title:
+  	% print background picture:
+	\printBgPic{-1.5\textwidth}{-1.08\totalheight}
+  	% print corner pictures
+	\printbgpiccorners
+	% make title text (preformatted, choose width and y of the title box as
+	% arguments):
+	\maketitletext{.8\linewidth}{20em}
+	% FIXME: what are these? (uncomment all but setcounter, which makes sense)
+  	% \@thanks
+  	\setcounter{footnote}{0}
+  	% \let\thanks\relax\let\maketitle\relax
+	\clearpage
+  
+	% 3) second title page, with citations and stuff in the lower right corner:	  
+	{\footnotesize
+		
+		Recommended citation (mandatory): 							\newline\newline
+		\rstreccitation 											\newline\newline\newline
+		Supplementary datasets (if any): 							\newline\newline
+		\rstsupdatasets 											\newline\newline\newline
+		Recommended citation for chapter (if any): 					\newline\newline
+		\rstreccitationchapter 										\newline\newline\newline
+		The report and the datasets are supplements to: (if any):	\newline\newline
+		\rstsupplementsto
+		
+		% lower right corner:
+		\begin{flushright}\vfill
+			\begin{tabular}{r}
+				{\normalsize Imprint} \\
+				\\
+				\includegraphics{gfzlogo_ur.pdf} \\
+				\\
+				Telegrafenberg \\
+				D-14473 Potsdam  \\ 
+				\\
+				Published in Potsdam, Germany \\
+				Month 2016 \\
+				\rstissn \\
+				DOI: http://doi.org/10.2312/GFZ.b103-xxxxx \\
+				URN: urn:nbn:de:kobv:b103-xxxxx \\
+				\\
+				This work is published in the GFZ series \\
+				Scientific Technical Report (STR) \\
+				and electronically available at GFZ website \\
+				www.gfz-potsdam.de \\
+				\\
+				\href{http://creativecommons.org/licenses/by-sa/4.0/}{\includegraphics{creative_common1.png}}
+			\end{tabular}
+		\end{flushright}
+	}
+	% no header and footer, and then clear page
+	\thispagestyle{empty}
+	\clearpage
+
+	% 4) third page title, the same as the first but no background
+	% (and a little bit left-shifted)
+	\maketitletext{.85\linewidth}{20em}
+	\thispagestyle{empty}
+	\clearpage
+}
