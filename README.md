@@ -44,7 +44,7 @@ According to [basemap requirements](https://github.com/matplotlib/basemap#requir
   4. To test, cd to the examples directory and run 'python simpletest.py'. To run all the examples (except those that have extra dependencies or require an internet connection), execute 'python run_all.py'.
    
 ### Install tex packages
-Tex packages are required to run pdflatex for generating pdf output (we found it more robust and flexible than using builtin sphinx plugins):
+Tex packages are required to run pdflatex for generating pdf output (we found it more robust and flexible than python  sphinx plugins):
 
 ```
 sudo apt-get install texlive-latex-base texlive-bibtex-extra texlive-latex-extra texlive-fonts-extra texlive-fonts-recommended texlive-humanities texlive-publishers
