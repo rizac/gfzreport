@@ -18,7 +18,7 @@ import os
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath("../../gfz-reportgen/core"))
+sys.path.insert(0, os.path.abspath("../../"))
 print sys.path[0]
 # -- General configuration ------------------------------------------------
 
@@ -36,10 +36,10 @@ print sys.path[0]
 extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
-    'extensions.setup',  # this is the custom one. MUST BE FIRST!
-    'extensions.mapfig',  # this is the custom one
-    'extensions.imggrid',  # this is the custom one
-    'extensions.mapimg',  # this is the custom one
+    'reportgen.core.extensions.setup',  # this is the custom one. MUST BE FIRST!
+    'reportgen.core.extensions.mapfig',  # this is the custom one
+    'reportgen.core.extensions.imggrid',  # this is the custom one
+    'reportgen.core.extensions.mapimg',  # this is the custom one
 ]
 
 # Add any paths that contain templates here, relative to this directory.

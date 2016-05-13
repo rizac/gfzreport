@@ -15,7 +15,7 @@ import sys
 import argparse
 import re
 import os
-import reportgen.preparser as pp
+# import reportgen.preparser as pp
 import shutil
 import subprocess
 from os import path
@@ -27,6 +27,7 @@ from core.utils import ensurefiler, ensuredir
 from sphinx.cmdline import MyFormatter
 import optparse
 import shutil
+
 
 def pdflatex(texfile, texfolder=None):
     """
@@ -72,6 +73,7 @@ def run(sysargv):
     do_pdf = False
     indir = None
     outdir = None
+    old_tex_files = {}
     for i, c in enumerate(sysargv[1:], 1):
         if skipthis:
             skipthis=False
@@ -95,7 +97,10 @@ def run(sysargv):
     if not config_dir:
         sysargv.append('-c')
         sysargv.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                     "../configs/default")))
+                                                    "../configs/default")))
+
+    if do_pdf:
+        old_tex_files = get_tex_files(outdir)
     # cwd = os.getcwd()
     # curiously, sphinx does NOT change cwd. We must do it
     # most probably we miss something here. FIXME: check that!

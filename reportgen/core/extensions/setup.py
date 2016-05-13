@@ -5,7 +5,10 @@ Created on Apr 4, 2016
 @author: riccardo
 '''
 import re
-from core.writers.latex import LatexTranslator
+import sys
+import os
+from os import path
+from reportgen.core.writers.latex import LatexTranslator
 from docutils import nodes
 
 # the sphinx environment, saved here for access from other extensions
@@ -15,7 +18,7 @@ def app_builder_inited(app_):
     global app
     app = app_
 
-def relfn2path(self, filename):
+def relfn2path(filename):
     """Return paths to a file referenced from a document, relative to
     documentation root and absolute.
 
@@ -23,7 +26,21 @@ def relfn2path(self, filename):
     source dir, while relative filenames are relative to the dir of the
     containing document.
     """
-    return app.env.relfn2path(filename)
+    # We might use the function below, but it works the first N times
+    # then fails cause app,end.docname has been set to None (??)
+    # return app.env.relfn2path(filename, " ")[1]
+    if os.path.isabs(filename):
+        return filename
+    else:
+        try:
+            # the path.abspath() might seem redundant, but otherwise artifacts
+            # such as ".." will remain in the path
+            return path.abspath(path.join(app.env.srcdir, filename))
+        except UnicodeDecodeError:
+            # the source directory is a bytestring with non-ASCII characters;
+            # let's try to encode the rel_fn in the file system encoding
+            enc_rel_fn = filename.encode(sys.getfilesystemencoding())
+            return path.abspath(path.join(app.env.srcdir, enc_rel_fn))
 
 def app_source_read(app, docname, source):
     source[0] = normalize_sec_headers(source[0])

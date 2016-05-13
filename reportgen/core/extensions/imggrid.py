@@ -19,13 +19,17 @@ from os.path import join, isdir  # isfile, isdir, splitext, basename
 import errno
 from docutils.parsers.rst.directives.tables import ListTable
 from docutils.parsers.rst.directives import images
-from core.utils import regex
+from reportgen.core.utils import regex
 from docutils.utils import SystemMessagePropagation
+from reportgen.core.extensions.setup import relfn2path
+
 
 def get_files(folder,
               columns=None,
               transpose=False):
 
+    orig_folder = folder
+    folder = relfn2path(folder)
     columns_re = None if columns is None else [regex(c) for c in columns]
     # to see OsError error numbers, see here
     # https://docs.python.org/2/library/errno.html#module-errno
@@ -69,7 +73,8 @@ def get_files(folder,
         except KeyError:
             ret = ret.append(pd.DataFrame(index=[row], columns=ret.columns, data=None))
 
-        ret.loc[row, col] = file_path
+        ret.loc[row, col] = os.path.join(orig_folder, file_)  # to preserve the path for sphinx
+        # relative imports
 
     if ret.empty:
         raise OSError(errno.ENODATA, strerror(errno.ENODATA), folder)

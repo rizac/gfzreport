@@ -124,7 +124,7 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'gfz-reportgen=gfz-reportgen.run:main',
+            'gfz-reportgen=reportgen.run:main',
         ],
     },
 )

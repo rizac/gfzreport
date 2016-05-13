@@ -14,12 +14,13 @@ from sphinx.util.compat import Directive
 from uuid import uuid4  # FIXME: sphinx provides a self uuid!
 from sphinx.util import ensuredir
 import os
-from map import plotmap
+from reportgen.map import plotmap
 import pandas as pd
 import csv
 import numpy as np
-from core.utils.hash import get_hash as utils_get_hash
-from core.extensions.setup import relfn2path
+from reportgen.core.utils.hash import get_hash as utils_get_hash
+from reportgen.core.extensions.setup import relfn2path
+
 
 def read_csv(filepath, required_columns, additional_delimiters=[' ', ';']):
     """
