@@ -12,21 +12,12 @@ Created on Mar 14, 2016
 # argv
 # from __future__ import print_function
 import sys
-import argparse
 import re
 import os
 # import reportgen.preparser as pp
-import shutil
 import subprocess
-from os import path
 from sphinx import build_main as sphinx_build_main
-from sphinx.util.console import nocolor, color_terminal
-from sphinx.util.osutil import abspath
-import core.utils.argparsetools as apt
-from core.utils import ensurefiler, ensuredir
-from sphinx.cmdline import MyFormatter
-import optparse
-import shutil
+from core.utils import ensurefiler
 
 
 def pdflatex(texfile, texfolder=None):
@@ -42,12 +33,13 @@ def pdflatex(texfile, texfolder=None):
         texfolder = os.path.dirname(texfile)
         texfile = os.path.basename(texfile)
     ensurefiler(os.path.join(texfolder, texfile))
-    cmd = 'pdflatex \"'+texfile+"\""
-    p = subprocess.Popen(cmd, cwd=texfolder, stdout=subprocess.PIPE, bufsize=1)
-    for line in iter(p.stdout.readline, b''):
-        print(line)
-    p.stdout.close()
-    p.wait()
+
+    # seems that we need to call subprocess.call according to this post:
+    # http://stackoverflow.com/questions/4230926/pdflatex-in-a-python-subprocess-on-mac
+    # for interaction options, see here:
+    # http://tex.stackexchange.com/questions/91592/where-to-find-official-and-extended-documentation-for-tex-latexs-commandlin
+    return subprocess.call(['pdflatex', "-interaction=nonstopmode", texfile], cwd=texfolder,
+                           shell=False)
 
 
 def get_tex_files(path):
@@ -64,21 +56,18 @@ def run(sysargv):
     # wrap up arguments and check builder and project name, if supplied
     # if latex builder, remember output path and run the corresponding pdf on that file when
     # finished. Note also that default is latex, sphinx uses html
- 
-    # copied from sphinx cmdline:
-    
     config_dir = False
     use_config = "-C" in sysargv or "--noconfig" in sysargv
-    skipthis = False # used in the loop below
+    skipthis = False  # used in the loop below
     do_pdf = False
     indir = None
     outdir = None
     old_tex_files = {}
     for i, c in enumerate(sysargv[1:], 1):
         if skipthis:
-            skipthis=False
+            skipthis = False
             continue
-        if not re.match("-\\w", c) and not re.match("--\\w+",c):
+        if not re.match("^-\\w$", c) and not re.match("^--\\w+$", c):
             if indir is None:
                 indir = c
             elif outdir is None:
@@ -94,7 +83,7 @@ def run(sysargv):
             skipthis = True
 
     # change default config if NOT specified:
-    if not config_dir:
+    if not config_dir and use_config:
         sysargv.append('-c')
         sysargv.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                     "../configs/default")))
@@ -117,7 +106,7 @@ def run(sysargv):
 
         for fileabspath in tex_files:
             try:
-                pdflatex(fileabspath)
+                res = pdflatex(fileabspath)
             except OSError as oserr:
                 appendix = ""
                 if oserr.errno == os.errno.ENOENT:
@@ -131,6 +120,7 @@ def run(sysargv):
 
     # os.chdir(cwd)
     return res
+
 
 def main():
     sys.exit(run(sys.argv))
