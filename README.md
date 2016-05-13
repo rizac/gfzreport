@@ -11,7 +11,7 @@ a. Download the git repo in a local folder, cd into it and install this package:
 
 b. Install basemap and dependencies
 
-  Following the instructions given in the [basemap requirements](https://github.com/matplotlib/basemap#requirements) you should first make sure, if your python was installed via a package management system, that the corresponding "python-dev" package is also installed, otherwise, you may not have the python header (Python.h), which is required to build python C extensions. Just for your information note that we will skip some of the basemap requirements ([pyproj](https://github.com/jswhit/pyproj) and [pyshp](https://github.com/GeospatialPython/pyshp)) as they do not seem to be mandatory for this program to run (keep it in mind in case of troubles though)
+  According to [basemap requirements](https://github.com/matplotlib/basemap#requirements): you should first make sure, if your python was installed via a package management system, that the corresponding "python-dev" package is also installed. Otherwise, you may not have the python header (Python.h), which is required to build python C extensions. Also, just for your information note that we will skip some of the basemap requirements ([pyproj](https://github.com/jswhit/pyproj) and [pyshp](https://github.com/GeospatialPython/pyshp)) as they do not seem to be mandatory for this program to run (keep it in mind in case of troubles though)
 
   1. Download basemap-1.0.7.tar.gz (*approx 100 mb*) from [here (see source code links in the page)](https://github.com/matplotlib/basemap/releases/tag/v1.0.7rel), unpack and cd to basemap-1.0.7:
 
