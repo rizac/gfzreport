@@ -41,7 +41,14 @@ b. Install basemap and dependencies
 	
   4. To test, cd to the examples directory and run 'python simpletest.py'. To run all the examples (except those that have extra dependencies or require an internet connection), execute 'python run_all.py'.
 
-###Optional
+
+c. Install tex packages required to run pdflatex (delegating the latter we found it preferable and
+more flexible than using builtin sphinx plugins):
+  ```
+  sudo apt-get install texlive-latex-base texlive-bibtex-extra texlive-latex-extra texlive-fonts-extra texlive-fonts-recommended texlive-humanities texlive-publishers
+  ```
+
+###Optional basemap python libraries
 
 * [OWSLib](https://github.com/geopython/OWSLib) (optional) It is needed
 for the BaseMap.wmsimage function.
@@ -52,7 +59,6 @@ PIL should work on Python 2.x.  Pillow is a maintained fork of PIL.
 	
 
 -----------------------
-
 
 <!--- FIXME: do we need to setup postactivate in virtualenv? seems not so. Moreover, we do NOT need the following:
    pyproj pyshp -->

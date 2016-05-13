@@ -17,7 +17,7 @@ import os
 # import reportgen.preparser as pp
 import subprocess
 from sphinx import build_main as sphinx_build_main
-from core.utils import ensurefiler
+from reportgen.core.utils import ensurefiler
 
 
 def pdflatex(texfile, texfolder=None):
@@ -56,10 +56,11 @@ def run(sysargv):
     # wrap up arguments and check builder and project name, if supplied
     # if latex builder, remember output path and run the corresponding pdf on that file when
     # finished. Note also that default is latex, sphinx uses html
-    config_dir = False
+    config_dir_specified = False
     use_config = not ("-C" in sysargv or "--noconfig" in sysargv)
     skipthis = False  # used in the loop below
     do_pdf = False
+    build_specified = False
     indir = None
     outdir = None
     old_tex_files = {}
@@ -74,22 +75,27 @@ def run(sysargv):
                 outdir = c
             continue
         if use_config and (c == "-c" or c == "--confdir"):
-            config_dir = True
+            config_dir_specified = True
             skipthis = True
         elif c == "-b" or c == "--builder":
+            build_specified = True
             do_pdf = sysargv[i+1] == 'pdf'
             if do_pdf:
                 sysargv[i+1] = 'latex'
             skipthis = True
 
     # change default config if NOT specified:
-    if not config_dir and use_config:
+    if not config_dir_specified and use_config:
         sysargv.append('-c')
         sysargv.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                     "../configs/default")))
 
     if do_pdf:
         old_tex_files = get_tex_files(outdir)
+    elif not build_specified:
+        sysargv.append('-b')
+        sysargv.append("latex")
+
     # cwd = os.getcwd()
     # curiously, sphinx does NOT change cwd. We must do it
     # most probably we miss something here. FIXME: check that!
@@ -112,9 +118,9 @@ def run(sysargv):
                 if oserr.errno == os.errno.ENOENT:
                     appendix = " (is pdflatex installed?)"
                 # copied from sphinx, we want to preserve the same way of handling errors:
-                sys.stderr.write("Unable to run 'pdflatex {0}': {1}{2}".format(fileabspath,
-                                                                               str(oserr),
-                                                                               appendix)
+                sys.stderr.write("Unable to run 'pdflatex {0}': {1}{2}\n".format(fileabspath,
+                                                                                 str(oserr),
+                                                                                 appendix)
                                  )
                 res = 1
 
