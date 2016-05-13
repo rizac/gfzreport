@@ -3,22 +3,17 @@ A sphinx-based report generation for use at gfz
 
 ## Installation
 
-a. Install numpy first:
+a. Download the git repo in a local folder, cd into it and install this package:
 	
-  ```pip install numpy```
-
-b. Then download the git repo in a local folder, cd into it and install this package:
-	
-  ```pip install .```
+  ```pip install .``` (with -e option as editable, if needed)
 
   Now you should have all python packages installed, *except* [basemap](https://github.com/matplotlib/basemap) (python library to plot on map projections with	coastlines and political boundaries using matplotlib):
 
-c. Install basemap and dependencies (if something goes wrong, see point d. below)
+c. Install basemap and dependencies
 
-  Along the lines of the [basemap requirements](https://github.com/matplotlib/basemap#requirements), we already have at this point Python 2.6 (or higher), matplotlib, numpy and GEOS. Note that
+  Along the lines of the [basemap requirements](https://github.com/matplotlib/basemap#requirements), we already have at this point Python 2.6 (or higher), matplotlib, numpy, and we are about to install GEOS, but prior to that note that
 	
-  0. On linux, if your python was installed via a package management system, make sure the corresponding "python-dev" package is also installed.  Otherwise, you may not have the python header (Python.h), which is required to build python C extensions.
-  Note also that [pyproj](https://github.com/jswhit/pyproj) and [pyshp](https://github.com/GeospatialPython/pyshp) are required, but they do not seem to be mandatory for this program to run (keep it in mind	in case of troubles though)
+  0. On linux, if your python was installed via a package management system, make sure the corresponding "python-dev" package is also installed.  Otherwise, you may not have the python header (Python.h), which is required to build python C extensions. Also, [pyproj](https://github.com/jswhit/pyproj) and [pyshp](https://github.com/GeospatialPython/pyshp) are required, but they do not seem to be mandatory for this program to run (keep it in mind	in case of troubles though)
 
   1. Download basemap-1.0.7.tar.gz (*approx 100 mb*) from [here (see source code links in the page)](https://github.com/matplotlib/basemap/releases/tag/v1.0.7rel), unpack and cd to basemap-1.0.7:
 
@@ -28,7 +23,10 @@ c. Install basemap and dependencies (if something goes wrong, see point d. below
   > cd basemap-1.0.7
   ```
 
-  2. Install the GEOS library.  If you already have it on your system, just set the environment variable GEOS_DIR to point to the location of libgeos_c and geos_c.h (if libgeos_c is in /usr/local/lib and geos_c.h is in /usr/local/include, set GEOS_DIR to /usr/local). Then go to step (3). 
+  2. Install the GEOS library.  If you already have it on your system, just set the environment variable GEOS_DIR to point to the location of libgeos_c and geos_c.h (if libgeos_c is in /usr/local/lib and geos_c.h is in /usr/local/include, set GEOS_DIR to /usr/local). Then go to step (3).
+  ```
+  > export GEOS_DIR=<location of GEOS directory>
+  ```
   If you don't have it, you can build it from the source code included with basemap by following these steps:
   ```
   > cd geos-3.3.3
