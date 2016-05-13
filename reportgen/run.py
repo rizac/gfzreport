@@ -57,7 +57,7 @@ def run(sysargv):
     # if latex builder, remember output path and run the corresponding pdf on that file when
     # finished. Note also that default is latex, sphinx uses html
     config_dir = False
-    use_config = "-C" in sysargv or "--noconfig" in sysargv
+    use_config = not ("-C" in sysargv or "--noconfig" in sysargv)
     skipthis = False  # used in the loop below
     do_pdf = False
     indir = None
