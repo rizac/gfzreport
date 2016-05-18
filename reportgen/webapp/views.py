@@ -7,7 +7,7 @@ import os
 from webapp import app
 
 # NOTE: all paths relative to the build directory!!!
-from core import serve_static_file, get_main_page
+from core import serve_static_file, get_main_page, serve_ace
 
 
 @app.route('/')
@@ -29,3 +29,8 @@ def my_images(filename):
 @app.route('/_sources/<path:filename>')
 def my_sources(filename):
     return serve_static_file(app, "_sources", filename)
+
+
+@app.route('/ace-builds/<path:dirname>/<path:filename>')
+def my_ace(dirname, filename):
+    return serve_ace(app, dirname, filename)

@@ -11,6 +11,9 @@ Download the reportgen git repository in a local folder, cd into it and install 
 
 Now you should have all python packages installed, *except* [basemap](https://github.com/matplotlib/basemap) (python library to plot on map projections with	coastlines and political boundaries using matplotlib):
 
+(Note, for problems installing the required python package `lxml`, `libxml2-dev libxslt-dev` are
+required (see here: http://lxml.de/installation.html)
+
 ### Install basemap and dependencies
 
 According to [basemap requirements](https://github.com/matplotlib/basemap#requirements): you should first make sure, if your python was installed via a package management system, that the corresponding "python-dev" package is also installed. Otherwise, you may not have the python header (Python.h), which is required to build python C extensions<sup>[1](#basemap_installation_notes)</sup>.

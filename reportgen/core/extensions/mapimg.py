@@ -19,7 +19,7 @@ import pandas as pd
 import csv
 import numpy as np
 from reportgen.core.utils.hash import get_hash as utils_get_hash
-from reportgen.core.extensions.setup import relfn2path
+import reportgen.core.extensions.setup as stp
 
 
 def read_csv(filepath, required_columns, additional_delimiters=[' ', ';']):
@@ -39,7 +39,7 @@ def read_csv(filepath, required_columns, additional_delimiters=[' ', ';']):
         columns
         :return: a list of dicts of the form {row1: value1, ..., rowN: valueN}
     """
-    filepath = relfn2path(filepath)
+    filepath = stp.relfn2path(filepath)
     ret = None
     if not additional_delimiters:
         additional_delimiters = []

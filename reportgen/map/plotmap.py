@@ -8,9 +8,6 @@ import numpy as np
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
-# from obspy.imaging.maps import _BASEMAP_RESOLUTIONS
-import inspect
-import uuid
 
 
 def parse_margins(values):

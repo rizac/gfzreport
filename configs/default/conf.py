@@ -12,14 +12,14 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
-import os
+# import sys
+# import os
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath("../../"))
-print sys.path[0]
+# sys.path.insert(0, os.path.abspath("../../reportgen/core"))
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -119,7 +119,7 @@ todo_include_todos = False
 
 # a custom html writer which converts psf images to iframes
 # see 
-html_translator_class = 'writers.html.HTMLTranslator'
+html_translator_class = 'reportgen.core.writers.html.HTMLTranslator'
 
 # THIS DOES NOT WORK. TOO BAD!!
 # latex_translator_class = 'writers.latex.LatexTranslator'
@@ -146,7 +146,7 @@ html_theme = 'alabaster'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-#html_logo = None
+html_logo = "_static/gfzlogo_ul.png"
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -282,6 +282,7 @@ latex_documents = [
 # (Note: cxhanged in version 1.2: This overrides the files which is provided from Sphinx such as sphinx.sty)
 latex_additional_files = ['_static/sphinx.sty', '_static/sphinxhowto.cls', '_static/gfzlogo_lr.png',
                           '_static/gfzlogo_ul.png', '_static/gfzlogo_ur.pdf', '_static/gfz-bg.pdf',
+                          '_static/gfz-bg.png',
                           '_static/creative_common1.png', '_static/creative_common2.png']
 
 # -- Options for manual page output ---------------------------------------

@@ -8,7 +8,7 @@
 # NOTE: SEE SPHINX EXTENSIONS HERE:
 # https://bitbucket.org/birkenfeld/sphinx-contrib/src/558d80ca46aa?at=default
 from docutils.parsers.rst.directives import images
-from core.extensions import mapimg
+from reportgen.core.extensions import mapimg
 
 
 class CsvMapDirective(mapimg.MapImgDirective, images.Figure):

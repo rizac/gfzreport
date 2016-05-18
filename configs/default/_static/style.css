@@ -2,6 +2,20 @@ iframe{
 	border: 0px;
 }
 
+body {
+    background-image: url("gfz-bg.png");
+    background-repeat: no-repeat;
+    background-position: right top;
+    background-attachment: fixed;
+}
+div.body, div.sphinxsidebar{
+	background-color: rgba(255,255,255,0.7);
+	-moz-box-shadow: 2px 2px 4px #eee;
+    -webkit-box-shadow: 2px 2px 4px #eee;
+    box-shadow: 2px 2px 4px #eee;
+    border-radius: 10px;
+}
+
 div.map{
 	min-height: 30em;
 }
@@ -13,34 +27,43 @@ div.sphinxsidebar{
 	margin-left: 0px;
 }
 
-div.documentwrapper {
-    float: none;
-}
-
+/* page widths:*/
 div.document{
-	margin-top: 30px; /* same as superclass BUT it's a reminder for the next property which must be the same*/
+	width:970px !important; /* 940 is the default */
 }
 
-div.sphinxsidebar{
-	top: 30px;
+/* control the space between sidebar and body content:*/
+/*copied from superclass*/
+div.sphinxsidebar {
+    width: 220px;
+}
+/* do not set body content margin-left or whatever, set parent margin:*/
+div.bodywrapper {
+    margin: 0 0 0 230px;
 }
 
-.source_imggrid_directive{
-	/* not implemented yet, but might be (remove borders etcetera */
+#editor{
+	width: 740px; /*970 (sphinx default, see div.document) - 230 (see div.bodywrapper)*/
 }
 
-/* my sidebar look and feel (copied and modified from sphinx alabaster theme for tables) */
-div.sphinxsidebar{
-	border: 1px solid #888;
-    -moz-box-shadow: 2px 2px 4px #eee;
-    -webkit-box-shadow: 2px 2px 4px #eee;
-    box-shadow: 2px 2px 4px #eee;
-    border-radius: 10px;
-    background-color: floralwhite;
+/* control overflow in width of tables:*/
+table.docutils {
+    display: block;
+    overflow: auto;
+    border: 0;
+    box-shadow: none;
+    border-radius:5px;
 }
+
 
 p{
 	text-align: justify;
+}
+
+/* the logo. Simply say p.logo makes super stylesheet have priority because it's more "precise", thus:*/
+div.sphinxsidebarwrapper p.logo {
+	margin: 0;
+	margin-bottom: 2em;
 }
 
 table.source_imggrid_directive, table.source_imggrid_directive td{
@@ -70,7 +93,78 @@ div.leaflet-container {
 	}
 }
 
-*.data-editable{
+#editor{
+	position:relative;
+    height: 90vh;
+    margin-left: -30px; /*cause the padding of the parent element (div.body) is 30px*/
+    box-sizing: border-box;
+    /*width: 98vw;
+    position: absolute;
+    top: 1vh;
+    left: 1vw;*/
+}
+
+/*adjust the footer margin cause when editing it overflows the page*/
+div.footer {
+    margin: 20px auto 10px auto !important;
+}
+
+/* ace editor stuff (not seen when the page is not editable)
+Note: we assume the vibrant_ink theme (see layout.html. Dont know if it's important though)
+*/
+
+/* for the vibrant-ink theme (dark) */
+.ace-vibrant-ink .ace_markup.ace_heading{
+	color: #DD3333; !important
+	font-weight: bold !important;
+}
+
+.ace-vibrant-ink .ace_string {
+    color: #33DD00 !important;
+}
+
+.ace-vibrant-ink .ace_comment {
+    color: #556677 !important;
+}
+
+/* for the clouds theme: */
+
+.ace-clouds .ace_markup.ace_heading{
+	color: #dd8000; !important;
+	font-weight: bold !important;
+}
+
+/*================== OLD STUFF==========================
+/* #editor-bar{
+	position: absolute;
+	bottom:1vh;
+	width: 98vw;
+	height:8vh;
+	left:1vw;
+} */
+
+
+/* #editor_wrapper{
+	position: relative;
+	height:100vh;
+	width:100vw;
+	z-index:1000;
+} */
+
+/* *.data-editable{
 	background-color: yellow;
 	border: 1px solid #f00;
+} */
+/*
+div.document{
+	margin-top: 30px; /* same as superclass BUT it's a reminder for the next property which must be the same*/
+/* }
+*/
+/*
+div.documentwrapper {
+    float: none;
+} 
+div.sphinxsidebar{
+	top: 30px;
 }
+*/

@@ -9,14 +9,23 @@ import sys
 import os
 from os import path
 from reportgen.core.writers.latex import LatexTranslator
-from docutils import nodes
 
 # the sphinx environment, saved here for access from other extensions
-app = None
+# FIXME!!! if in sphinx config you add:
+# sys.path.insert(0, os.path.abspath("../../reportgen/core"))
+# and then extensions = ['extensions.setup', ...]
+# GLOBAL VARIABLES BELOW ARE NOT SET! One should inspect if it is a problem with sys.path.insert
+# or due to the fact that the package reportgen is already installed
+# However, the problem has been fixed by removing sys.path.insert and by sepcifying the full path
+# in extensions dict (see conf.py)
+
+sphinxapp = None
+
 
 def app_builder_inited(app_):
-    global app
-    app = app_
+    global sphinxapp
+    sphinxapp = app_
+
 
 def relfn2path(filename):
     """Return paths to a file referenced from a document, relative to
@@ -28,19 +37,20 @@ def relfn2path(filename):
     """
     # We might use the function below, but it works the first N times
     # then fails cause app,end.docname has been set to None (??)
-    # return app.env.relfn2path(filename, " ")[1]
+    # return sphinxapp.env.relfn2path(filename, " ")[1]
     if os.path.isabs(filename):
         return filename
     else:
         try:
             # the path.abspath() might seem redundant, but otherwise artifacts
             # such as ".." will remain in the path
-            return path.abspath(path.join(app.env.srcdir, filename))
+            return path.abspath(path.join(sphinxapp.env.srcdir, filename))
         except UnicodeDecodeError:
             # the source directory is a bytestring with non-ASCII characters;
             # let's try to encode the rel_fn in the file system encoding
             enc_rel_fn = filename.encode(sys.getfilesystemencoding())
-            return path.abspath(path.join(app.env.srcdir, enc_rel_fn))
+            return path.abspath(path.join(sphinxapp.env.srcdir, enc_rel_fn))
+
 
 def app_source_read(app, docname, source):
     source[0] = normalize_sec_headers(source[0])
