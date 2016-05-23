@@ -1,0 +1,4 @@
+{
+root_path: "../data",
+versioning_enabled_for: ["html"]
+}

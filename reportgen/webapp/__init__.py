@@ -8,4 +8,4 @@ from flask import Flask
 app = Flask(__name__)
 
 # this has to come AFTER app ABOVE
-from webapp import views
+from reportgen.webapp import views  # nopep8

@@ -58,7 +58,7 @@
 \lhead{} % no left header
 \rhead{} % no right header
 \chead{} % no center header
-\lfoot{\scriptsize \rststr. GFZ German Research Centre for Geosciences. \\ \rstdoi}
+\lfoot{\scriptsize \rstStrNum. GFZ German Research Centre for Geosciences. \\ \rstDoi}
 \cfoot{} % no center foot
 \rfoot{\footnotesize \thepage} % print the page
 
@@ -78,9 +78,9 @@
 		%\multicolumn{1}{@{}c@{}}{Some title} \\  % this is if we wanted to center the title inside the tabular (we don't)
 		{\large Authors \par \@author \par} \\
 		{\LARGE \sffamily \bfseries \color{gfzblue} \@title \par}\\
-	  	{\Large \sffamily \bfseries \color{gfzblue} \rstsubtitle \par} \\
-	  	{\large \sffamily \bfseries \color{gfzblue} \rstsubsubtitle \par} \\
-	  	{\Large Scientific Technical Report \rststr} \\
+	  	{\Large \sffamily \bfseries \color{gfzblue} \rstSubtitle \par} \\
+	  	{\large \sffamily \bfseries \color{gfzblue} \rstSubSubtitle \par} \\
+	  	{\Large Scientific Technical Report \rstStrNum} \\
 	  	{\par \normalsize GIPP Experiment- and Data Archive}
 	\end{tabular}
 	% add a space below for the same reason (unkwnown) we added one above (FIXME. check why)
@@ -88,6 +88,7 @@
 }
 \makeatother
 
+\makeatletter
 % reset the maketitle command:
 \renewcommand{\maketitle}{
 	% 1) copied from sphinxhowto.cls (the original one, in the annexed one is commented out to
@@ -116,7 +117,9 @@
 	% arguments):
 	\maketitletext{.8\linewidth}{20em}
 	% FIXME: what are these? (uncomment all but setcounter, which makes sense)
+  	% \py@authoraddress \par
   	% \@thanks
+ 
   	\setcounter{footnote}{0}
   	% \let\thanks\relax\let\maketitle\relax
 	\clearpage
@@ -125,13 +128,13 @@
 	{\footnotesize
 		
 		Recommended citation (mandatory): 							\newline\newline
-		\rstreccitation 											\newline\newline\newline
+		\rstCiteThis 												\newline\newline\newline
 		Supplementary datasets (if any): 							\newline\newline
-		\rstsupdatasets 											\newline\newline\newline
+		\rstSupplDdatasets 											\newline\newline\newline
 		Recommended citation for chapter (if any): 					\newline\newline
-		\rstreccitationchapter 										\newline\newline\newline
+		\rstCitationChapter											\newline\newline\newline
 		The report and the datasets are supplements to: (if any):	\newline\newline
-		\rstsupplementsto
+		\rstSupplementsTo
 		
 		% lower right corner:
 		\begin{flushright}\vfill
@@ -145,7 +148,7 @@
 				\\
 				Published in Potsdam, Germany \\
 				Month 2016 \\
-				\rstissn \\
+				\rstIssn \\
 				DOI: http://doi.org/10.2312/GFZ.b103-xxxxx \\
 				URN: urn:nbn:de:kobv:b103-xxxxx \\
 				\\
@@ -168,3 +171,4 @@
 	\thispagestyle{empty}
 	\clearpage
 }
+\makeatother

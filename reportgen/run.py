@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 '''
-Test module. Copied from sphinx-build.py in
-https://github.com/sphinx-doc/sphinx
 Created on Mar 14, 2016
 
 @author: riccardo
@@ -38,10 +36,20 @@ def pdflatex(texfile, texfolder=None):
     # http://stackoverflow.com/questions/4230926/pdflatex-in-a-python-subprocess-on-mac
     # for interaction options, see here:
     # http://tex.stackexchange.com/questions/91592/where-to-find-official-and-extended-documentation-for-tex-latexs-commandlin
-    return subprocess.call(['pdflatex', "-interaction=nonstopmode", texfile], cwd=texfolder,
-                           shell=False)
+    popenargs = ['pdflatex', "-interaction=nonstopmode", texfile]
+    kwargs = dict(cwd=texfolder, shell=False)
+    ret = subprocess.call(popenargs, **kwargs)
+    # run twice for references:
 
+    if ret != 0:
+        sys.stderr.write("WARNING: pdflatex returned an exit status {0:d} (0=Ok)".format(ret))
 
+    ret = subprocess.call(popenargs, **kwargs)
+
+    return ret
+
+    # ret = subprocess.call(['pdflatex', "-interaction=nonstopmode", texfile], cwd=texfolder,
+    #                       shell=False)
 def get_tex_files(path):
     ret = {}
     for file_ in os.listdir(path):
