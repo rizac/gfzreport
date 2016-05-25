@@ -141,7 +141,7 @@ class LatexTranslator(LT):
     def astext(self):
         # build a dict of bibliographic fields, and inject them as newcommand 
         # in the latex header
-
+        h = 9
         commands = ("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
                     "%% AUTO-GENERATED COMMANDS FROM BIBLIOGRAPHIC FIELDS IN THE SOURCE RST:\n" +
                     "\n".join("\\newcommand{\\rst" + (name[0].title() + name[1:]) + "}{" + definition + "}"

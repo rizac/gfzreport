@@ -9,6 +9,7 @@
 \usepackage{array} % for defining a new column type, if needed
 \usepackage{varwidth} %for the varwidth minipage environment
 \usepackage{tikz}
+\usepackage{xspace} % for newcommand and trailing spaces
 
 % \usepackage[colorlinks=true,linkcolor=blue,urlcolor=NavyBlue,citecolor=Fuchsia]{hyperref}
 % \urlstyle{same}
@@ -58,7 +59,7 @@
 \lhead{} % no left header
 \rhead{} % no right header
 \chead{} % no center header
-\lfoot{\scriptsize \rstStrNum. GFZ German Research Centre for Geosciences. \\ \rstDoi}
+\lfoot{\scriptsize \rstStrNum. GFZ German Research Centre for Geosciences. DOI: \href{\rstDoiUrl}{\rstDoiStr}}
 \cfoot{} % no center foot
 \rfoot{\footnotesize \thepage} % print the page
 
@@ -76,7 +77,7 @@
 	\vspace*{#2}%
 	\hfill\begin{tabular}{@{}p{#1}@{}}
 		%\multicolumn{1}{@{}c@{}}{Some title} \\  % this is if we wanted to center the title inside the tabular (we don't)
-		{\large Authors \par \@author \par} \\
+		{\large \par \@author \par} \\
 		{\LARGE \sffamily \bfseries \color{gfzblue} \@title \par}\\
 	  	{\Large \sffamily \bfseries \color{gfzblue} \rstSubtitle \par} \\
 	  	{\large \sffamily \bfseries \color{gfzblue} \rstSubSubtitle \par} \\
@@ -128,7 +129,7 @@
 	{\footnotesize
 		
 		Recommended citation (mandatory): 							\newline\newline
-		\rstCiteThis 												\newline\newline\newline
+		\@author\ (\rstPublicationYear): \@title. DOI: \href{\rstDoiUrl}{\rstDoiStr} 		\newline\newline\newline
 		Supplementary datasets (if any): 							\newline\newline
 		\rstSupplDdatasets 											\newline\newline\newline
 		Recommended citation for chapter (if any): 					\newline\newline
@@ -149,8 +150,8 @@
 				Published in Potsdam, Germany \\
 				Month 2016 \\
 				\rstIssn \\
-				DOI: http://doi.org/10.2312/GFZ.b103-xxxxx \\
-				URN: urn:nbn:de:kobv:b103-xxxxx \\
+				DOI: \href{\rstDoiUrl}{\rstDoiStr} \\
+				URN: \rstUrn \\
 				\\
 				This work is published in the GFZ series \\
 				Scientific Technical Report (STR) \\

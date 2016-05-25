@@ -36,15 +36,19 @@ bibfieldreplkwd = "___bfrt___"
 
 def relfn2path(filename):
     """Return paths to a file referenced from a document, relative to
-    documentation root and absolute.
-
-    In the input "filename", absolute filenames are taken as relative to the
-    source dir, while relative filenames are relative to the dir of the
-    containing document.
+    documentation root and absolute. This code is copied and modified from sphinx app environment
+    to work for custom extension like this:
+    In the rst, absolute filenames such as "/a/bcd" are taken as relative to the computer root
+    (note: in rst image directive, they are relative to the source dir), while relative filenames
+    are relative to the dir of the containing document (as in the image directive).
     """
     # We might use the function below, but it works the first N times
-    # then fails cause app,end.docname has been set to None (??)
+    # then fails cause app.env.docname has been set to None (??)
     # return sphinxapp.env.relfn2path(filename, " ")[1]
+    # As we have no control over it. From the sphinx doc:
+    # we do another approach: if absolute, it's absolute. If relative, is relative to the source
+    # dir. Stop
+
     if os.path.isabs(filename):
         return filename
     else:
@@ -83,8 +87,7 @@ def resolve_bibfield_refs_with_tmp_hack(source):
         source = re.sub("\\|" + bib + "\\|",
                         # makes it a literal node with bibfieldreplkwd to be recognized later
                         "``" + bibfieldreplkwd + bib + bibfieldreplkwd + "``",
-                        source,
-                        flags=re.MULTILINE)
+                        source)
     return source
 
 
@@ -172,16 +175,35 @@ def app_doctree_read(app, doctree):
     # a = app.builder.env
 
     bibfields = {}
+    first_field_list_children_found = None
+    doi_fields = []
 
     for obj in doctree.traverse(nodes.field_list):
+
+        if first_field_list_children_found is None:
+            first_field_list_children_found = obj.children
+
         for field in obj.children:
             try:
                 par_element = field.children[1].children[0]
-                if len(par_element.children) == 1 and isinstance(par_element.children[0],
-                                                                 nodes.Text):
-                    bibfields[field.children[0].rawsource] = par_element.children[0]
+                if len(par_element.children) == 1:  # and isinstance(par_element.children[0],
+                                                    #             nodes.Text):
+                    field_name = field.children[0].rawsource
+                    field_value = par_element.children[0]
+                    bibfields[field_name] = field_value
+
+                    # If DOI, add two new fields doiStr and doiURL. The first is the DOI as string
+                    # with two substring separated by "/", the latter is the full url
+                    if field_name == "doi":
+                        doi_str, doi_url = parse_doi(field_value)
+                        doi_fields = [create_field_node("doiStr", doi_str),
+                                      create_field_node("doiUrl", doi_url)]
             except IndexError:
                 pass
+
+    # append the two newly created fields (seems we cannot insert while looping):
+    if first_field_list_children_found:
+        first_field_list_children_found.extend(doi_fields)
 
     for obj in doctree.traverse(nodes.literal):
         if len(obj.children) == 1 and isinstance(obj.children[0], nodes.Text):
@@ -201,6 +223,33 @@ def app_doctree_read(app, doctree):
                             break
                     if no_bib_ref is False:
                         obj.replace_self(bibfields[bibname])
+
+
+def parse_doi(doi_str):
+    """
+        parses doi_str returning the tuple doi, doi_url.
+    """
+    r = re.compile("^(?:\\s*DOI\\s*:)*\\s*(https?://(?:.*/)*)?([^/]+/[^/]+)\\s*$", re.IGNORECASE)
+    m = r.match(doi_str)
+    if m is None:
+        return (None, None)
+    grp = m.groups()
+    doi_str, doi_url = grp[1], None if (grp[0] is None or grp[1] is None) else grp[0] + grp[1]
+    if not doi_url and doi_str:
+        doi_url = "http://doi.org/" + doi_str
+    return doi_str, doi_url
+
+
+def create_field_node(field_name, field_value):
+    fn_textnode = nodes.Text(field_name)  # nodes.field_name()
+    fb_textnode = nodes.Text(field_value)
+    # docutils (inspected by debugging) uses a paragraph wrapper for field bodies
+    fb_parnode = nodes.paragraph('', fb_textnode)
+
+    fn_fieldname_node = nodes.field_name('', fn_textnode)
+    fn_fieldbody_node = nodes.field_body('', fb_parnode)
+
+    return nodes.field('', fn_fieldname_node, fn_fieldbody_node)
 
 
 def missing_reference(app, env, node, contnode):
@@ -230,3 +279,18 @@ def setup(app):
     app.connect('builder-inited', app_builder_inited)
     app.connect("missing-reference", missing_reference)
     app.connect("doctree-resolved", doctree_resolved)
+
+
+# REMINDER: all Element nodes (docutils.nodes) have constructors like this:
+# def __init__(self, rawsource='', *children, **attributes):
+#         self.rawsource = rawsource
+#         """The raw text from which this element was constructed."""
+#
+#         self.children = []
+#         """List of child nodes (elements and/or `Text`)."""
+#
+#         self.extend(children)           # maintain parent info
+#
+#         self.attributes = {}
+#         """Dictionary of attribute {name: value}."""
+#         ...
