@@ -47,7 +47,7 @@ def main():
     parser.add_argument('--data-aval', default='')
     nsp = parser.parse_known_args(sys.argv[1:])
     args = vars(nsp)
-    sys.exit(run(sys.argv))
+    sys.exit(reportgen_run(sys.argv))
 
 if __name__ == '__main__':
     main()

@@ -11,6 +11,9 @@ from os import path
 from reportgen.core.writers.latex import LatexTranslator
 from docutils import nodes
 
+# from docutils.transforms import references
+# from docutils.utils import Reporter
+
 # the sphinx environment, saved here for access from other extensions
 # FIXME!!! if in sphinx config you add:
 # sys.path.insert(0, os.path.abspath("../../reportgen/core"))
@@ -66,29 +69,16 @@ def relfn2path(filename):
 def app_source_read(app, docname, source):
     source[0] = normalize_sec_headers(source[0])
     source[0] = replace_math_dollar(source[0])
-    # now we need to replace references to bib-fields. we do it here cause from here to the next
-    # listener (doctree-resolved) a warning is printed and we want to avoid it
-    # the drawback is that we might be less robust (we need to use regexp)
-    source[0] = resolve_bibfield_refs_with_tmp_hack(source[0])
+    # Note that we cannot handle the warning (printed to stdout) of referenced bib. fields (if any)
+    # but we will try to fix it in the next listener called (app_doctree_read)
+    # We might also try to fix those errors now, and we actually did it in a previous version, BUT
+    # it's a less robust method (we should use regexp which behave like rst-parsers) and involves
+    # much more code for not a big advantage. Simply warn "trying to fix... " with a meaningful
+    # message the user
 
 
 def replace_math_dollar(source):
     return re.sub("\\$(.*?)\\$", ":math:`\\1`", source)  # flags=re.MULTILINE)
-
-
-def resolve_bibfield_refs_with_tmp_hack(source):
-    reg = re.compile("^:(\\w+):.*?$", flags=re.MULTILINE)
-    bibnames = []
-    for match in reg.finditer(source):  # note: we need to use search, not match! see
-        # https://docs.python.org/2/library/re.html#search-vs-match
-        bibnames.append(match.group(1))
-
-    for bib in bibnames:
-        source = re.sub("\\|" + bib + "\\|",
-                        # makes it a literal node with bibfieldreplkwd to be recognized later
-                        "``" + bibfieldreplkwd + bib + bibfieldreplkwd + "``",
-                        source)
-    return source
 
 
 def normalize_sec_headers(string, list_of_under_and_overlines=[("#", "#"),
@@ -168,9 +158,7 @@ def decorate_title(string, underline_symbol, overline_symbol=None):
 
 def app_doctree_read(app, doctree):
     """
-        This method is here only as a reminder of how to add listeners to events
-        It is empty
-        For info, see 
+        This method resolves replacement due to bib fields
     """
     # a = app.builder.env
 
@@ -186,18 +174,16 @@ def app_doctree_read(app, doctree):
         for field in obj.children:
             try:
                 par_element = field.children[1].children[0]
-                if len(par_element.children) == 1:  # and isinstance(par_element.children[0],
-                                                    #             nodes.Text):
-                    field_name = field.children[0].rawsource
-                    field_value = par_element.children[0]
-                    bibfields[field_name] = field_value
+                field_name = field.children[0].rawsource
+                bibfields[field_name] = par_element.children
 
+                if len(par_element.children) == 1 and field_name == "doi":
+                    field_value = par_element.children[0]
                     # If DOI, add two new fields doiStr and doiURL. The first is the DOI as string
                     # with two substring separated by "/", the latter is the full url
-                    if field_name == "doi":
-                        doi_str, doi_url = parse_doi(field_value)
-                        doi_fields = [create_field_node("doiStr", doi_str),
-                                      create_field_node("doiUrl", doi_url)]
+                    doi_str, doi_url = parse_doi(field_value)
+                    doi_fields = [create_field_node("doiStr", doi_str),
+                                  create_field_node("doiUrl", doi_url)]
             except IndexError:
                 pass
 
@@ -205,24 +191,30 @@ def app_doctree_read(app, doctree):
     if first_field_list_children_found:
         first_field_list_children_found.extend(doi_fields)
 
-    for obj in doctree.traverse(nodes.literal):
-        if len(obj.children) == 1 and isinstance(obj.children[0], nodes.Text):
-            txt = obj.children[0]
-            #  bibfieldreplkwd is global
-            mtc = re.match("^" + bibfieldreplkwd + "(\\w+)" + bibfieldreplkwd + "$", str(txt))
-            if mtc:
-                bibname = mtc.group(1)
-                if bibname in bibfields:
-                    # attributes must be empty, otherwise docutils complains that a
-                    # text node cannot replace a node with attributes
-                    # if this is a bibfield replacement, it should be the case
-                    no_bib_ref = False
-                    for att in obj.attributes:
-                        if obj.attributes[att]:
-                            no_bib_ref = True
-                            break
-                    if no_bib_ref is False:
-                        obj.replace_self(bibfields[bibname])
+    # try to fix problematic, and see iof they are references to bib fields
+    _warn_ = True
+    for obj in doctree.traverse(nodes.problematic):
+        # Note: the doctree has a internal Logger like object (doctree.reporter) in which
+        # you can print messages like doctree.reporter.error("..."), doctree.reporter.warning("...")
+        # Apparently, the reporter prints all its messages (those with a severity at least warning
+        # and error, but this might be dependent on the settings somewhere) AT THE END.
+        # Thus, by writing to stdout and stderr directly, we are sure to write these messages BEFORE
+        # they are printed out by sphinx
+        if _warn_:
+            sys.stdout.write("Trying to fix 'Undefined substitution referenced' errors\n")
+            _warn_ = False
+
+        rawsource = obj.rawsource
+        if rawsource and rawsource[0] == rawsource[-1] == "|" and rawsource[1:-1] in bibfields:
+            index = obj.parent.children.index(obj)
+            repl_nodes = bibfields[rawsource[1:-1]]
+            obj.parent.children.pop(index)
+            for i, node in enumerate(repl_nodes, index):
+                obj.parent.children.insert(i, node)
+
+            sys.stderr.write(('IMPORTANT INFO: please ignore error message \'Undefined '
+                              'substitution referenced: "%s"\': THE PROBLEM HAS BEEN FIXED\n')
+                             % rawsource[1:-1])
 
 
 def parse_doi(doi_str):
