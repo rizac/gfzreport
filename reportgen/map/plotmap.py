@@ -3,7 +3,7 @@ Created on Mar 10, 2016
 
 @author: riccardo
 '''
-
+import os
 import numpy as np
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
@@ -307,17 +307,18 @@ class MapHandler(object):
         return distance_in_meters / deg2m_lon
 
 
-def ensurelen(obj, size, dtype=None):
-    """"Casts" obj to a numpy array of the given size and optional dtype, and returns it.
-    If size is lower or equal than zero, returns the array. Otherwise, resizes the array to the
-    specified size (this is done only if the array has length 1), otherwise raises an exception
+def normalize_arg(obj, size=None, dtype=None):
+    """"Casts" obj to a numpy array of the given optional size and optional dtype, and returns it.
+    If size is not None, the array must have length size. If not, and has length 1, it will be
+    resized to the specified size. Otherwise a ValueError is raised
+    If size is None, no resize will be in place and the array is returend as it is
     Note: obj=None will be converted to the array [None], apparently in the current version of numpy
     this wouldn't be the default (see argument ndmin=1)
     :return an numpy array resulting to the coinversion of obj into array
     :Examples:
     """
     x = np.array(obj, ndmin=1) if dtype is None else np.array(obj, ndmin=1, dtype=dtype)
-    if size <= 0:
+    if size is None:
         return np.array([]) if obj is None else x  # if obj is None x is [None], return [] instead
     try:
         if len(x) == 1:
@@ -331,17 +332,17 @@ def ensurelen(obj, size, dtype=None):
 
 
 def parseargs(lons, lats, labels, sizes, colors, markers):
-    lons = ensurelen(lons, 0, float)  # basically: convert to float array if scalar (size=0)
-    lats = ensurelen(lats, 0, float)  # basically: convert to float array if scalar (size=0)
+    lons = normalize_arg(lons, dtype=float)  # basically: convert to float array if scalar (size=0)
+    lats = normalize_arg(lats, dtype=float)  # basically: convert to float array if scalar (size=0)
     if len(lons) != len(lats):
         raise ValueError('mismatch in lengths: lons (%d) and lats (%d)' % (len(lons), len(lats)))
     leng = len(lons)
-    labels = ensurelen(labels, leng)  # ensure either 'scalar' or array of len=leng
-    colors = ensurelen(colors, leng)
+    labels = normalize_arg(labels, size=leng)  # ensure either 'scalar' or array of len=leng
+    colors = normalize_arg(colors, size=leng)
+    markers = normalize_arg(markers, size=leng)
     # colors[np.isnan(colors) | (colors <= 0)] = 1.0  # nan colors default to 1 (black?)
-    sizes = ensurelen(sizes, leng, float)
+    sizes = normalize_arg(sizes, size=leng, dtype=float)
     sizes[sizes <= 0] = np.nan  # sizes non positive to nan
-    markers = ensurelen(markers, len(lons))
     nan_points = np.isnan(lons) | np.isnan(lats) | np.isnan(sizes)  # | np.isnan(colors)
     valid_points = np.logical_not(nan_points)
     # return all points whose corresponding numeric values are not nan:
@@ -359,19 +360,27 @@ def plot_basemap(lons,
                  sizes=100,  # can be scalar (including None or nan) or array
                  colors="#EEC100",  # can be scalar (including None or nan) or array
                  markers="^",
+                 labels_text_weight='regular',
+                 labels_text_color='k',
+                 labels_text_contour_width=2,
+                 labels_text_contour_color='white',
+                 labels_h_offset_in_km=5,
+                 labels_v_offset_in_km=5,
                  margins_in_km=100,
                  epsg_projection='4326',  # 4326,  # 3395,  # 3857,
                  arcgis_image_service='ESRI_Imagery_World_2D',  # 'ESRI_StreetMap_World_2D'
                  arcgis_image_xpixels=1500,
                  arcgis_image_dpi=96,
                  num_max_meridians=5,
+                 meridians_linewidth=1.,
                  num_max_parallels=5,
+                 parallels_linewidth=1.,
                  title=None,
                  show=False,
                  fig=None,
                  **kwargs):  # @UnusedVariable
     """
-    Creates a basemap plot with a data point scatter plot.
+    Creates a basemap plot with a data point scatter plot. Code copied and modified from obspy basemap
 
     :param lons: Longitudes of the data points.
     :type lons: list/tuple of floats, or a single scalar number (will be converted to a single
@@ -390,6 +399,30 @@ def plot_basemap(lons,
         If colors is a "scalar" (i.e. something not tuple/list etcetera) will be converted to the
         list [colors, colors, ... ] of the same length as len(lons)
     :type colors: string or list/tuple of strings
+    :param markers: (default "^"): a string of markers. A single string applies to all values
+    :param labels_text_weight: string (default: 'normal'). A numeric value in range 0-1000 or
+        'ultralight' or 'light' or 'normal' or 'regular' or 'book' or 'medium' or 'roman' or
+        'semibold' or 'demibold' or 'demi' or 'bold' or 'heavy' or 'extra bold' or 'black'
+    :param labels_text_color: (default 'k'). Single letters ('b', 'g', 'r', 'c', 'm', 'y',
+        'k'=black, 'w'), rgb tuple (1, 0.6, 0), html colors ('#EEFF65' but also legal html names
+        for colors, like 'red', 'burlywood', or an integer in [0,1] to specify gray shades (0=black) 
+    :param labels_text_contour_width: (default: 1). Width in points, 0 avoids painting it
+    :param labels_text_contour_color: (default 'white'). The labels contour color. Set to None
+        to skip painting contour. For the options, see ref:`labels_text_colors`
+    :param margins_in_km: (default 100) the margins in km of the map bbox, calculated according to
+        the points lats and lons
+    :param epsg_projection: (default: '4326') the map projection. FIXME: see?  # 4326,  # 3395,  # 3857,
+    :param arcgis_image_service: (default 'ESRI_Imagery_World_2D'). FIXME: see?  # 'ESRI_StreetMap_World_2D'
+    :param arcgis_image_xpixels: (default 1500). FIXME: see?
+    :param arcgis_image_dpi: (default 96). FIXME: see?
+    :param num_max_meridians: (default: 5). Set to zero to avoid plotting meridians at all
+        (including axis ticks)
+    :param meridians_linewidth: (default 1.). Set to zero to avoid showing meridians lines on the
+        map
+    :param num_max_parallels: (default: 5). Set to zero to avoid plotting meridians at all
+        (including axis ticks)
+    :param parallels_linewidth: (default: 1.). Set to zero to avoid showing parallels lines on the
+        map
     :param title: Title above plot
     :type title: str
     :param show: Whether to show the figure after plotting or not. Can be used
@@ -400,6 +433,7 @@ def plot_basemap(lons,
         kwargs regarding the basemap background will be ignored.
         In other words, only points will be printed. This functionality has not been tested yet
     :type fig: :class:`matplotlib.figure.Figure`. You can access the basemap with fig.bmap
+
     """
     lons, lats, labels, sizes, colors, markers =\
         parseargs(lons, lats, labels, sizes, colors, markers)
@@ -441,19 +475,23 @@ def plot_basemap(lons,
         bmap.arcgisimage(service=arcgis_image_service, xpixels=arcgis_image_xpixels,
                          dpi=arcgis_image_dpi, verbose=True)
 
+        # ax.xaxis.set_tick_params(width=5)
+        # ax.yaxis.set_tick_params(width=5)
+
         if num_max_parallels:
             parallels = handler.get_parallels(num_max_parallels)
             # Old basemap versions have problems with non-integer parallels.
             try:
-                bmap.drawparallels(parallels, labels=[0, 1, 1, 0])
+                bmap.drawparallels(parallels, labels=[0, 1, 1, 0], linewidth=parallels_linewidth)
             except KeyError:
                 parallels = sorted(list(set(map(int, parallels))))
-                bmap.drawparallels(parallels, labels=[0, 1, 1, 0])
+                bmap.drawparallels(parallels, labels=[0, 1, 1, 0], linewidth=parallels_linewidth)
 
         if num_max_meridians:
             meridians = handler.get_meridians(num_max_meridians)
-            bmap.drawmeridians(meridians, labels=[1, 0, 0, 1])
+            bmap.drawmeridians(meridians, labels=[1, 0, 0, 1], linewidth=meridians_linewidth)
 
+        fig.get_axes()[0].tick_params(direction='out', length=15)
         fig.bmap = bmap
     else:
         error_message_suffix = (
@@ -493,30 +531,41 @@ def plot_basemap(lons,
 
     # Input arguments lon, lat can be either scalar floats,
     # sequences, or numpy arrays.
-    x, y = bmap(lons, lats)
 
-    # setup color array
+    lbl_lons = lons + np.sign(labels_h_offset_in_km) * \
+        MapHandler.w2lon(1000 * np.abs(labels_h_offset_in_km), lats)
+    lbl_lats = lats + np.sign(labels_h_offset_in_km) * \
+        MapHandler.h2lat(1000 * np.abs(labels_v_offset_in_km))
+
+    xlbl, ylbl = bmap(lbl_lons, lbl_lats)
 
     # plot labels
-    if len(labels):
-        if 100 > len(lons) > 1:
-            for name, xpt, ypt in zip(labels, x, y):
-                # Check if the point can actually be seen with the current bmap
-                # projection. The bmap object will set the coordinates to very
-                # large values if it cannot project a point.
-                if xpt > 1e25:
-                    continue
-                map_ax.text(xpt, ypt, name, weight="heavy",
-                            color="k", zorder=100,
-                            path_effects=[
-                                PathEffects.withStroke(linewidth=3,
-                                                       foreground="white")])
-        elif len(lons) == 1:
-            map_ax.text(x[0], y[0], labels[0], weight="heavy", color="k",
-                        path_effects=[
-                            PathEffects.withStroke(linewidth=3,
-                                                   foreground="white")])
+    max_points = -1  # negative means: plot all
+    if max_points < 0 or len(lons) < max_points:
 
+        # set arguments
+        kwargs = {
+                  "weight": labels_text_weight,
+                  "color": labels_text_color,
+                  }
+        if labels_text_contour_width > 0 and labels_text_contour_color is not None:
+            kwargs['path_effects'] = [PathEffects.withStroke(linewidth=labels_text_contour_width,
+                                                             foreground=labels_text_contour_color)]
+
+        # this is copied from obspy code. There is no mention about the reason though
+        if len(lons) > 1:
+            kwargs['zorder'] = 100
+
+        for name, xpt, ypt in zip(labels, xlbl, ylbl):
+            # Check if the point can actually be seen with the current bmap
+            # projection. The bmap object will set the coordinates to very
+            # large values if it cannot project a point.
+            if xpt > 1e25:
+                continue
+            map_ax.text(xpt, ypt, name, **kwargs)
+
+    # plot points
+    x, y = bmap(lons, lats)
     # bmap.scatter accepts all array-like args except markers. Avoid several useless loops
     # and do only those for distinct markers:
     mrks = np.unique(markers)
@@ -535,6 +584,8 @@ def plot_basemap(lons,
         plt.show()
 
     return fig
+
+
 
 
 if __name__ == "__main__":

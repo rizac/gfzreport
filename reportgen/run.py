@@ -42,7 +42,7 @@ def pdflatex(texfile, texfolder=None):
     # run twice for references:
 
     if ret != 0:
-        sys.stderr.write("WARNING: pdflatex returned an exit status {0:d} (0=Ok)".format(ret))
+        sys.stdout.write("WARNING: pdflatex returned an exit status {0:d} (0=Ok)".format(ret))
 
     ret = subprocess.call(popenargs, **kwargs)
 
@@ -93,10 +93,10 @@ def run(sysargv):
             skipthis = True
 
     # change default config if NOT specified:
-    if not config_dir_specified and use_config:
-        sysargv.append('-c')
-        sysargv.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                    "../configs/default")))
+#     if not config_dir_specified and use_config:
+#         sysargv.append('-c')
+#         sysargv.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
+#                                                     "../configs/default")))
 
     if do_pdf:
         old_tex_files = get_tex_files(outdir)

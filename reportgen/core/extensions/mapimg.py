@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-   FIXME: write doc!!
-
-    
+   Implements the map-image directive which behaves like an image. The file argument is a csv file,
+   with the first row as header and AT LEST the columns denoting:
+    - latitudes (either denoted by the string 'lats', 'latitudes', 'lat' or 'latitude', case insensitive)
+    - longitudes ('lons', 'longitudes', 'lon' or 'longitude', case insensitive)
+    - labels ('name', 'names', 'label', 'labels', 'caption', 'captions', case insensitive)
+   And optionally (only for pdf/latex rendering!):
+    - sizes ('size' or 'sizes', case insensitive)
+    - colors ('color' or 'colors', case insensitive)
 """
 
 # NOTE: TEMPLATE TO BE USED. DOWNLOADEDFROM THE SPHINX EXTENSIONS HERE:
@@ -10,67 +15,39 @@
 from docutils import nodes  # , utils
 from docutils.parsers.rst import directives
 from docutils.parsers.rst.directives import images
-from sphinx.util.compat import Directive
+# from sphinx.util.compat import Directive
 from uuid import uuid4  # FIXME: sphinx provides a self uuid!
 from sphinx.util import ensuredir
 import os
+import re
 from reportgen.map import plotmap
 import pandas as pd
-import csv
-import numpy as np
-from reportgen.core.utils.hash import get_hash as utils_get_hash
 import reportgen.core.extensions.setup as stp
 
+_OVERWRITE_IMAGE_ = False  # set to True while debugging / testing
 
-def read_csv(filepath, required_columns, additional_delimiters=[' ', ';']):
-    """
-        Reads filepath as csv file returning a list of rows. Each rows is a dict of fields:values,
-        where fields is parsed from the csv header row (first row)
-        :param required_columns: a list of strings denoting the required columns. A Value Error
-        is raised if the csv file does not contain at least those columns. Set to None or the empty
-        list for skipping the check
-        :param additional_delimiters: (defaults to [' ', ';'] if missing). A list of strings
-        denoting the additional delimiters between fields. The function iterates over all delimiters
-        (attempting first of all to parse the csv with no delimiter, the default) and then iterating
-        over additional_delimiters (if any). The function stops and returns the dict as soon as the
-        csv file can be parsed (i.e., it can be read and has at least required_columns fields,
-        see above)
-        :raise ValueError: if for any reason the csv cannot be read or does not have the required
-        columns
-        :return: a list of dicts of the form {row1: value1, ..., rowN: valueN}
-    """
-    filepath = stp.relfn2path(filepath)
-    ret = None
-    if not additional_delimiters:
-        additional_delimiters = []
-    additional_delimiters.insert(0, None)
+csv_headers = {
+               "lats": re.compile("lat(?:itude)?s?", re.IGNORECASE),
+               "lons": re.compile("lon(?:gitude)?s?", re.IGNORECASE),
+               "labels": re.compile("(?:names?|captions?|labels?)", re.IGNORECASE),
+               "sizes": re.compile("sizes?", re.IGNORECASE),
+               "colors": re.compile("colors?", re.IGNORECASE)
+               }
 
-    if not required_columns:
-        required_columns = []
-    try:
-        with open(filepath) as csvfile:
-            for i, delim in enumerate(additional_delimiters):
-                if i > 0:
-                    csvfile.seek(0)  # return to first byte
 
-                reader = csv.DictReader(csvfile) if delim is None else \
-                    csv.DictReader(csvfile, delimiter=delim)
-                for row in reader:
-                    if all(r in row for r in required_columns):
-                        ret = [row]
-                        for row in reader:  # NOTE: does NOT restart iteration from first item
-                            ret.append(row)
-                    break
-                if ret is not None:
-                    break
-    except (csv.Error, IOError) as exc:
-        raise ValueError(str(exc))
-
-    if ret is None:
-        raise ValueError("%s seems not to contain "
-                         "all header fields: %s" % (filepath, ",".join(required_columns)))
-
-    return ret
+def rename(dframe):
+    "renames columns according to csv_headers defined above"
+    newcols = {}
+    for colname in dframe.columns:
+        newcolname = colname
+        for normalized_colname in csv_headers:
+            if csv_headers[normalized_colname].match(colname):
+                if normalized_colname not in newcols:
+                    newcolname = normalized_colname
+                break
+        newcols[colname] = newcolname
+    dframe.rename(columns=newcols, inplace=True)
+    return dframe
 
 
 # note: we override node cause nodes might be called also from a parent map-image
@@ -84,70 +61,43 @@ class mapimg(nodes.image):
         # parse the csv and store attributes here
         try:
             uri = directives.uri(attributes['uri'])
-            self._custom_data = {}
-            # FIXME: check hash
-            # self._custom_data['id'] = get_hashid((attributes[key] for key in sorted(attributes)))
-            pts = read_csv(uri, [attributes[k] for k in ('lat_key', 'lon_key', 'name_key')])
-            pts = transpose_csv(pts)
-            self._custom_data['data'] = pts
-        except ValueError as verr:
+            filepath = stp.relfn2path(uri)
+            self.attributes['__csv_mod_time__'] = os.stat(filepath)[8]
+            pts_df = rename(pd.read_csv(filepath))
+            # convert to a list of column_name: [value1, ... ] more suitable
+            pts_dict = pts_df.to_dict('list')
+            self.attributes['__data__'] = pts_dict
+        except ValueError:
             pass  # FIXME: do something?
 #             document = self.reporter.document
 #             return [document.reporter.warning(str(verr), line=self.lineno)]
             # image_node.points_error_msg = str(verr)
 
 
-class MapImgDirective(images.Image):
+class MapImgDirective(images.Image):  # FIXME: to be tested! SHOULD WE EVER CALL IT ACTUALLY??
     """
     Directive that builds plots using a csv file
     """
-    own_option_spec = dict(
-        lat_key=lambda arg: arg or 'lat',
-        lon_key=lambda arg: arg or 'lon',
-        name_key=lambda arg: arg or 'name',
 
-    )
+    own_option_spec = {
+                      'margins_in_km': lambda arg: arg or None,
+                      'epsg_projection': lambda arg: arg or None,
+                      'arcgis_image_service': lambda arg: arg or None,
+                      'arcgis_image_xpixels': lambda arg: arg or None,
+                      'arcgis_image_dpi': lambda arg: arg or None
+                      }
 
-    option_spec = images.Figure.option_spec.copy()  # @UndefinedVariable
+    option_spec = images.Image.option_spec.copy()  # @UndefinedVariable
     option_spec.update(own_option_spec)
 
     def run(self):
-        nodes = images.Image.run(self)
+        imgnodes = images.Image.run(self)
         # replace image nodes (theoretically, at most one) with mapimg nodes
-        for i, nod in enumerate(nodes):
-            if isinstance(nod, nodes.image):
-                # note that self.options has already been
-                # worked out in the super constructor
-                # important cause it does checks and modifications
-                nodes[i] = mapimg(self.block_text, **self.options)
-
-        return nodes
-
-
-def transpose_csv(csv_data):  # FIXME: use pandas read_csv
-    """
-        Transposes csv_data, from a list of dicts into a dict of lists
-        :param csv_data: the output of read_csv
-    """
-    df = pd.DataFrame(csv_data)
-    # given the nature of points_dict (a list of dicts)
-    # the function above does all the trick
-    return df.to_dict('list')
-
-
-def get_data(node):
-    """
-        Returns the values id, lons, lats, labels (lists) for all points on a map
-        id is an integer, lons, lats labels are lists of the same size
-    """
-    data = node._custom_data['data']
-    opts = node.attributes
-
-    lons = np.array(data[opts['lon_key']], dtype=float)
-    lats = np.array(data[opts['lat_key']], dtype=float)
-    labels = data[opts['name_key']]
-
-    return dict(lons=lons, lats=lats, labels=labels)
+        # note that self.options has already been
+        # worked out in the super constructor
+        # important cause it does checks and modifications
+        imgnodes[0] = mapimg(self.block_text, **self.options)
+        return imgnodes
 
 
 def visit_mapimg_node_html(self, node):
@@ -155,7 +105,7 @@ def visit_mapimg_node_html(self, node):
     http://www.sphinx-doc.org/en/stable/_modules/sphinx/application.html
     """
 
-    data = get_data(node)  # FIXME: error!
+    data = node.attributes['__data__']  # FIXME: error!
     _uuid = get_hash(data)
 
     markers = []
@@ -221,46 +171,27 @@ def get_map_from_csv(**map_args):
     return f
 
 
-def get_hash(node_data):
-    func = plotmap.plot_basemap
-    args = func.func_code.co_varnames[:func.func_code.co_argcount]
-    defvals = func.func_defaults
-    params = {}
-    # set what arguments need to be hashable. Orders does not matter, as the order in which they
-    # are declared in func does
-    hashableargs = ['lons',
-                    'lats',
-                    'margins_in_km',
-                    'epsg_projection',
-                    'arcgis_image_service'
-                    'arcgis_image_xpixels',
-                    'arcgis_image_dpi']
-    for i, arg in enumerate(args):
-        if arg not in hashableargs:
-            continue
-        if arg in node_data:
-            params[arg] = node_data[arg]
-        else:
-            params[arg] = defvals[i-(len(args) - len(defvals))]
-    try:
-        return utils_get_hash(params)
-    except TypeError:  # if something is not hashable, return an uuid. Chances that we already used
-        # it are basically zero
-        return uuid4()
+def get_hash(node):
+    lst = [node['__csv_mod_time__']]
+    for arg in MapImgDirective.own_option_spec:
+        lst.append(node.attributes.get(arg, None))
+
+    return hash(tuple(node))
 
 
 # from sphinx.writers.latex import LaTeXTranslator
 def visit_mapimg_node_latex(self, node):
-    """self is the builder, although not well documented FIXME: setuo this doc!
+    """
+    self is the builder, although not well documented FIXME: setuo this doc!
     http://www.sphinx-doc.org/en/stable/_modules/sphinx/application.html
     """
 
-    data = get_data(node)
-    _uuid = get_hash(data)
+    _uuid = get_hash(node)
     fname = 'map_plot-%s.png' % str(_uuid)
     outfn = os.path.join(self.builder.outdir, fname)
 
-    if not os.path.isfile(outfn):
+    if _OVERWRITE_IMAGE_ or not os.path.isfile(outfn):
+        data = node.attributes['__data__']
         fig = get_map_from_csv(**data)
         ensuredir(os.path.dirname(outfn))
         fig.savefig(outfn)

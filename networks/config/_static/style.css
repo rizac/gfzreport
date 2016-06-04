@@ -108,7 +108,25 @@ div.leaflet-container {
 div.footer {
     margin: 20px auto 10px auto !important;
 }
+/* override alabaster table footnote bg color */
+table.footnote {
+    background: transparent;
+}
 
+/* override bottstrap label for those properties in conflict" with sphinx label class
+commented out bootstrap defaults */
+.label {
+    /* display: initial; 
+    padding: .2em .6em .3em;*/
+    font-size: 100%; /* in bootstrap it's 75%; */
+    /* font-weight: 700;
+    line-height: 1; */
+    color: inherit; /* in bootstrap it's white */
+    /*text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: .25em;*/
+}
 /* ace editor stuff (not seen when the page is not editable)
 Note: we assume the vibrant_ink theme (see layout.html. Dont know if it's important though)
 */
@@ -133,38 +151,3 @@ Note: we assume the vibrant_ink theme (see layout.html. Dont know if it's import
 	color: #dd8000; !important;
 	font-weight: bold !important;
 }
-
-/*================== OLD STUFF==========================
-/* #editor-bar{
-	position: absolute;
-	bottom:1vh;
-	width: 98vw;
-	height:8vh;
-	left:1vw;
-} */
-
-
-/* #editor_wrapper{
-	position: relative;
-	height:100vh;
-	width:100vw;
-	z-index:1000;
-} */
-
-/* *.data-editable{
-	background-color: yellow;
-	border: 1px solid #f00;
-} */
-/*
-div.document{
-	margin-top: 30px; /* same as superclass BUT it's a reminder for the next property which must be the same*/
-/* }
-*/
-/*
-div.documentwrapper {
-    float: none;
-} 
-div.sphinxsidebar{
-	top: 30px;
-}
-*/

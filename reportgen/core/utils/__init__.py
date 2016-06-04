@@ -244,6 +244,72 @@ def _ensure(filepath, mode, mkdirs=False, errmsgfunc=None):
         raise OSError(errmsgfunc(filepath, mode))
 
 
+def split_wildcard(path, check_dir=True):
+    """Given the path with potential wildcards, e.g. /mypath/*.pdf, return the tuple
+    ("/mypath", r), where r is the regular expression which will match for the given files.
+    This methods accounts only for ? and * wildcards (standard windows)
+    :return: an object with trhree methods: dirname (returns the dirname without wildcards),
+    wildcard (returns the wildcard, or None), regex (returns the regular expression
+    built from the wildcard)
+    :Example:
+    one can iterate like this:
+    path, reg = split_wildcards(path, check_dir=True)
+    ```
+        if fname in os.listdir(path):
+        ... if needed a check do it here ...
+            if reg.match(fname):
+            ... do your stuff here ...
+    ```
+    """
+    orig_path = path
+    reg = re.compile(".*")
+    wildc = None
+    idx = path.rfind(os.sep)
+    if idx > -1 and idx < len(path) - 1:
+        subpath, wildc = path[:idx], path[idx+1:]
+        if '*' in wildc or "?" in wildc:
+            path = subpath
+            reg = regex(wildc)
+
+    if check_dir and not os.path.isdir(path):
+        raise OSError("%s : %s" % (path, strerror(errno.ENOTDIR)))
+
+    return type('WildcardIterator',
+                (object,),
+                {
+                 "path": orig_path,
+                 "dirname": path,
+                 "wildcard": wildc,
+                 "regex": reg,
+                 "listdir":
+                 lambda self: (os.path.join(self.dirname, x) for x in os.listdir(self.dirname) if self.regex.match(x)),
+                 })()
+
+
+def copytree(src, dst, symlinks=False, ignore=None):
+    """
+        Same as shutil.copytree when dst does not exists (isdir = False). Otherwise
+        implements a workaround which basically uses shutil.copytree (or copy2) on each subelement
+        of src. In this last case, note that, contrary to shutil.copytree:
+        * it doesn't honor symlinks and ignore parameters for the root directory of the src tree;
+        * it doesn't raise shutil.Error for errors at the root level of src;
+        * in case of errors during copying of a subtree, it will raise shutil.Error for that subtree
+          instead of trying to copy other subtrees and raising single combined shutil.Error
+        Code copied from:
+        http://stackoverflow.com/questions/1868714/how-do-i-copy-an-entire-directory-of-files-into-an-existing-directory-using-pyth
+    """
+    if not os.path.isdir(dst):
+        shutil.copytree(src, dst, symlinks, ignore)
+        return
+    for item in os.listdir(src):
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        if os.path.isdir(s):
+            shutil.copytree(s, d, symlinks, ignore)
+        else:
+            shutil.copy2(s, d)
+
+
 def load_module(filepath, name=None):
     """
         Loads a python module indicated by filepath, returns an object where global variables

@@ -3,14 +3,16 @@ Created on Apr 4, 2016
 
 @author: riccardo
 '''
-from docutils.nodes import SkipNode
+# import re
+# from sphinx.util import nodes
+# import sphinx.directives
+# from docutils.nodes import SkipNode
 from sphinx.writers.latex import LaTeXTranslator as LT, FOOTER, HEADER
 from collections import OrderedDict as odict
 from sphinx.builders import latex
 
+
 class LatexTranslator(LT):
-#     default_elements = LT.default_elements.copy()
-#     default_elements.update({'postamble': ''})
 
     def __init__(self, document, builder):
         LT.__init__(self, document, builder)  # FIXME: check why new style super call does not work
@@ -18,6 +20,7 @@ class LatexTranslator(LT):
         self.field_list = odict()  # preserves order
         self.field_list_start = []
         self.rst_bib_fields = {}
+        self._processing_imggrid = False
 
     def visit_field_list(self, node):
         self.field_list_start = len(self.body)
@@ -27,9 +30,6 @@ class LatexTranslator(LT):
         LT.depart_field_list(self, node)
         # remove all biblio fields, they are handled below
         self.body = self.body[:self.field_list_start]
-#         if len(self.body) == self.field_list_start+2:
-#             # remove field list stuff
-#             self.body = self.body[:-2]
 
         if hasattr(self, "abstract_text_reminder"):
             self.body.extend([r'\begin{abstract}', '\n',
@@ -60,67 +60,7 @@ class LatexTranslator(LT):
         if field_name == "abstract":
             self.abstract_text_reminder = field_value
 
-    def visit_figure(self, node):
-        # set here the actual length of the body
-        if 'source_imggrid_directive' in node['classes']:
-            self._tmp_swap_method = self.depart_table
-            self.depart_table = self.depart_table_inside_gridfigure
-        LT.visit_figure(self, node)
-
-    def depart_figure(self, node):
-        LT.depart_figure(self, node)
-        if 'source_imggrid_directive' in node['classes']:
-            # restore the normal depart table method:
-            self.depart_table = self._tmp_swap_method
-
-    def depart_table_inside_gridfigure(self, node):
-        # we have an imagesgrid, which must be rendered as figure
-        # the code below is copied from the super-method for the case at hand
-        # (\begin{tabulary}{\linewidth}{LLL})
-        # removing all the cases for longtable, which we do not want here
-        self.popbody()
-
-        if self.table.has_verbatim:
-            self.body.append('\n\\begin{tabular}')
-            endmacro = '\\end{tabular}\n\n'
-        elif self.table.has_problematic and not self.table.colspec:
-            # if the user has given us tabularcolumns, accept them and use
-            # tabulary nevertheless
-            self.body.append('\n\\begin{tabular}')
-            endmacro = '\\end{tabular}\n\n'
-        else:
-            self.body.append('\n\\begin{tabulary}{\\linewidth}')
-            endmacro = '\\end{tabulary}\n\n'
-        if self.table.colspec:  # FIXME: what's that??
-            self.body.append(self.table.colspec)
-        else:
-            if self.table.has_problematic:
-                colwidth = 0.95 / self.table.colcount
-                colspec = ('p{%.3f\\linewidth}' % colwidth) * \
-                    self.table.colcount
-                self.body.append('{' + colspec + '}\n')
-            else:
-                self.body.append('{' + ('L' * self.table.colcount) + '}\n')
-        if self.table.caption is not None:
-            self.body.append(u'\\caption{')
-            for caption in self.table.caption:
-                self.body.append(caption)
-            self.body.append('}')
-            for id_ in self.next_table_ids:
-                self.body.append(self.hypertarget(id_, anchor=False))
-            self.next_table_ids.clear()
-            self.body.append(u'\\\\\n')
-
-        self.body.extend(self.tableheaders)
-        for line in self.tablebody:
-            if line != "\\hline":  # remove horizontal lines
-                self.body.append(line)
-        self.body.append(endmacro)
-        self.unrestrict_footnote(node)
-        self.table = None
-        self.tablebody = None
-
-    def visit_Text(self, node):
+    def visit_Text(self, node):  # FIXME: remove this method???
         """
             Calls the super method, and then replaces invalid characters
             For the moment, it just replaces the tilde operator with
@@ -135,16 +75,16 @@ class LatexTranslator(LT):
                 # ASCII TILDE, but a tilde operator whose ordinal is 8764
                 # that's why this cumbersome way to do it:
                 if ord(bchar) == 8764:
-                    self.body[i] = self.body[i].replace(bchar, "\\texttildelow" )
+                    self.body[i] = self.body[i].replace(bchar, "\\texttildelow")
                     break
 
     def astext(self):
         # build a dict of bibliographic fields, and inject them as newcommand 
         # in the latex header
-        h = 9
         commands = ("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
                     "%% AUTO-GENERATED COMMANDS FROM BIBLIOGRAPHIC FIELDS IN THE SOURCE RST:\n" +
-                    "\n".join("\\newcommand{\\rst" + (name[0].title() + name[1:]) + "}{" + definition + "}"
+                    "\n".join("\\newcommand{\\rst" + (name[0].title() + name[1:]) + "}" +
+                              "{" + definition + "}"
                               for name, definition in self.rst_bib_fields.iteritems() if name) +
                     "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
                     "%% CUSTOM PREAMBLE DEFINED IN THE SOURCE RST CONFIG FILE:\n" +

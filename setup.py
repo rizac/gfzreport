@@ -93,7 +93,7 @@ setup(
     # it apparently downloads numpy, then obspy, THEN INSTALLS both
     # so that, since obspy requires numpy, it complains that's not installed.
     # numpy must be therefore installed separately, and we write:
-    install_requires=["pandas", "Flask", "Sphinx",  "obspy",  # "matplotlib",
+    install_requires=["pandas", "Flask", "Sphinx", "matplotlib", # "obspy",
                       "jinja2", "lxml", "beautifulsoup4"],
                       # note: if you remove obspy THEN you need to add matplotlib!!
 

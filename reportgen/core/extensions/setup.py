@@ -212,7 +212,7 @@ def app_doctree_read(app, doctree):
             for i, node in enumerate(repl_nodes, index):
                 obj.parent.children.insert(i, node)
 
-            sys.stderr.write(('IMPORTANT INFO: please ignore error message \'Undefined '
+            sys.stderr.write(('Please ignore error message \'Undefined '
                               'substitution referenced: "%s"\': THE PROBLEM HAS BEEN FIXED\n')
                              % rawsource[1:-1])
 
