@@ -23,7 +23,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='gfz-reportgen',
+    name='gfz-reportbuild',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
@@ -126,7 +126,8 @@ setup(
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
-            'gfz-reportgen=reportgen.run:main',
+            'reportbuild=reportbuild.main:main',
+            'network-reportgen=reportgen.network.generator.main:main'
         ],
     },
 )
