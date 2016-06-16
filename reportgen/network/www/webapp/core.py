@@ -4,130 +4,266 @@ Created on Apr 3, 2016
 @author: riccardo
 '''
 import os
+from flask import render_template
 from reportbuild.main import run as reportbuild_run
-from glob import iglob
 import shutil
 from StringIO import StringIO
 from flask.helpers import send_from_directory
 from flask import Blueprint
-# specify here an absolute path RELATIVE TO THE APP DIRECTORY (app.root_dir)
-STATICDIR = '../../test-data/build'
+from flask import request, Response
+from flask import jsonify
 
 
-def serve_static_file(app, network, filepath):
-    builddir = get_builddir(app, network, build='html')
-    dirname = os.path.dirname(filepath)
-    filename = os.path.basename(filepath)
-    return send_from_directory(os.path.join(builddir, dirname), filename)
-
-
-def get_source_rst(filename, as_js=True):
+def get_source_rst_content(app, network, as_js=True):
     """
         Reads the source rst from the sphinx source file. If the argument is True, returns
         javascript formatted string (e.g., with newlines replaced by "\n" etcetera)
     """
-
-    # FIXME: FIX PATHS!!! FIXME: FIX UNICODE ISSUE (ARE THERE??)
-    with open(filename, "r") as fpoint:
-        filecont = fpoint.read()  # .encode('utf8')
-
+    filename = get_source_rstfile_path(app, network)
     # json dump might do what we want, but it fails with e.g. "===" (rst headers, not javascript
-    # equal sign
+    # equal sign. So this procedure might not be optimal but it works
     sio = StringIO()
-    for c in filecont:
-        if c == '\n' or c == '\r':
-            sio.write("\\")
-            c = 'n' if c == '\n' else 'r'
-        elif c == '\\' or c == '"':
-            sio.write("\\")
-        sio.write(c)
-    return sio.getvalue()
+    with open(filename, "r") as fpoint:
+        if not as_js:
+            return fpoint.read().decode('utf8')
+        while True:
+            c = fpoint.read(1)
+            if not c:
+                break
+            elif c == '\n' or c == '\r':
+                sio.write("\\")
+                c = 'n' if c == '\n' else 'r'
+            elif c == '\\' or c == '"':
+                sio.write("\\")
+            sio.write(c)
+
+    return sio.getvalue().decode('utf8')
 
 
 def get_root_page(app):
     strio = StringIO()
     strio.write("<!DOCTYPE html><html><body>NETWORK REPORTS:<ul>")
-    data_root = app.config['NETWORK_DATA_DIR']
+    data_root = app.config['SOURCE_PATH']
     str_ = "No networks currently loaded, if needed please report it to the site administrator"
     if os.path.isdir(data_root):
-        for dir_ in os.listdir(data_root):
-            if not dir_[0] == "_":
+        for filename in os.listdir(data_root):
+            if not filename[0] in ("_", ".") and os.path.isdir(os.path.join(data_root, filename)):
                 str_ = ""
                 # path = os.path.join(data_root, dir_)
-                strio.write("\n<li><a href='/%s'>%s</a>" % (dir_, dir_))
+                strio.write("\n<li><a href='/%s'>%s</a>" % (filename, filename))
     strio.write(str_)
     strio.write("\n</body>\n</html>")
     return strio.getvalue()
 
 
-def get_report_last_rst(app, network):
-    network_rst_dir = os.path.join(app.config['NETWORK_DATA_DIR'], network, "build", "rst")
-    versions = {}
-    for filename in os.listdir(network_rst_dir):
-        if filename[:-4] == ".rst":
+# def get_report_last_rst(app, network):
+#     network_rst_dir = os.path.join(app.config['NETWORK_DATA_DIR'], network, "build", "rst")
+#     versions = {}
+#     for filename in os.listdir(network_rst_dir):
+#         if filename[:-4] == ".rst":
+#             try:
+#                 vernum = int(filename[:-4])
+#                 versions[vernum] = os.path.join(network_rst_dir, filename)
+#             except ValueError:
+#                 pass
+#     return versions[max(versions.keys())]
+
+def get_source_rstfile_path(app, network):
+    return get_source_path(app, network, app.config['REPORT_FILENAME'] + ".rst")
+
+
+def get_source_path(app, network, *paths):
+    return os.path.join(app.config['SOURCE_PATH'], network, *paths)
+
+
+def get_build_path(app, network, *paths):
+    return os.path.join(app.config['BUILD_PATH'], network, *paths)
+
+
+def get_file_ext(build_type):
+    if build_type == "latex":
+        return ".tex"
+    return "." + build_type
+
+
+def needs_build(app, network, build='html', est_build_time_in_sec=0):
+    """
+        Returns True if the source rst file ha been modified AFTER the relative build file
+        The source folder (with relative .rst) MUST EXIST, otherwise False is returned
+        (we don't need a build for a non existing file). The build dir needs not to (returns True
+        in that case)
+        :param est_build_time_in_sec: a margin to set when comparing the last modified time
+        assuming 30 seconds (the default) the source file has been modified in the 30 seconds
+        BEFORE the destination last modified time, True is returned, too
+    """
+    sourcefile = get_source_path(app, network, app.config['REPORT_FILENAME'] + ".rst")
+    destfile = get_build_path(app, network, build, app.config['REPORT_FILENAME'] +
+                              get_file_ext(build))
+    if not os.path.isfile(sourcefile):
+        return False
+    if not os.path.isfile(destfile):
+        return True
+    return os.stat(sourcefile).st_mtime > os.stat(destfile).st_mtime - est_build_time_in_sec
+
+
+def buildreport(app, network, build='html', force=False):
+    """Builds the given report according to the specified network. Returns 0 on success,
+    anything else otherwise. Note that if build_str is 'html', some post-processing is
+    made on the generated file to let jinja2 templating work"""
+    if not force and not needs_build(app, network, build):
+        return 0
+    sourcedir = get_source_path(app, network)
+    builddir = get_build_path(app, network, build)
+    ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
+    if build == ' html':
+        get_jinja_template(app, network, True)
+    return ret
+
+
+def get_jinja_template(app, network, force_rebuild=False):
+    """
+        Returns the template path to be rendered with render_template
+        for a given network.
+        The function first creates a base template (html) from sphinx built html page. The latter
+        has custom hidden commands that are converted to jinja blocks
+        Then we create a report template, based on a pre-defined app template, that will act as
+        child of the base template created above
+        The function returns the report template path, as argument of render_template
+        :param force_rebuild: if False (defaults to True), then the report template path is just
+        returned (relative to 
+        withour creating / overwriting any new file (the file must exist of course, and that's not
+        checked for in case)
+    """
+
+    report_template_name = "%s.html" % network
+    if not force_rebuild:
+        return report_template_name
+
+    # CREATE THE BASE TEMPLATE FOR THE GIVEN NETWORK:
+    # read the sphinx html page, and replace custom comments with jinja blocks:
+    sphinx_html_path = get_build_path(app, network, "html",
+                                      app.config['REPORT_FILENAME'] + get_file_ext("html"))
+    # replace custom comments with jinja blocks:
+    buf = StringIO()
+    str_start = "<!--EDITABLE_PAGE %"
+    str_end = "% EDITABLE_PAGE-->"
+    with open(sphinx_html_path, 'r') as opn:
+        for line in opn:
+            if str_start in line:
+                # use the in operator, faster, and then "waste" time only if its' true (seldom)
+                line = line.strip()
+                id0, id1 = line.find(str_start), line.rfind(str_end)
+                if id0 == 0 and id1 == len(line) - len(str_end):
+                    line = "{%" + line[len(str_start):id1] + "%}"
+            buf.write(line)
+
+    # write templates to file (create dir if it does not exist):
+    # we will write a
+    # 1) base template
+    # 2) report template, inheriting from base
+    # 1) was just created, 2) is copied with a slight modification from the app template
+    networks_templates_path = app.config['NETWORKS_TEMPLATES_PATH']
+    if not os.path.isdir(networks_templates_path):
+        os.makedirs(networks_templates_path)
+
+    # write buf to the "base" template for the given network
+    base_template_name = "%s.base.html" % network
+    base_template_path = os.path.join(networks_templates_path, base_template_name)
+    with open(base_template_path, 'w') as fd:
+        buf.seek(0)
+        shutil.copyfileobj(buf, fd)
+
+    # now copy the app template path to our report template html.
+    # child template, from this dir (or whatever) to the templates dir
+    report_template_path = os.path.join(networks_templates_path, report_template_name)
+
+    # NOTE: as we assigned a particular templates folder in each blueprint (see
+    # register_blueprint) the first header {% extends [base_template_name] %} in report
+    # template path MUST point to the correct path, i.e. relative to networks_templates_path.
+    # BUT this is simply report_template_name.
+    # So, copy file:
+    app_template_path = app.config["APP_TEMPLATE_PATH"]
+    with open(app_template_path, 'r') as _src:
+        with open(report_template_path, 'w') as _dst:
+            _dst.write("{% extends \"" + base_template_name + "\" %}\n")
+            _dst.write(_src.read())
+
+    return report_template_name
+
+
+def copy_source_rst_to_version_folder(app, network):
+    source_file = get_source_rstfile_path(app, network)
+    if not os.path.isfile(source_file):
+        return False
+    dest_path = os.path.join(app.config['RST_VERSIONS_PATH'], network)
+    if not os.path.isdir(dest_path):
+        os.makedirs(dest_path)
+    dest_file = os.path.join(dest_path, "%s.rst" % str(os.stat(source_file).st_mtime))
+    shutil.copy2(source_file, dest_file)
+    return os.path.basename(dest_file)
+
+
+def get_versioned_source_rst_files(app, network):
+    dest_path = os.path.join(app.config['RST_VERSIONS_PATH'], network)
+    if not os.path.isdir(dest_path):
+        return []
+    ret = {}
+    for f in os.listdir(dest_path):
+        if os.path.splitext(f)[1] == ".rst":
             try:
-                vernum = int(filename[:-4])
-                versions[vernum] = os.path.join(network_rst_dir, filename)
+                ret[float(f[:-4])] = f
             except ValueError:
                 pass
-    return versions[max(versions.keys())]
+    return [ret[f] for f in sorted(ret)]
 
 
-def get_sourcedir(app, network):
-    return os.path.join(app.config['NETWORK_DATA_DIR'], network, "source")
-
-
-def get_builddir(app, network, build='html'):
-    return os.path.join(app.config['NETWORK_DATA_DIR'], network, "build", build)
-
-
-def buildreport(app, network, build_str='html'):
-    sourcedir = get_sourcedir(app, network)
-    builddir = get_builddir(app, network, "html")
-    return reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build_str, "-E"])
-    # FIXME: capture stdout and stderr!!!!
-
-
-def get_network_page(app, network):
-    sourcedir = get_sourcedir(app, network)
+def get_network_page(app, network, force_build=False, force_templating=True):
+    sourcedir = get_source_path(app, network)
     if not os.path.isdir(sourcedir):  # FIXME: better handling!
         return "Network not found"
 
-    builddir = get_builddir(app, network, "html")
-    report_rst_filename = os.path.join(sourcedir, app.config['REPORT_FILENAME'] + ".rst")
-    report_html_filename = os.path.join(builddir, app.config['REPORT_FILENAME'] + ".html")
+    ret = buildreport(app, network, "html", force=force_build)
+    if ret != 0:
+        return "Build failed, please report to the administrator"  # FIXME: better handling!
 
-    build_report = not os.path.isfile(report_rst_filename) or \
-        not os.path.isfile(report_html_filename)
+    # if needsbuild we already updated templates
+    jinja_template_path = get_jinja_template(app, network,
+                                             force_rebuild=force_templating)
 
-    if not os.path.isfile(report_rst_filename):
-        new_report_filename = get_report_last_rst()
-        shutil.copy2(new_report_filename, report_rst_filename)
+    # note that we set the template dir in register blueprint!
+    #     ret = render_template(app.config['REPORT_FILENAME'] + ".html",
+    #                           source_data=get_source_rst(app, network))
 
-    if build_report:
-        ret = buildreport(app, network, "html")
-        if ret != 0:
-            return "Build failed, please report to the administrator"  # FIXME: better handling!
+    ret = render_template(jinja_template_path, source_data=get_source_rst_content(app, network),
+                          network_name=network)
+    return ret
 
-    builddir = os.path.join(app.config['NETWORK_DATA_DIR'], network, "build", "html")
-    report_html = os.path.join(builddir, app.config['REPORT_FILENAME'] + ".html")
 
-    with open(report_html, 'r') as opn:
-        main_page = opn.read()
+def save_rst(app, network, unicode_text):
+    last_file_name = copy_source_rst_to_version_folder(app, network)
 
-    rst_source = os.path.join(builddir, "_sources", app.config['REPORT_FILENAME'] + ".txt")
+    with open(get_source_rstfile_path(app, network), 'w') as fopen:
+        fopen.write(unicode_text.encode('utf8'))
 
-    main_page = main_page.replace("$scope.isEditable = false;", "$scope.isEditable = true;")
-
-    main_page = main_page.replace('editor.setValue("");',
-                                  'editor.setValue("{0}", 0);'.format(get_source_rst(rst_source)))
-
-    return main_page
-    # return re.sub("<\\s*p(\\s|>)", "<p contenteditable=\"true\"\\1", main_page)
+    return last_file_name
 
 
 def register_blueprint(app, network):
-    netw_bp = Blueprint(network, __name__, url_prefix='/'+network)
+    # from http://flask.pocoo.org/docs/0.11/blueprints/:
+    # If you want the blueprint to expose templates you can do that by providing the
+    # template_folder parameter to the Blueprint constructor:
+
+    # templates_dir = os.path.join(app.config['NETWORK_DATA_DIR'])
+
+    # wait! ... templates_dir is NOT the templates directory! in principle, we could
+    # and then call render_template with just the html name. PROBLEM is, that we have the
+    # same name in the templates_dir within all network folders, so Flask actually will
+    # mess up the rendering cause for render_template('index.html',..) will search the first file
+    # matching index.html, which might be that of network N1 or N2 etcetera.
+    # So we need to put templates_dir as the root of all networks folder
+    # and then call render_template('NETWORK/path/to/index.html')
+    netw_bp = Blueprint(network, __name__, url_prefix='/'+network,
+                        template_folder=app.config['NETWORKS_TEMPLATES_PATH'])
 
     @netw_bp.route('')
     @netw_bp.route('/')
@@ -135,9 +271,25 @@ def register_blueprint(app, network):
         return get_network_page(app, network)
     # netw_bp.add_url_rule("/", 'index', index)
 
-    @netw_bp.route('/<path:filepath>')
-    def static(filepath):
-        return serve_static_file(app, network, filepath)
+    @netw_bp.route('/<path:root>/<path:filepath>')
+    def static(root, filepath):
+        if root == "static":
+            filepath = os.path.join(app.static_folder, filepath)
+            return send_from_directory(os.path.dirname(filepath), os.path.basename(filepath))
+        return send_from_build_directory(app, network, os.path.join(root, filepath))
+
+    @netw_bp.route('/save', methods=['POST'])
+    def save():
+        unicode_text = request.get_json()['text']
+        last_file_name = save_rst(app, network, unicode_text)
+        return jsonify({"last_version_filename": last_file_name})  # which converts to a Response
+        # return Response({"result": last_file_name}, status=200, mimetype='application/json')
 
     app.register_blueprint(netw_bp)
 
+
+def send_from_build_directory(app, network, filepath):
+    builddir = get_build_path(app, network, 'html')
+    dirname = os.path.dirname(filepath)
+    filename = os.path.basename(filepath)
+    return send_from_directory(os.path.join(builddir, dirname), filename)

@@ -78,13 +78,31 @@ class LatexTranslator(LT):
                     self.body[i] = self.body[i].replace(bchar, "\\texttildelow")
                     break
 
+    def depart_table(self, node):
+        """
+            This method is a horrible hack to remove the HORRIBLE (and BADLY CODED) frame in the
+            bottom of longtable saying "continued on next page". WHY Sphinx does that? WHY??!!!??
+        """
+        # get the current body length. Tables in sphinx writer superclass work weirdly.
+        # The real body is allocated as last element of self.bodystack. self.body at this point
+        # is the table body (which we are about to include in self.,body in the method
+        # LT.depart_table)
+        strt = len(self.bodystack[-1])
+        LT.depart_table(self, node)
+        if self.body[-1].strip() == "\\end{longtable}":
+            for i in xrange(strt, len(self.body)):
+                if self.body[i].strip() == '\\endlastfoot':
+                    break
+                elif self.body[i].startswith(r'\hline \multicolumn{'):
+                    self.body[i] = self.body[i].replace("\\hline", "").replace("{|r|}", "{r}")
+
     def astext(self):
         # build a dict of bibliographic fields, and inject them as newcommand 
         # in the latex header
         commands = ("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
                     "%% AUTO-GENERATED COMMANDS FROM BIBLIOGRAPHIC FIELDS IN THE SOURCE RST:\n" +
                     "\n".join("\\newcommand{\\rst" + (name[0].title() + name[1:]) + "}" +
-                              "{" + definition + "}"
+                              "{" + definition.replace("\n", '\\\\\n') + "}"
                               for name, definition in self.rst_bib_fields.iteritems() if name) +
                     "\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
                     "%% CUSTOM PREAMBLE DEFINED IN THE SOURCE RST CONFIG FILE:\n" +

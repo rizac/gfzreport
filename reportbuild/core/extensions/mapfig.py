@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-   Implements the map-image directive which behaves like an image. The file argument is a csv file,
-   with the first row as header and AT LEST the columns denoting:
-    - latitudes (either denoted by the string 'lats', 'latitudes', 'lat' or 'latitude', case insensitive)
+   Implements the map-figure directive which behaves like an image. The directive acts as acsv
+   table (although it produces a figure). The csv content must have AT LEST the columns denoting:
+    - latitudes (either denoted by the string 'lats', 'latitudes', 'lat' or 'latitude',
+    case insensitive)
     - longitudes ('lons', 'longitudes', 'lon' or 'longitude', case insensitive)
     - labels ('name', 'names', 'label', 'labels', 'caption', 'captions', case insensitive)
    And optionally (only for pdf/latex rendering!):
@@ -12,25 +13,19 @@
 
 # NOTE: TEMPLATE TO BE USED. DOWNLOADEDFROM THE SPHINX EXTENSIONS HERE:
 # https://bitbucket.org/birkenfeld/sphinx-contrib/src/558d80ca46aa?at=default
-from docutils import nodes  # , utils
-from docutils.parsers.rst import directives
-from docutils.parsers.rst.directives import images
-from docutils.parsers.rst.directives.tables import CSVTable
-# from sphinx.util.compat import Directive
-from uuid import uuid4  # FIXME: sphinx provides a self uuid!
+
+from reportbuild.core.extensions.csvfigure import CsvFigureDirective
+from docutils import nodes
 from sphinx.util import ensuredir
 import os
 import re
-import csv
 from reportbuild.map import plotmap
-import pandas as pd
-import reportbuild.core.extensions.setup as stp
-from docutils.nodes import Text
-# from docutils.utils import SystemMessagePropagation
-# from docutils.nodes import title as title_node
-# from docutils.statemachine import StringList
+from StringIO import StringIO
 
-_OVERWRITE_IMAGE_ = True  # set to True while debugging / testing
+_OVERWRITE_IMAGE_ = False  # set to True while debugging / testing to force map image creation
+# (otherwise, it check if the image is already present according to the arguments given)
+
+_DIRECTIVE_NAME = "map-figure"
 
 csv_headers = {
                "lats": re.compile("lat(?:itude)?s?", re.IGNORECASE),
@@ -42,8 +37,6 @@ csv_headers = {
                }
 
 
-# note: we override node cause nodes might be called also from a parent map-image
-# so that some functionalities needs to be set here and not in the MapImdDirective below
 class mapnode(nodes.Element):
     # class dict mapping option specific map directives keys to
     # the map keywords
@@ -52,23 +45,35 @@ class mapnode(nodes.Element):
         super(mapnode, self).__init__(rawsource, *children, **attributes)
         if self.attributes.get("__data__", None) is None:
             self.attributes["__data__"] = {c: [] for c in csv_headers.keys()}
-        if self.attributes.get("__csv_mod_time__", None) is None:
-            self.attributes["__csv_mod_time__"] = hash("")
+        if self.attributes.get("__data_hash__", None) is None:
+            self.attributes["__data_hash__"] = build_hash(self.attributes["__data__"])
 
 
-class MapImgDirective(CSVTable, images.Figure):
+def build_hash(map_date):
+    """
+    Builds the hash for the given map_date (a dict of lists of strings)
+    and returns the hash (integer)
+    """
+    # Note also below: we provide ALL arguments as strings, as calculating the hash of big
+    # value with mixed types (e.g. None and strings) seems NOT to be consistent
+    # It's probably due to the nature of hash algorithms but we didn't find any
+    # on the internet
+    sio = StringIO()
+    for key in csv_headers:
+        sio.write(key)
+        if key in map_date:
+            sio.write(",")
+            sio.write(",".join(map_date[key]))
+        sio.write("\n")
+    ret = hash(sio.getvalue())
+    sio.close()
+    return ret
+
+
+class MapImgDirective(CsvFigureDirective):
     """
     Directive that builds plots using a csv file
     """
-
-    # these two members copied from CSVTable, needs to be set otherwise
-    # seems that those of images.Figure are used. The result is that the title (caption)
-    # is correctly parsed and whitespaces are not splitted
-    required_arguments = CSVTable.required_arguments
-    """Number of required directive arguments."""
-
-    optional_arguments = CSVTable.optional_arguments
-    """Number of optional arguments after the required arguments."""
 
     own_option_spec = {
                       'margins_in_km': lambda arg: arg or None,
@@ -78,110 +83,47 @@ class MapImgDirective(CSVTable, images.Figure):
                       'arcgis_image_dpi': lambda arg: arg or None
                       }
 
-    option_spec = images.Figure.option_spec.copy()  # @UndefinedVariable
-    for opt in CSVTable.option_spec.copy():
-        if opt not in ("header-rows", "widths", "stub-columns"):
-            option_spec[opt] = CSVTable.option_spec.copy()[opt]
-    # option_spec.update(CSVTable.option_spec.copy())  # @UndefinedVariable
+    option_spec = CsvFigureDirective.option_spec.copy()  # @UndefinedVariable
     option_spec.update(own_option_spec)
 
     def run(self):
-        # First, let the CSVTable constructor handle all kind of parsing, including errors
-        # (e.g., when we disabled the feature to load from file in sphinx, if a :file: has been
-        # provided)
 
-        # first provide a header-rows argument, REMEMBER THAT THIS DIRECTIVE HAS THE HEADER
-        # ARGUMENT BUT NO HEADER-ROWS ARGUMENT: IF THE FORMER IS MISSING, THE FIRST CSV ROW
-        # IS TAKEN AS HEADER. TRANSLATED TO SPHINX DIRECTIVES, IT BECOMES:
-        self.options['header-rows'] = 0 if "header" in self.options else 1
+        nodez = CsvFigureDirective.run(self)
 
-        # parse using superclass
-        ret = CSVTable.run(self)  # run super CSV Table to catch potential errors
-        # the first node is the table node, then potential messages (see superclass)
-        table_node = ret[0]
-        messages = ret[1:]
+        data = {}
+        column_indices = {}
 
-        # get an hash from the content. This means we read twice the data but it's more robust
+        for row, col, is_row_header, is_col_stub, node, node_text in self.itertable(nodez):
+            if is_col_stub:
+                raise ValueError("Error in '%s' directive: option :stub-columns: not permitted"
+                                 % _DIRECTIVE_NAME)
+            if is_row_header:
+                if row > 0:
+                    raise ValueError("Error in '%s' directive: provide only one row header"
+                                     "(see options :header: and :header-rows:)" % _DIRECTIVE_NAME)
+                if node_text:
+                    dict_key = node_text
+                    for normalized_col_name in csv_headers:
+                        if csv_headers[normalized_col_name].match(node_text):
+                            dict_key = normalized_col_name  # which ADDS the key if not present!
+                            break
+                    column_indices[col] = dict_key
+                    data[dict_key] = []
+            else:
+                if not data:
+                    raise ValueError("Error in '%s' directive: provide one row header"
+                                     "(see options :header: and :header-rows:)" % _DIRECTIVE_NAME)
 
-        try:
-            # superclass parses csv in order to normalize cells, so the table obtained
-            # is already normalized and well formatted. Empty strings are added in case
-            #
-            table_body_rows = table_node.children[-1].children[-1].children
-            table_head_rows = table_node.children[-1].children[-2].children
-            if len(table_head_rows) != 1:
-                raise IndexError("multiple table headers not allowed")
-            data = table_head_rows + table_body_rows
-            ret_data = []
-            hash_list = []  # this is for the hash
-            for row in data:
-                row_data = []
-                for entry in row.children:
-                    text = ''
-                    if entry.children:
-                        # In principle, entry.children is a single paragraph node holding the
-                        # cell text. But sometimes cells have more children, i.e. providing a "^"
-                        # puts in the 
-                        # cell a system_message warning that ^ is a reserved symbols for titles
-                        # (or something so) preceeding the paragraph with the text as last element
-                        # So get last element (index [-1])
-                        text = entry.children[-1].rawsource
-                    row_data.append(text)
-                    hash_list.append(text)
-                ret_data.append(row_data)
-            self.options["__csv_mod_time__"] = hash(tuple(hash_list))
-            print "hash %s" % str(self.options["__csv_mod_time__"])
-            rt_data = {}
-            # normalize columns and convert to dict
-            for c, colname in enumerate(ret_data[0]):
-                for normalized_col_name in csv_headers:
-                    if csv_headers[normalized_col_name].match(colname):
-                        ret_data[0][c] = normalized_col_name
-                        break
-                rt_data[ret_data[0][c]] = [ret_data[i][c] for i in xrange(1, len(ret_data))]
-            self.options["__data__"] = rt_data
+                if col not in column_indices:
+                    continue
 
-        except IndexError as ierr:
-            error = self.state_machine.reporter.error(
-                'Error with Map data in "%s" directive:\n%s'
-                % (self.name, "check your csv data format (rows, columns, etcetera)"),
-                nodes.literal_block(self.block_text, self.block_text), line=self.lineno)
-            return [error]
+                data[column_indices[col]].append(node_text or "")
 
-        # table nodes is a list of two children: the title, and the table
-        # the table is in turn a list of children, whose last element is the tbody,
-        # and whose next-to-last element is the thead
+        self.options["__data__"] = data
+        map_node = mapnode(self.block_text, **self.options)
+        self.get_table_node(nodez).replace_self(map_node)
 
-        # Now execute the figure directive, re-structuring this directive, which in
-        # principle is equal to the csv table directive, to match the figure one
-        tmp_options = self.options
-        self.options = {}
-        for opt in tmp_options:
-            if opt in ("width", "height", "class", "figwidth", "figclass"):
-                self.options[opt] = tmp_options[opt]
-        # self.content = self.arguments[0: 1] # if self.arguments else ''
-        self.content = None  # the content will be translated as caption. Problem is, if we do not
-        # have content we should add the caption anyways. So let's do it manually
-        imgnodes = images.Figure.run(self)
-        # replace image nodes (theoretically, at most one) with mapimg nodes
-        # note that self.options has already been
-        # worked out in the super constructor
-        # important cause it does checks and modifications
-        # remove the uri, being processed by the figure directive. We do not need it
-        self.options = tmp_options
-        imgnodes[0].children = [mapnode(self.block_text, **self.options)]
-
-        if self.arguments and len(self.arguments[0]):
-            txt = Text(self.arguments[0])
-            caption = nodes.caption(self.arguments[0], '', *[txt])
-            caption.parent = imgnodes[0]  # sphinx complains if we doi not set it ...
-            imgnodes[0].children.append(caption)
-        self.options = tmp_options
-        # last nodes are errors
-        messages += imgnodes[1:]
-        return imgnodes + messages
-
-        return imgnodes
+        return nodez
 
 
 def visit_map_node_html(self, node):
@@ -255,10 +197,12 @@ def get_map_from_csv(**map_args):
 
 
 def get_hash(node):
-    lst = [node['__csv_mod_time__']]
+    lst = [node['__data_hash__']]
     for arg in MapImgDirective.own_option_spec:
         lst.append(node.attributes.get(arg, ""))
-        # Note above: using None as default does not return an unique hash
+        # Note above: using None as default seems not to return an unique hash
+        # hash calculation requires algorithms which are difficult to find on google
+        # provide EVERYTHING as string and results seem to be consistent
     return hash(tuple(lst))
 
 
@@ -268,7 +212,6 @@ def visit_map_node_latex(self, node):
     self is the builder, although not well documented FIXME: setuo this doc!
     http://www.sphinx-doc.org/en/stable/_modules/sphinx/application.html
     """
-
     _uuid = get_hash(node)
     fname = 'map_plot-%s.png' % str(_uuid)
     outfn = os.path.join(self.builder.outdir, fname)
@@ -295,4 +238,4 @@ def setup(app):
     app.add_node(mapnode,
                  html=(visit_map_node_html, depart_map_node_html),
                  latex=(visit_map_node_latex, depart_map_node_latex))
-    app.add_directive('map-figure', MapImgDirective)
+    app.add_directive(_DIRECTIVE_NAME, MapImgDirective)

@@ -3,11 +3,12 @@ iframe{
 }
 
 body {
-    background-image: url("gfz-bg.png");
+    background-image: url("../img/gfz-bg.png");
     background-repeat: no-repeat;
     background-position: right top;
     background-attachment: fixed;
 }
+
 div.body, div.sphinxsidebar{
 	background-color: rgba(255,255,255,0.7);
 	-moz-box-shadow: 2px 2px 4px #eee;
@@ -25,25 +26,6 @@ div.sphinxsidebar{
 	float: none; /* !important;*/
 	position: fixed;
 	margin-left: 0px;
-}
-
-/* page widths:*/
-div.document{
-	width:970px !important; /* 940 is the default */
-}
-
-/* control the space between sidebar and body content:*/
-/*copied from superclass*/
-div.sphinxsidebar {
-    width: 220px;
-}
-/* do not set body content margin-left or whatever, set parent margin:*/
-div.bodywrapper {
-    margin: 0 0 0 230px;
-}
-
-#editor{
-	width: 740px; /*970 (sphinx default, see div.document) - 230 (see div.bodywrapper)*/
 }
 
 /* control overflow in width of tables:*/
@@ -93,17 +75,6 @@ div.leaflet-container {
 	}
 }
 
-#editor{
-	position:relative;
-    height: 90vh;
-    margin-left: -30px; /*cause the padding of the parent element (div.body) is 30px*/
-    box-sizing: border-box;
-    /*width: 98vw;
-    position: absolute;
-    top: 1vh;
-    left: 1vw;*/
-}
-
 /*adjust the footer margin cause when editing it overflows the page*/
 div.footer {
     margin: 20px auto 10px auto !important;
@@ -113,41 +84,26 @@ table.footnote {
     background: transparent;
 }
 
-/* override bottstrap label for those properties in conflict" with sphinx label class
-commented out bootstrap defaults */
-.label {
-    /* display: initial; 
-    padding: .2em .6em .3em;*/
-    font-size: 100%; /* in bootstrap it's 75%; */
-    /* font-weight: 700;
-    line-height: 1; */
-    color: inherit; /* in bootstrap it's white */
-    /*text-align: center;
-    white-space: nowrap;
-    vertical-align: baseline;
-    border-radius: .25em;*/
-}
-/* ace editor stuff (not seen when the page is not editable)
-Note: we assume the vibrant_ink theme (see layout.html. Dont know if it's important though)
+
+/*
+===================================
+UNUSED STUFF (might be removed in the future):
+==================================
 */
 
-/* for the vibrant-ink theme (dark) */
-.ace-vibrant-ink .ace_markup.ace_heading{
-	color: #DD3333; !important
-	font-weight: bold !important;
+/*change page width and sidebar width. Remove the three trailing underscores to make it
+effective (the underscores prevents these two to be effective
+as we do not show sidebar anymore and the width is ok as it is) */
+
+/* page widths:*/
+div.document___{
+	width:970px !important; /* 940 is the default */
 }
 
-.ace-vibrant-ink .ace_string {
-    color: #33DD00 !important;
+/* control the space between sidebar and body content:*/
+/*copied from superclass*/
+div.sphinxsidebar___ {
+    width: 220px;
 }
 
-.ace-vibrant-ink .ace_comment {
-    color: #556677 !important;
-}
 
-/* for the clouds theme: */
-
-.ace-clouds .ace_markup.ace_heading{
-	color: #dd8000; !important;
-	font-weight: bold !important;
-}

@@ -9,104 +9,63 @@ $PATH_TO_VENV/lib/python2.7/site-packages/sphinx/themes/basic
 {# Import the theme's layout. #}
 {% extends "!layout.html" %}
 
+{% set embedded = True %}
+
 {%- block doctype %}
 <!DOCTYPE html>
 {%- endblock %}
 
 <!-- add custom css. Bootstrap for nice buttons and potential bars, my style for custom stuff --> 
-{% set css_files = css_files + ['_static/css/bootstrap/css/bootstrap.min.css',
-								'_static/js/leaflet/leaflet.css',
+{% set css_files = css_files + ['https://cdn.jsdelivr.net/leaflet/1.0.0-beta.2/leaflet.css',
 								'_static/css/style.css'] %}
 
-<!-- add custom js. Remove ALL javascripts as we do NOT use them EXCEPT jquery (1.11) and mathajax
-then add angular for editing our page LATER with some web app, if needed-->
-{% set script_files = script_files + ["_static/js/angular.min.js", "_static/js/leaflet/leaflet.js",
-									  "_static/js/esri-leaflet.js", "_static/js/ace-build/ace.js",
-									  ] %}
+<!-- add custom js. This is actually doing nothing but it shows how to do if we want to
+add new stuff (add each line denoting a js path)-->
+{% set script_files = script_files + [] %}
 
+<!-- another option was to remove all javascript and keeping only necessary stuff: -->
 <!-- set script_files = ["https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML",
 									  "https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular.min.js",
 									  "_static/jquery.js"] -->
 {%- block extrahead %}
 
-	<!-- 
-		>>>>>>>>>>>>>>> GFZ-REPORT EXTENSION
-	 -->
+	<!-- As embedded = True, we do not load sidebars, BUT the parent template will not load
+	ANY script, too. This is fine for page speed rendering, BUT we still need to display math
+	formulae. Copied from sphinx defaults: let's do it:-->
+	<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 	
-	<!-- Note: we might want to resize pdf (represented by iframes) here, as it is not 
-	possible (yes, it's like that) with css. But, even more hilarious, it's not possible either
-	with javascript WITHOUT writing also in the child pdf. You know what? give up! -->
-	
-	<script type="text/javascript">
-        var app = angular.module('MyApp', [])
-        app.controller('MyController', function ($scope) {
-            //This will hide the DIV by default.
-            $scope.isEditable = false;
-            $scope.isEditing = false;
-            $scope.toggleEditMode = function () {
-                //If DIV is visible it will be hidden and vice versa.
-                $scope.isEditing = $scope.isEditable ? !$scope.isEditing : false;
-            }
-        });
-    </script>
-	
-	
-	<!-- 
-		<<<<<<<<<<<<<< GFZ-REPORT EXTENSION
-	 -->
+	<!-- the comment below is a workaround to make this a template also -->
+
+	<!--EDITABLE_PAGE %- block extrahead % EDITABLE_PAGE-->
+
+	<!-- Load Leaflet from CDN-->
+     <link rel="stylesheet" href="https://cdn.jsdelivr.net/leaflet/1.0.0-beta.2/leaflet.css" />
+     <script src="https://cdn.jsdelivr.net/leaflet/1.0.0-beta.2/leaflet.js"></script>
+
+    <!-- Load Esri Leaflet locally, after cloning this repository -->
+    <script src="https://cdn.jsdelivr.net/leaflet.esri/2.0.0-beta.8/esri-leaflet.js"></script>
+
+	<!--EDITABLE_PAGE % endblock % EDITABLE_PAGE-->
 
 {% endblock %}
 
-{%- block header %}{% endblock %}
+{%- block header %}
+	<!--EDITABLE_PAGE %- block header % EDITABLE_PAGE-->
+	{{ super() }}
+	<!--EDITABLE_PAGE % endblock % EDITABLE_PAGE-->
+{% endblock %}
 
-<!-- the whole block below (block content) has to be copied and modified from source
-cause we want to achieve too detailed stuff... -->
-{%- block content %}
-	<div ng-app="MyApp" ng-controller="MyController"> <!-- angular app (added by me) -->
-	  {%- block sidebar1 %} {# possible location for sidebar #} {% endblock %}
-	
-	    <div class="document">
-	  {%- block document %}
-	      <div class="documentwrapper">
-	      {%- if render_sidebar %}
-	        <div class="bodywrapper">
-	      {%- endif %}
-	          <div class="body" role="main" ng-style="isEditing ? {height: '90vh'} : {}"> <!-- added angular ngstyle by me -->
-	          	<div id='editor' ng-style="{display: isEditing ? 'block' : 'none'}"></div> <!-- ace container (added by me) -->
-	            <div  ng-style="{display: isEditing ? 'none' : 'block'}">
-	            	{% block body %} {% endblock %}
-	            </div>
-	          </div>
-	      {%- if render_sidebar %}
-	        </div>
-	      {%- endif %}
-	      </div>
-	  {%- endblock %}
-	
-	  {%- block sidebar2 %}{{ sidebar() }}{% endblock %}
-	      <div class="clearer"></div>
-	    </div>
-	</div>
-	
-	<!-- add ace editor, empty by default (the web application will populate it (not really performant
-	but angularjs ng-if would anyway load the script and then process it (e.g., remove it) -->
-	<script>
-		/* ace stuff */
-	    var editor = ace.edit("editor");
-	    /*editor.setTheme("ace/theme/vibrant_ink");*/
-	    editor.setTheme("ace/theme/clouds");
-	    editor.getSession().setMode("ace/mode/rst");
-	    editor.setValue("");
-	    editor.clearSelection();
-	    editor.setOptions({
-  			fontFamily: "'Menlo', 'Ubuntu Mono', 'monospace'",
-  			//fontSize: "10pt",
-  			showPrintMargin: true,
-			printMarginColumn: 100
-		});
-	</script>
-{%- endblock %}
+{%- block document %}
+	<!--EDITABLE_PAGE %- block document % EDITABLE_PAGE-->
+	{{ super() }}
+	<!--EDITABLE_PAGE % endblock % EDITABLE_PAGE-->
+{% endblock %}
 
-
-<!--  this hides the search panel: -->
+<!--  this hides the search panel (as we set embedded=True, it might be irrelevant. However, for safety... -->
 {% block sidebarsearch %}{% endblock %}
+
+{%- block footer %}
+	<!--EDITABLE_PAGE %- block footer % EDITABLE_PAGE-->
+	{{ super() }}
+	<!--EDITABLE_PAGE % endblock % EDITABLE_PAGE-->
+{% endblock %}

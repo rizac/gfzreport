@@ -39,7 +39,8 @@ extensions = [
     'reportbuild.core.extensions.setup',  # this is the custom one. MUST BE FIRST!
     'reportbuild.core.extensions.mapfig',  # this is the custom one
     'reportbuild.core.extensions.imggrid',  # this is the custom one
-    'reportbuild.core.extensions.mapimg',  # this is the custom one
+    'reportbuild.core.extensions.tabularrows',  # this is the custom one
+    'reportbuild.core.extensions.lateximgs',  # this is the custom one
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -172,7 +173,9 @@ html_static_path = ['conf_files/html/static_path']
 #html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
-#html_sidebars = {}
+# Let's see by setting to empty if we do not generate html stuff we do not need
+# (apparently, it is useless, so comment out)
+# html_sidebars = {}
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
@@ -198,8 +201,8 @@ html_static_path = ['conf_files/html/static_path']
 
 # If true, an OpenSearch description file will be output, and all pages will
 # contain a <link> tag referring to it.  The value of this option must be the
-# base URL from which the finished HTML is served.
-#html_use_opensearch = ''
+# base URL from which the finished HTML is served. Empty means do not use it
+html_use_opensearch = ''
 
 # This is the file name suffix for HTML files (e.g. ".xhtml").
 #html_file_suffix = None

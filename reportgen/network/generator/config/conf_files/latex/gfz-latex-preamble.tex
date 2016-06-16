@@ -3,13 +3,16 @@
 \usepackage[multidot]{grffile}
 \usepackage{colortbl}
 \usepackage{fancyhdr}
-\usepackage{natbib}
+% do not use natbib has it has conflicts with sphinx:
+%\usepackage{natbib}
 \bibliographystyle{plainnat}
 \usepackage[usenames,dvipsnames]{xcolor}
 \usepackage{array} % for defining a new column type, if needed
 \usepackage{varwidth} %for the varwidth minipage environment
 \usepackage{tikz}
 \usepackage{xspace} % for newcommand and trailing spaces
+\usepackage[justification=centering]{caption}
+
 
 % \usepackage[colorlinks=true,linkcolor=blue,urlcolor=NavyBlue,citecolor=Fuchsia]{hyperref}
 % \urlstyle{same}
@@ -20,7 +23,7 @@
 \newcommand{\printBgPic}[2]{%
 	\makebox[0pt][l]{%
 		\raisebox{#2}[0pt][0pt]{%
-		\hbox{\hspace{#1}\includegraphics[width=3\textwidth]{gfz-bg.pdf}}%
+		\hbox{\hspace{#1}\includegraphics[width=3\textwidth]{gfz-bg.png}}%
     	}%
 	}%
 }
@@ -28,15 +31,15 @@
 % create the command to print the logos in the title page:
 \newcommand{\printbgpiccorners}{%
 \makebox[0pt][l]{% make it in a box to behave like a html float (out of doc flow)
-	% upper right picture
-	\begin{tikzpicture}[remember picture, overlay]
-		\node [anchor=north east, inner xsep=2cm, inner ysep=1.2in + \voffset]  at (current page.north
-		east) {\includegraphics{GFZ-Logo_eng_RGB.png}};
-	\end{tikzpicture}%
 	% upper left
 	\begin{tikzpicture}[remember picture, overlay]
 		\node [anchor=north west, inner xsep=2cm, inner ysep=0.6in + \voffset]  at (current page.north
-		west) {\includegraphics{gfz_wordmark_blue.png}};
+		west) {\includegraphics{GFZ-Logo_eng_RGB.png}};
+	\end{tikzpicture}%
+	% upper right picture
+	\begin{tikzpicture}[remember picture, overlay]
+		\node [anchor=north east, inner xsep=2cm, inner ysep=1.2in + \voffset]  at (current page.north
+		east) {\includegraphics{gfz_wordmark_blue.png}};
 	\end{tikzpicture}%
 	% lower left
 	\begin{tikzpicture}[remember picture, overlay]
@@ -59,7 +62,7 @@
 \lhead{} % no left header
 \rhead{} % no right header
 \chead{} % no center header
-\lfoot{\scriptsize \rstStrNum. GFZ German Research Centre for Geosciences. DOI: \href{\rstDoiUrl}{\rstDoiStr}}
+\lfoot{\scriptsize \rstStrNum. GFZ German Research Centre for Geosciences. DOI: \rstDoi}
 \cfoot{} % no center foot
 \rfoot{\footnotesize \thepage} % print the page
 
@@ -129,9 +132,9 @@
 	{\footnotesize
 		
 		Recommended citation (mandatory): 							\newline\newline
-		\@author\ (\rstPublicationYear): \@title. DOI: \href{\rstDoiUrl}{\rstDoiStr} 		\newline\newline\newline
+		\@author\ (\rstPublicationYear): \@title. DOI: \rstDoi 		\newline\newline\newline
 		Supplementary datasets (if any): 							\newline\newline
-		\rstSupplDdatasets 											\newline\newline\newline
+		\rstSupplDatasets 											\newline\newline\newline
 		Recommended citation for chapter (if any): 					\newline\newline
 		\rstCitationChapter											\newline\newline\newline
 		The report and the datasets are supplements to: (if any):	\newline\newline
@@ -142,15 +145,15 @@
 			\begin{tabular}{r}
 				{\normalsize Imprint} \\
 				\\
-				\includegraphics{gfzlogo_ur.pdf} \\
+				\includegraphics{gfz_wordmark_blue.png} \\
 				\\
 				Telegrafenberg \\
 				D-14473 Potsdam  \\ 
 				\\
 				Published in Potsdam, Germany \\
 				\rstPublicationMonth\ \rstPublicationYear \\
-				\rstIssn \\
-				DOI: \href{\rstDoiUrl}{\rstDoiStr} \\
+				ISSN \rstIssn \\
+				DOI: \rstDoi \\
 				URN: \rstUrn \\
 				\\
 				This work is published in the GFZ series \\

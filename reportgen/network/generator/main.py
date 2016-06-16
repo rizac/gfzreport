@@ -18,7 +18,12 @@ from jinja2 import Environment
 from reportbuild.core import utils
 import shutil
 from glob import glob
+from collections import OrderedDict as odict
 import pexpect
+import tarfile
+import zipfile
+import csv
+from jinja2 import Environment
 
 
 def get_format(query_str):
@@ -120,7 +125,7 @@ def get_network_stations(network, start_after_year, **kwargs):
                     for i, val in enumerate(row_orig):
                         vals = reg.split(val)
                         if row[i] not in vals:
-                            row_orig[i] += ",\n" + row[i]
+                            row_orig[i] += ", " + row[i]
                     # row[columns.index('Channels')] += ", " + cha_name
 
         return pd.DataFrame(sorted(rows.values(), key=lambda val: val[columns.index('Name')]),
@@ -212,7 +217,7 @@ def makedirs(path):
         os.makedirs(path)
 
 
-def copyfiles(src, dst, password=None):
+def copyfiles(src, dst, move=False):
     """
         Extended version which allows to copy files, form local or remote machines
         :param src: a which MUST not be a system directory, denoting:
@@ -223,57 +228,106 @@ def copyfiles(src, dst, password=None):
         :param dst: a destination file, or directory
     """
     if os.path.isdir(src):
-        raise OSError("cannot copy a directory '%s', please provide a file, a glob expression or "
-                      "'rsync ...' or 'scp ...' strings " % src)
-    if src[:6] == 'rsync ' or src[:4] == 'scp ':
-        timeout = 600  # in seconds, I guess
-        print("(This operation might take a while. The operation will be aborted if not terminated "
-              "withinin %d seconds)" % timeout)
-        try:
-            var_command = src + (" " if src[-1] != " " else "") + dst
-            var_child = pexpect.spawn(var_command)
-            i = var_child.expect([pexpect.EOF, pexpect.TIMEOUT, "password:"], timeout=timeout)
-            if i == 2:  # send password
-                try:
-                    var_child.sendline(password)
-                except Exception:
-                    raise ValueError("Unable to perform remote copy. Have you typed a password "
-                                     "argument? (if no ssh key has been set)")
-                i = var_child.expect([pexpect.EOF, pexpect.TIMEOUT], timeout=timeout)
+        raise OSError("cannot copy a directory '%s', please provide a file or a glob expression"
+                      % src)
 
-#             if i == 1:
-#                 raise ValueError()
-#                 pass
-        except Exception as _:
-            raise ValueError(str(_))
-
-    elif os.path.isfile(src):
+    dst_is_dir = os.path.isdir(dst)
+    if os.path.isfile(src):
         # copytree does not work if dest exists. So
         # for file in os.listdir(src):
-        shutil.copy2(src, dst)
+        if not move:
+            if not dst_is_dir:
+                # copy2 requires a dst folder to exist,
+                makedirs(dst)
+            shutil.copy2(src, dst)
+        else:
+            shutil.move(src, dst)
     else:
         glb_list = glob(src)
         if len(glb_list) and glb_list[0] != src:
-            # in principle, if src denotes a non-existing file or dir, flb_list is empty, if it
+            # in principle, if src denotes a non-existing file or dir, glb_list is empty, if it
             # denotes an existing file or dir, it has a single element equal to src. This latter
             # case is a problem as we might have an error when copying a dir
             # In principle copy2 below raises the exception but for safety we repeat
             # the test here
-            for srcf in glob(src):
-                shutil.copy2(srcf, dst)
+            for srcf in glob(src):  # glob returns joined pathname, it's not os.listdir!
+                copyfiles(srcf, dst)
+
+
+def get_noise_pdfs_content(dst_dir, reg="^(?P<row>.*?)_(?P<col>[a-zA-Z]+).*$",
+                           columns=["HHZ", "HHN", "HHE"]):
+    from collections import defaultdict as ddict
+    reg = re.compile(reg)
+    dct = ddict(lambda: [''] * len(columns))
+    for fl in os.listdir(dst_dir):
+        mat = reg.match(fl)
+        if mat and len(mat.groups()) == 2:
+            row = mat.group('row')
+            col = mat.group('col')
+            if col in columns:
+                dct[row][columns.index(col)] = fl
+
+    ret = [columns] + [dct[k] for k in sorted(dct)]
+
+    sio = StringIO()
+    spamwriter = csv.writer(sio, delimiter=',', quotechar='"')  # , quoting=csv.QUOTE_MINIMAL)
+    for line in ret:
+        spamwriter.writerow(line)
+    ret = sio.getvalue()
+    sio.close()
+    return ret
+
+
+def get_fig_jinja_vars(directive_name, src_path, src_rst_path, **options):
+    filenames = [f for f in os.listdir(src_path)]
+    caption_str = 'here the figure caption'
+
+    if len(filenames) == 0:
+        raise ValueError("No file found in '%s' while building directive '%s'" % (src_path,
+                                                                                  directive_name))
+    elif len(filenames) == 1:
+        dic = {directive_name+'_directive': 'figure',
+               directive_name+'_content': caption_str,
+               directive_name+'_arg': relpath(os.path.join(src_path, filenames[0]), src_rst_path),
+               directive_name+'_options': options,
+               }
+    elif len(filenames) > 1:
+        options.update({'dir': relpath(src_path, src_rst_path)})
+        dic = {directive_name+'_directive': 'images-grid',
+               directive_name+'_content':
+               "\n".join('"%s"' % f if " " in f else f for f in filenames),
+               directive_name+'_arg': caption_str,
+               directive_name+'_options': options
+               }
+    return dic
+
+
+def relpath(path, reference_path):
+    """Almost the same as os.path.relpath but prepends a dot, so the returned value is
+        usable in .rst relative paths"""
+    return os.path.join(".", os.path.relpath(path, reference_path))
 
 
 @click.command()
 @click.argument('network')
 @click.argument('start_after', type=int)
 @click.argument('out_path', callback=click_get_outdir)
-@click.option('-n', '--noise_pdf', default=None,  # callback=click_get_wildcard_iterator,
+@click.option('-n', '--noise_pdf', default=None, multiple=True,
               help=("The path to the DIRECTORY of the Noise Probability Density functions images. "
-                    "You can provide wildcard such as ? and *. Example: -p /mypath/*.png"))
-@click.option('-i', '--inst_uptimes', default=None, type=click_path_type(isdir=False),
-              help='The path to the FILE of the instrument uptimes image')
-@click.option('-d', '--data_aval', default=None, type=click_path_type(isdir=False),
-              help='The path to the FILE of the data availability image')
+                    "The file names are supposed to be in the format "
+                    "station_channel"
+                    "E.g., AM01_HHZ.pdf will be "
+                    "recognized as being the image of station AM01 on channel HHZ. As channels "
+                    "consist of alphabetic characters only, also the file "
+                    "AM01_HHZ.whatever.somestring.png is valid and will recognized. "
+                    "The rows of the resulting image grid will be sorted alphabetically according "
+                    "to the station name"))
+@click.option('-i', '--inst_uptimes', default=None, multiple=True,
+              help=('The path to the FILE of the instrument uptimes image. If multiple files '
+                    'are provided, the images will be displayed in a grid of one column'))
+@click.option('-d', '--data_aval', default=None, multiple=True,
+              help=('The path to the FILE of the data availability image. If multiple files '
+                    'are provided, the images will be displayed in a grid of one column'))
 @click.option('-u', '--update', is_flag=True, default=False, is_eager=True,  # <- exec it first
               help=("Flag denoting if the  output directory OUT_PATH has to be updated. If false,"
                     "(the default) then OUT_PATH must not exist. If True, and OUT_PATH exists, "
@@ -282,9 +336,9 @@ def copyfiles(src, dst, password=None):
                     "directly under OUT_PATH and currently being edited, will not be modified. "
                     "It is then up to the user to modify the rst file to include newly added files,"
                     " if any"))
-@click.option("-p", "--psw", default=None,
-              help=("The password to be set - when needed - if any command specifying an input "
-                    "path is given using remote connections (i.e. starts via 'scp ' or 'rsync ')"))
+@click.option("--mv", is_flag=True, default=False,
+              help=("Set to true (false by default) to move all specified files instead of copying"
+                    "them."))
 @click.option('-m', '--network_station_marker', default="^", type=str,
               help=('The marker used to display network stations on the map. Defaults to ^ '
                     '(Triangle)'))
@@ -297,7 +351,7 @@ def copyfiles(src, dst, password=None):
 @click.option('-C', '--nonnetwork_station_color', default="#dddddd", type=str,
               help=('The color used to display  non-network stations (within the network bbox) on '
                     'the map. Defaults to "#dddddd" (gray-like color)'))
-def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, update, psw,
+def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, update, mv,
          network_station_marker, nonnetwork_station_marker, network_station_color,
          nonnetwork_station_color):
     """
@@ -310,22 +364,10 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, upd
     -----------------------------------------
 
     NOTE: Options input paths (noise_pdf, inst_uptimes, data_aval, see below) must denote one or
-    more files. They can be typed in two ways:
-
+    more files. They can be typed ONE OR MORE TIMES, where each file path is a local system paths
+    (with or without wildcards):
     \b
-    * as local system paths (with or without wildcards):
-        /home/me/my_images/myfile.pdf
-        /home/me/my_images/*.pdf
-
-    \b
-    * as remote files, by writing either "scp " or "rsync " before the source
-    files:
-        "scp user@host:/home/images/my_img.pdf"
-        "rsync -auv user@host:/home/imgs/*.pdf"
-
-    \b
-    Note in the latter case there is not need to specify the output
-    directory as it will be set automatically by this program
+    [program_name] --noise_pdf /home/my_images/myfile.png --noise_pdf /home/other_images/*.jpg
     """
 
     # defining paths:
@@ -336,15 +378,43 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, upd
     _data_outdir = os.path.join(out_path, "data")
     noise_pdf_dst = os.path.join(_data_outdir, "noise_pdf")
     # noise_pdf is an object with dirname prop
-    inst_uptimes_dst = os.path.join(_data_outdir, "instr_uptimes", os.path.basename(inst_uptimes))
-    data_aval_dst = os.path.join(_data_outdir, "data_aval", os.path.basename(data_aval))
+    inst_uptimes_dst = os.path.join(_data_outdir, "instr_uptimes")
+    data_aval_dst = os.path.join(_data_outdir, "data_aval")
     template_dst = os.path.join(out_path, "report.rst")
     config_dst = out_path  # os.path.abspath(os.path.join(os.path.join(out_path, "config")))
 
     # remember: the doc above is shown when calling --help. Arguments DO NOT ACCEPT HELP, THUS
     # IT MUST BE WRITTEN THERE!!
+    out_path_exists = os.path.isdir(out_path)
     try:
-        create_rst_and_config = not update or not os.path.isdir(out_path)
+        create_rst_and_config = not update or not out_path_exists
+        if create_rst_and_config:
+            # some check to avoid copying files if useless:
+            if not os.path.isfile(template_src):
+                raise IOError("No template.rst found at %s" % template_src)
+
+            # then copy conf dir, as copytree calls mkdirs(config_dst) and requires the dst not to
+            # exist (so if we config_dst == out_path, this must be the first operation)
+            print("Copying config dir: %s in %s " % (config_src, config_dst))
+            shutil.copytree(config_src, config_dst)
+
+        # copy the images files:
+
+        # 1) instrumental uptimes
+        for inst_uptime in inst_uptimes:
+            print("Copying file: %s in %s " % (inst_uptime, inst_uptimes_dst))
+            copyfiles(inst_uptime, inst_uptimes_dst, mv)
+
+        # 2) data availability
+        for data_ava in data_aval:
+            print("Copying file: %s in %s " % (data_ava, data_aval_dst))
+            copyfiles(data_ava, data_aval_dst, mv)
+
+        # 3) pdfs
+        for noise_ppd in noise_pdf:
+            print("Copying files: %s in %s " % (noise_ppd, noise_pdf_dst))
+            copyfiles(noise_ppd, noise_pdf_dst, mv)
+
         if create_rst_and_config:
             print("Generating report template")
             sta_df, all_sta_df = get_stations_df(network, start_after, network_station_marker,
@@ -357,43 +427,17 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, upd
                                                                  index=False),
                         stations_map_csv_content=all_sta_df.to_csv(sep=",", quotechar='"',
                                                                    index=False),
-                        data_aval_fig_path=os.path.join(".", os.path.relpath(data_aval_dst,
-                                                                             out_path)),
-                        instr_uptimes_fig_path=os.path.join(".", os.path.relpath(inst_uptimes_dst,
-                                                                                 out_path)),
-                        noise_pdfs_fig_path=os.path.join(".", os.path.relpath(noise_pdf_dst,
-                                                                              out_path)),
+                        noise_pdfs_dir_path=relpath(noise_pdf_dst, out_path),
+                        noise_pdfs_content=get_noise_pdfs_content(noise_pdf_dst),
                         )
 
-            if not os.path.isfile(template_src):
-                raise IOError("No template.rst found at %s" % template_src)
+            args.update(get_fig_jinja_vars("data_aval", data_aval_dst, out_path))
+            args.update(get_fig_jinja_vars("instr_uptimes", inst_uptimes_dst, out_path))
 
             with open(template_src, 'r') as opn:
                 txt = opn.read().decode('UTF8')
             reporttext = Environment().from_string(txt).render(**args)
 
-            # copying files:
-
-            # first copy conf dir, as copytree calls mkdirs(config_dst) and requires the dst not to
-            # exist (so if we config_dst == out_path, this must be the first operation)
-            print("Copying config dir: %s in %s " % (config_src, config_dst))
-            shutil.copytree(config_src, config_dst)
-
-        # copy the images files:
-        # 1) instrumental uptimes
-        print("Copying file: %s in %s " % (inst_uptimes, inst_uptimes_dst))
-        makedirs(os.path.dirname(inst_uptimes_dst))
-        copyfiles(inst_uptimes, inst_uptimes_dst, psw)
-        # 2) data availability
-        print("Copying file: %s in %s " % (data_aval, data_aval_dst))
-        makedirs(os.path.dirname(data_aval_dst))
-        copyfiles(data_aval, data_aval_dst, psw)
-        # pdfs
-        print("Copying files: %s in %s " % (noise_pdf, noise_pdf_dst))
-        makedirs(noise_pdf_dst)
-        copyfiles(noise_pdf, noise_pdf_dst, psw)
-
-        if create_rst_and_config:
             # copying the report.rst file
             print("Writing report rst file in %s" % (template_dst))
             with open(template_dst, 'w') as opn:
@@ -407,11 +451,13 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, upd
               % os.path.basename(template_dst))
         print("    reportbuild %s OUTDIR%s -b latex -E"
               % (os.path.abspath(out_path),
-                 " -c " + os.path.abspath(config_dst) if
-                 os.path.abspath(config_dst) != os.path.abspath(out_path) else ""))
+                 "" if
+                 os.path.samefile(config_dst, out_path) else " -c " + os.path.abspath(config_dst)))
         print("Where OUTDIR is a selected output directory and -b can be either latex, html or pdf")
         return 0
     except (IOError, OSError, ValueError) as exc:
+        if not out_path_exists and os.path.isdir(out_path):
+            shutil.rmtree(out_path, ignore_errors=True)
         print("Aborted: %s" % str(exc))
         return 1
 

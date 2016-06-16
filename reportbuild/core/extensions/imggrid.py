@@ -1,362 +1,210 @@
 # -*- coding: utf-8 -*-
 """
     Implements the sphinx directive imggrid:
-    .. images-grid:: folder
 
-    History: the latex rendering is the trickiest part: we first implemented this directive as an
-    extension of docutils.parsers.rst.directives.tables import ListTable. However, references to
-    the table would appear as "Table #", whereas this directive is intended, as the name says, to
-    display images in a grid. We then tried to return a figure wrapping a table, but this does not
-    split if the table is too long (even with a longtable inside a figure). The final solution was
-    to render this directive as a longtable followed by a "fake" figure without images but holding
-    potential captions and allowing references within the text
+    .. images-grid:: figure_caption
+        :dir: folder
 
-    This directive extends figure and then checks the folder for all files specified with the 
-    options. It returns a set of two nodes, the first is the "parent" figure (removing
-    the image child, which points to folder and would raise problems in sphinx), and a imggrid
-    node, which is just a collection of images sub-nodes representing the images to be displayed in
-    the grid. We need to process the image nodes inside the directive cause Sphinx understands that
+        data
+
+    This directive has to be written and filled like a CSVTable BUT produces a "table" of figures.
+    IT extends both CSVTable and Figure. It first parses the document as CSVTable,
+    the returned table cell is replaced by images nodes first by joining the dir argument and the
+    data provided. Then, the content is parsed as
+    Figure directive, and we set the figure children as the table, followed by the caption (if any)
+    Note that we need to process the image nodes inside the directive cause Sphinx understands that
     these images need to be copied to the build directory
+    Thus the returned directive nodes are a simple figure wrapping a table of images, followed by
+    all potential node messages that the super calls generated
+    (appended as CSVTable + Figure messages).
+    This lets previous labels written in the rst point to the figure (like 'see Fig...' and not
+    'see Table...') and custom directives like tabularcolumns or tabularrows point to the wrapped
+    table.
 
-    When visiting the imggrid node in latex, we are then sure we just added a figure to the body.
-    The figure holds the caption provided in the directive and potential references to it, if they
-    are written just before the directive (in general, they work only if the next element
-    is a container, a table or a figure). We remove from the body the portion of the text
-    referring to that figure, and then we build a longtable with our images in the grid (we can
-    sepcify different tables but longtable allows us to split big grids). Finally, the trick: we
-    append the portion of text referncing the figure at the end, so that captions and href works for
-    the table just added and they look like referncing the longtable.
+    If we had to generate html, that would be all we need. But there is latex, and sphinx pretending
+    to support it. ;)
 
-    Supported options (the first four apply to EACH sub-image) BUT TO BE TESTED:
-    width
-    align
-    figwidth (ovverrides width if given)
-    figalign (overrides align if given)
-    class
-    figclass (appended to class)
+    Because images in a grid might overflow the page, and we need a reliable method to use
+    longtables. And once we done that, we need to fix sphinx HARCODING headers and footers saying
+    "Table # continued on next page" whereas we want "Figure # continued on next page".
+    And now comes the BIG, BIG mess.
+    First, Sphinx (1.4.1) claims it uses tabulary package for latex table. FALSE. It HARDCODES a
+    rule that, if we provided a table class 'longtable' or, even worse, the table rows count exceeds
+    30 (or 40, or whatever), then IT USES LONGTABLES.
+    Ok, that's fine, we also want to use longtables, because we need latex to handle page overflow,
+    which happens frequently, with a grid of images.
+    So the class 'longtable' is appended to the returned table class by this directive.
+
+    The second problem is to modify the longtable headers which print something like
+    "Table # continued to next page", replacing that "Table" with "Figure" and # with the correct
+    figure number. We do it via a hack (caused by a previous Sphinx hack) in
+    depart_imggrid_node_latex function. Note that, as the figure will FOLLOW the table in latex,
+    we use \addtocounter{figure}...
+
+    Possible drawbacks: when latex places spaces or some other stuff BETWEEN the generated table and
+    the figure. The latter, having only a caption, NEEDS to stay IMMEDIATELY below the table for
+    giving the "visual" impression it is the table caption. But
+    this can be arranged by editing the source rst and placing the directive elsewhere, or
+    issuing a ':raw:latex \clearpage' command or simply writing some text which re-arranges the
+    layout
+
+    FIXME: write supported options. In principle, all Figure and CSVTAble options, PLUS the dir,
+    latex-includegraphics-opts
+
+    --------
+
+    Small implementation history (in case you think "hey why don't you do like this?): we first
+    implemented this directive as an
+    extension of docutils.parsers.rst.directives.tables.ListTable, because it has a nice method
+    to create table from string content. However, references to
+    the table would appeared as "Table #", whereas this directive is intended, as the name says, to
+    display images in a grid. We then tried to return a figure wrapping a table, but this does not
+    split if the table is too long (even with a longtable inside a figure). We then passed to a
+    solution where we rendered this directive as a longtable followed by a "fake" figure without
+    images but holding potential captions and allowing references within the text. Finally, we
+    merged the last two tries: the rendering is STILL rendered as as a longtable followed by a
+    "fake" figure, but the directive itself behaves like a CSVTable, so that we can add file names
+    also in the directive content
+
 """
 import os
-import re
-# import urllib
-# import urllib2
-# from xml.dom import minidom
+from docutils.nodes import Element
+from docutils.parsers.rst.directives import path as directive_path_func
+from reportbuild.core.extensions.csvfigure import CsvFigureDirective
 
-from docutils import nodes  # , utils
-from docutils.parsers.rst import directives  # , roles
-import shlex
-import pandas as pd
-from os import strerror
-from os import listdir
-from os.path import join, isdir  # isfile, isdir, splitext, basename
-import errno
-# from docutils.parsers.rst.directives.tables import ListTable
-from docutils.parsers.rst.directives import images
-from reportbuild.core.utils import regex
-from reportbuild.core.extensions.setup import relfn2path
-from sphinx.writers.latex import UnsupportedError
-from sphinx.locale import _  # WARNING: WTF IS THAT A FUNCTION NAME?!!! WE NEED TO IMPORT IT
-from docutils.nodes import SkipNode
-# FOR THE TABLE HEADER GENERATION (see below) WATCH OUT WHEN USING "_"!!!
+# we define the directive option spec globally because it depends on the imports below:
+_own_option_spec = {'dir': directive_path_func}
+
+from reportbuild.core.extensions.lateximgs import img_node   # nopep8
+from reportbuild.core.extensions.lateximgs import LATEX_OPT_SPEC   # nopep8
+_own_option_spec.update(LATEX_OPT_SPEC)
+# NOTE ON the THREE LINES ABOVE: lateximgs.img_node is a node which overwrites image
+# and figure directives to account for the 'latex-includegraphics-opts' option. However, for the
+# users who do not want to overwrite standard rst directives (like image and figure) or just want to
+# import this module alone by copy/paste, REMOVE THE THREE LINES ABOVE AND UNCOMMENT
+# the following:
+# from docutils.nodes import image as img_node
+
 
 _DIRECTIVE_NAME = 'images-grid'
 
 
-class imggrid(nodes.Element):
+class imggrid(Element):
     pass
 
 
-def get_files(folder,
-              columns=None,
-              file_ext=None,
-              transpose=False):
+class ImgsGridDirective(CsvFigureDirective):
 
-    orig_folder = folder
-    folder = relfn2path(folder)
-    columns_re = None if columns is None else [regex(c) for c in columns]
-    # to see OsError error numbers, see here
-    # https://docs.python.org/2/library/errno.html#module-errno
-    # Here we use two:
-    # errno.EINVAL ' invalid argument'
-    # errno.errno.ENOENT 'no such file or directory'
-    try:
-        if not isdir(folder):
-            # to build an OSError, see
-            # http://stackoverflow.com/questions/8978057/raising-builtin-exception-with-default-message-in-python
-            raise OSError(errno.ENOTDIR, strerror(errno.ENOTDIR), folder)
-            # errno.ENOTDIR 'Not a directory'
-            # Alternatively:
-            # errno.ENOENT 'No such file or directory'
-    except TypeError:
-        raise OSError(errno.ENOTDIR, strerror(errno.ENOTDIR), str(folder)+" "+str(type(folder)))
-
-    ret = pd.DataFrame(columns=['file_path'] if columns is None else columns)
-
-    if file_ext and file_ext[0] != ".":
-            file_ext = "." + file_ext
-
-    for file_ in listdir(folder):
-        file_path = join(folder, file_)
-        row = file_path
-        col = "file_path"
-
-        if file_ext and os.path.splitext(file_)[1] != file_ext:
-            continue
-
-        if columns is not None:
-            row = col = None
-            for i, c in enumerate(columns_re):
-                mobj = c.search(file_)
-                if mobj:
-                    col = columns[i]
-                    row = file_[:mobj.start()] + file_[mobj.end():]
-                    break
-            if row is None:
-                continue
-
-        # Reminder:
-        # for adding new columns to existing dataframe see:
-        # http://stackoverflow.com/questions/12555323
-        try:
-            ret.loc[row]  # row not present? (by datafreme's index)
-        except KeyError:
-            ret = ret.append(pd.DataFrame(index=[row], columns=ret.columns, data=None))
-
-        ret.loc[row, col] = os.path.join(orig_folder, file_)  # to preserve the path for sphinx
-        # relative imports
-
-    if ret.empty:
-        raise OSError("Error in %s directive: no files found with given arguments found. Please"
-                      "check arguments" % _DIRECTIVE_NAME)
-        # raise OSError(errno.ENODATA, strerror(errno.ENODATA), folder)
-
-    if transpose:
-        ret = ret.transpose()
-
-    # now replace NaNs with None. FIXME: check if it's possible to instantiate stuff with
-    # None already to avoid this
-    return ret.where((pd.notnull(ret)), None)
-
-
-# FIXME: see sphinx extensions and arrange better this directive
-class ImgsGridDirective(images.Figure):
-    own_option_spec = {
-                       'transpose': lambda arg: arg if arg and arg.lower() in ('true', 'false', '0', '1') else '',
-                       'file-ext': lambda arg: arg,
-                       'columns': lambda arg: arg if arg is None else shlex.split(arg),
-                       'header-labels': lambda arg: [] if arg is None else shlex.split(arg),
-                       'latex-custom-graphics-opt': lambda arg: arg,
-                       'latex-table': lambda arg: arg,
-                       }
-
-    option_spec = images.Figure.option_spec.copy()  # @UndefinedVariable
-    option_spec.update(own_option_spec)
+    option_spec = CsvFigureDirective.option_spec.copy()  # @UndefinedVariable
+    option_spec.update(_own_option_spec)
 
     def run(self):
+        nodez = CsvFigureDirective.run(self)
 
-        ret_nodes = images.Figure.run(self)
-        # returns two child nodes , the first an image, the second (optional BUT MUST BE CHECKED)
-        # a caption
+        # add the 'longtable' class attribute to the table. This will force to display in the
+        # LatexTranslator as latex longtable. This in turn is handy cause we let latex handle the
+        # table width, (NOTE: if the table has images, we NEED to cause we cannot set an arbitrary
+        # number of lines, as sphinx does)
+        table_atts = nodez[0].children[0].attributes
+        if 'longtable' not in table_atts['classes']:
+            table_atts['classes'].append('longtable')
 
-        # next two lines are taken from:
-        # http://docutils.sourceforge.net/docs/howto/rst-directives.html#image
-        reference = directives.uri(self.arguments[0])
-        ret = imggrid(**self.options)  # '', *ret_nodes[0].children, **ret_nodes[0].attributes)
-        columns = self.options['columns']
-        files = get_files(reference, columns=self.options.get('columns', None),
-                          file_ext=self.options.get('file-ext', None),
-                          transpose=self.options.get('transpose', False))
-        ret['columns'] = columns
-        header_labels = self.options.get('header-labels', [])
-        ret['header-labels'] = header_labels if not header_labels else \
-            header_labels[0: len(columns)] + (max(0, len(columns) - len(header_labels)) * [''])
-        ret['latex-custom-graphics-opt'] = self.options.get('latex-custom-graphics-opt', '')
-        ret['latex-table'] = self.options.get('latex-table', 'longtable')
-        ret['row_count'] = len(files)
+        base_dir = self.options['dir']
 
-        # we need to build NOW a set of image nodes cause Sphinx understands that it must copy them
-        # to the build folder
-        image_nodes = []
-        for row_name, row_series in files.iterrows():
-            for i, filepath in enumerate(row_series):  # first element is the row "name"
-                if filepath:
-                    image = ret_nodes[0].children[0].copy()  # should also copy attributes, e.g. width
-                    image['uri'] = filepath
-                    image_nodes.append(image)
-                else:
-                    # in a former implementation, where we passed a ListTable node,
-                    # we could not set a leaf text node, we need to set a node to which classes are
-                    # "spreadable". We keep here this workaround although a simple nodes.Text
-                    # might be sufficient:
-                    image_nodes.append(nodes.paragraph('', *[nodes.Text('')]))
+        # now replace each string given in the csv (file or table) with an image node
+        # with the correct path:
+        for row, col, is_row_header, is_stub_column, node, node_text in self.itertable(nodez):
+            # node might be None, it is also the case when the csv "cell" was empty string
+            if is_row_header or is_stub_column or not node:
+                continue
+            filename = node_text or "[no file name]"
+            imgnode = img_node(**self.options)
+            imgnode.attributes['uri'] = os.path.join(base_dir, filename)
+            node.replace_self(imgnode)
 
-        ret.children = image_nodes
-
-        # Remove the image child of the figure so that we do not have problems
-        # (it points to the dir and later sphinx complains cause cannot copy a dir)
-        ret_nodes[0].children = ret_nodes[0].children[1:]
-        # NOW return the "fake" figure PLUS our node. The fake figure will be processed BEFORE
-        # our node, so it will setup ALL references correctly, if any
-        # Then we will process our "longtable" (or what we want as table)
-
-        return ret_nodes + [ret]
+        ret = imggrid(**self.options)
+        nodez.append(ret)
+        return nodez
 
 
 def visit_imggrid_node_latex(self, node):
-    # raise error if within a table (consistent with sphinx latex default writer)
-    # self is a Latex translator
-    if self.table:
-        raise UnsupportedError(
-            '%s:%s: nested tables are not yet implemented.' %
-            (self.curfilestack[-1], node.line or ''))
+    # self.body has been built according to the returned nodes, i.e.
+    # with a figure wrapping a table.
+    # However, in latex we need to do two things more:
+    # 1) The part of the wrapping figure code from its start until the table start is moved AFTER
+    # the table (longtables inside a float environment seems not to split in latex)
+    # 2) longtables in sphinx provide the so called headers, i.e portions of text to display at the
+    # top and bottom when the table is splitted between pages. Something like e.g.
+    # "table 3 continued from previous page". We want to render it as
+    # e.g. "figure 4  continued from previous page", where that "4" is calculated considering that
+    # our NEXT figure is our imggrid figure (so using latex \addtocounter{figure}{1},
+    # \addtocounter{figure}{-1})
 
-    # as the directive above returned a figure and an imggrid node, the figure has been added
-    # to the doc with the (potential) labels properly set. Move this at the end of the table
-    # we are up to build
-    figure_at_end = True  # this might be a param in future releases
-    tmp_fig_body = []
-    if figure_at_end:
-        i = -1
-        while "\\begin{figure}" not in self.body[i]:
-            i -= 1
-        tmp_fig_body = self.body[i:]
-        self.body = self.body[:i]
-
-    # build the table (longtable probably. FIXME: do we need other tables than that?)
-    cols, rows = len(node['columns']), node['row_count']
-    header_labels = node['header-labels']
-    lcgo = node['latex-custom-graphics-opt']
-    latextable = node['latex-table']
-
-    alg = node.attributes.get('align', None) or 'center'
-    alg = alg[0] if alg in ("left", "right") else "c"
-    # FIXME: check different options!
-
-    if self.next_table_colspec:  # supports for the .. tabularcolumns:: sphinx directive
-        tabularcolumns = self.next_table_colspec
-        self.next_table_colspec = None
-    else:
-        tabularcolumns = alg * cols
-
-    self.body.append("\n")
-    self.body.append(r"\begin{" + latextable+"}{" + tabularcolumns + "}\n")
-
-    # append header labels, if any. FIXME: only raw text with ASCI chars supported!
-    header_labels_str = ""
-    if header_labels:
-        header_labels_str = "\n&\n".join(header_labels)
-
-    self.body.append(header_labels_str)
-
-    if latextable == "longtable":
-        # try to find a reference to the figure we just removed from the body (and will
-        # re-append later)
-        fig_ref = ""  # by default, it is "Fig." or whatever we set as default
-        for line in tmp_fig_body:
-            mtc = re.search(r"\\label\{(.*?:.*?)\}", line)
-            if mtc:
-                fig_ref = r"\hyperref[%s]{\figurename\ \ref{%s}} " % (mtc.group(1), mtc.group(1))
-                break
-
-        self.body.append('\\endfirsthead\n\n')
-        self.body.append('\\multicolumn{%s}{c}%%\n' % cols)
-        self.body.append(r'{{\footnotesize \tablecontinued{%s(%s)}}} \\'
-                         % (fig_ref, _('continued from previous page')))
-        self.body.append('\n')
-        # self.body.append('\\hline\n')
-        self.body.append(header_labels_str)
-        self.body.append('\\endhead\n\n')
-        self.body.append('\\multicolumn{%s}{c}%%\n' % cols)
-        self.body.append(r'{{\footnotesize \tablecontinued{%s(%s)}}}'  # \\ \hline'
-                         % (fig_ref, _('Continued on next page')))
-        self.body.append('\n\\endfoot\n\n')
-        self.body.append('\\endlastfoot\n\n')
-    else:
-        self.body.append(r'\\\n\n')
-
-    # Table body:
-    len_ = len(self.body)  # remember where we are NOW
-    # FIXME: check if figure options are propagated!
-    for i in xrange(rows):
-        for j in xrange(cols):
-            if j > 0:
-                self.body.append("\n&")
-            image = node.children[i*cols + j]
-            # in principle (should be tested) the width attribute of node is propagated through
-            # all its children. So we might want to calculate it once. FIXME
-            if not node.attributes.get('width', None):
-                image.attributes['width'] = str(int(100.0 / cols)) + "%"
-            if isinstance(image, nodes.image):
-                self.visit_image(image)
-                self.depart_image(image)
-        self.body.append("\n\\\\\n")
-    self.body.append(r'\end{' + latextable + '}')
-
-    # override custom graphics options, if any:
-    if lcgo:
-        reg = re.compile("\\\\includegraphics(?:\\[.*?\\])?\\{")
-        for i in xrange(len_, len(self.body)):
-            m = reg.search(self.body[i])
-            if m:
-                self.body[i] = self.body[i][0:m.start()] + r"\includegraphics[" + \
-                    lcgo + "]{" + self.body[i][m.end():]
-
-    # The trick here is that if we wrapped all the table above inside a figure
-    # (which was what we did at the beginning) the figure is NOT splitted in multi pages
-    # if it overflows. Now it does, BUT: we want people referencing that longtable to
-    # actually reference a figure! So we doi the trick: write here an empty figure
-    # If we want to add the caption OVER the table, place this code BEFORE we generate the
-    # table (should be tested though)
-
-    # remove the space that a figure has at the top:
-    # See here:
-    # http://tex.stackexchange.com/questions/26521/how-to-change-the-spacing-between-figures-tables-and-text
-    if tmp_fig_body:
-        self.body.append("\n\\vspace{-\\textfloatsep}\n")
-        self.body.extend(tmp_fig_body)
-    raise SkipNode()  # do not call the children node rendering, and do not call depart
+    # iterate reversed to parse content just added:
+    for i in xrange(len(self.body)-1, -1, -1):
+        # find end of longtable:
+        if self.body[i].strip() == "\\end{longtable}":
+            # re-iterate from the end of longtable:
+            for j in xrange(i-1, -1, -1):
+                # find start of longtable:
+                if self.body[j].strip() == "\\begin{longtable}":
+                    # re-iterateo from the start of longtable
+                    for k in xrange(j-1, -1, -1):
+                        # find start of wrapping figure
+                        if self.body[k].strip().startswith("\\begin{figure}"):
+                            # set the fig_start list of strings which have to be moved AFTER
+                            # the longtable:
+                            fig_start = self.body[k: j]
+                            # set the table list of strings:
+                            table = self.body[j: i+1]
+                            # set the remaining figure:
+                            fig_end = self.body[i+1:]
+                            # replace the longtable header line where we write references to the
+                            # current table number. The reference is to the NEXT figure number
+                            # (use \thefigure providing \addtocounter later)
+                            for x in xrange(len(table)):
+                                if table[x].strip().startswith(r'{{\tablecontinued{\tablename\ '
+                                                               r'\thetable{} '):
+                                    table[x] = table[x].replace(r'\tablename\ \thetable{}',
+                                                                r'\figurename\ \thefigure{}')
+                                    # we added \thefigure{} (Why curly brakets?
+                                    # why sphinx does that and we don;t have time to investigate)
+                                    # but \thefigure needs to point to our NEXT figure. So
+                                    # add counter:
+                                    table = ["\n\n\\addtocounter{figure}{1}\n\n"] + table + \
+                                        ["\n\n\\addtocounter{figure}{-1}\n\n"]
+                                    break
+                            # move the figure up of a \textfloatsep length, so to give the
+                            # impression it's the caption
+                            self.body = self.body[:k] + table + \
+                                ["\n\\vspace{-\\textfloatsep}\n"] + \
+                                fig_start + fig_end
+                            return
 
 
 def depart_imggrid_node_latex(self, node):
-    # self is a Latex translator
     pass
 
 
 def visit_imggrid_node_html(self, node):
-    # self is a Latex translator
-    cols, rows = len(node['columns']), node['row_count']
-    self.body.append("\n<table class='img_grid' border=0>")
-    wdt = node.attributes.pop("width", None)
-    if not wdt:
-        wdt = str(int(100.0 / cols)) + "%"
+    # as we built it, the rendering is fine. self will pass this node and process
+    # its children correctly
+    pass
 
-    self.body.append("\n<colgroup>")
-    for _ in xrange(cols):
-        self.body.append("\n<col style='width:%s'>" % wdt)
-    self.body.append("\n</colgroup>")
-
-    self.body.append("\n<tbody>")
-    for i in xrange(rows):
-        self.body.append("\n<tr>")
-        for j in xrange(cols):
-            image = node.children[i*cols + j]
-            image.attributes.pop('width', None)  # we already defined in colgroup
-            # Moreover, on Cjrome the percentage width refers to the width of the containing td
-            self.body.append("\n<td>")
-            if isinstance(image, nodes.image):
-                self.visit_image(image)
-                self.depart_image(image)
-            self.body.append("</td>")
-        self.body.append("\n</tr>")
-    self.body.append("\n</tbody>")
-    self.body.append("\n</table>")
-    raise SkipNode()  # do not call the children node rendering, and do not call depart
 
 def depart_imggrid_node_html(self, node):
-    # self is a Latex translator
+    # as we built it, the rendering is fine. self will pass this node and process
+    # its children correctly
     pass
+
 
 def setup(app):
     app.add_directive(_DIRECTIVE_NAME, ImgsGridDirective)
-    app.add_node(imggrid,
-                 latex=(visit_imggrid_node_latex, depart_imggrid_node_latex),
+    app.add_node(imggrid, latex=(visit_imggrid_node_latex, depart_imggrid_node_latex),
                  html=(visit_imggrid_node_html, depart_imggrid_node_html))
+    # there is an options which might be handy: return a custom node and add it as enumerable
+    # Fine, BUT: in latex the label is appended before the node, thus we should make a
+    # workaround to put it inside the figure. And in html, the figure inside the custom node
+    # is anyway counted also so that references are messed up. Leave here the syntax to add
+    # enumerable node, although it's useless here
+#     app.add_enumerable_node(imggrid, "figure", title_getter=None, latex=..., html=...)

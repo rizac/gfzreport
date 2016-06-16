@@ -9,10 +9,8 @@ import sys
 import os
 from os import path
 from reportbuild.core.writers.latex import LatexTranslator
-from docutils import nodes
+# from docutils import nodes
 
-# from docutils.transforms import references
-# from docutils.utils import Reporter
 
 # the sphinx environment, saved here for access from other extensions
 # FIXME!!! if in sphinx config you add:
@@ -22,7 +20,6 @@ from docutils import nodes
 # or due to the fact that the package reportbuild is already installed
 # However, the problem has been fixed by removing sys.path.insert and by sepcifying the full path
 # in extensions dict (see conf.py)
-
 sphinxapp = None
 
 
@@ -38,12 +35,14 @@ bibfieldreplkwd = "___bfrt___"
 
 
 def relfn2path(filename):
-    """Return paths to a file referenced from a document, relative to
-    documentation root and absolute. This code is copied and modified from sphinx app environment
-    to work for custom extension like this:
-    In the rst, absolute filenames such as "/a/bcd" are taken as relative to the computer root
-    (note: in rst image directive, they are relative to the source dir), while relative filenames
-    are relative to the dir of the containing document (as in the image directive).
+    """Returns a relative path normalized and relative to the app srcdir, unless 
+    the path is already absolute (in the sense of os.path.isabspath) in that case returns
+    the argument as it is.
+    Sphinx is quite confusing about paths, first
+    in the definition of "relative" vs "absolute" paths, second in the consistency
+    (I suspect that images paths do not follow the same rules than other directives path)
+    All in all, that NEEDS A FIXME and a CHECK.
+    This method is imported and used by our custom directives of this package
     """
     # We might use the function below, but it works the first N times
     # then fails cause app.env.docname has been set to None (??)
@@ -158,93 +157,21 @@ def decorate_title(string, underline_symbol, overline_symbol=None):
 
 def app_doctree_read(app, doctree):
     """
-        This method resolves replacement due to bib fields
+        This method resolved replacement due to bib fields.
+        This feature is dropped as it is highly unmantainable and not
+        yet required. Leave the method here for future doctree modifications.
+        Remember that you can use:
+        for obj in doctree.traverse(nodes.problematic):
+            .. your code here
     """
-    # a = app.builder.env
-
-    bibfields = {}
-    first_field_list_children_found = None
-    doi_fields = []
-
-    for obj in doctree.traverse(nodes.field_list):
-
-        if first_field_list_children_found is None:
-            first_field_list_children_found = obj.children
-
-        for field in obj.children:
-            try:
-                par_element = field.children[1].children[0]
-                field_name = field.children[0].rawsource
-                bibfields[field_name] = par_element.children
-
-                if len(par_element.children) == 1 and field_name == "doi":
-                    field_value = par_element.children[0]
-                    # If DOI, add two new fields doiStr and doiURL. The first is the DOI as string
-                    # with two substring separated by "/", the latter is the full url
-                    doi_str, doi_url = parse_doi(field_value)
-                    doi_fields = [create_field_node("doiStr", doi_str),
-                                  create_field_node("doiUrl", doi_url)]
-            except IndexError:
-                pass
-
-    # append the two newly created fields (seems we cannot insert while looping):
-    if first_field_list_children_found:
-        first_field_list_children_found.extend(doi_fields)
-
-    # try to fix problematic, and see iof they are references to bib fields
-    _warn_ = True
-    for obj in doctree.traverse(nodes.problematic):
-        # Note: the doctree has a internal Logger like object (doctree.reporter) in which
-        # you can print messages like doctree.reporter.error("..."), doctree.reporter.warning("...")
-        # Apparently, the reporter prints all its messages (those with a severity at least warning
-        # and error, but this might be dependent on the settings somewhere) AT THE END.
-        # Thus, by writing to stdout and stderr directly, we are sure to write these messages BEFORE
-        # they are printed out by sphinx
-        if _warn_:
-            sys.stdout.write("Trying to fix 'Undefined substitution referenced' errors\n")
-            _warn_ = False
-
-        rawsource = obj.rawsource
-        if rawsource and rawsource[0] == rawsource[-1] == "|" and rawsource[1:-1] in bibfields:
-            index = obj.parent.children.index(obj)
-            repl_nodes = bibfields[rawsource[1:-1]]
-            obj.parent.children.pop(index)
-            for i, node in enumerate(repl_nodes, index):
-                obj.parent.children.insert(i, node)
-
-            sys.stderr.write(('Please ignore error message \'Undefined '
-                              'substitution referenced: "%s"\': THE PROBLEM HAS BEEN FIXED\n')
-                             % rawsource[1:-1])
-
-
-def parse_doi(doi_str):
-    """
-        parses doi_str returning the tuple doi, doi_url.
-    """
-    r = re.compile("^(?:\\s*DOI\\s*:)*\\s*(https?://(?:.*/)*)?([^/]+/[^/]+)\\s*$", re.IGNORECASE)
-    m = r.match(doi_str)
-    if m is None:
-        return (None, None)
-    grp = m.groups()
-    doi_str, doi_url = grp[1], None if (grp[0] is None or grp[1] is None) else grp[0] + grp[1]
-    if not doi_url and doi_str:
-        doi_url = "http://doi.org/" + doi_str
-    return doi_str, doi_url
-
-
-def create_field_node(field_name, field_value):
-    fn_textnode = nodes.Text(field_name)  # nodes.field_name()
-    fb_textnode = nodes.Text(field_value)
-    # docutils (inspected by debugging) uses a paragraph wrapper for field bodies
-    fb_parnode = nodes.paragraph('', fb_textnode)
-
-    fn_fieldname_node = nodes.field_name('', fn_textnode)
-    fn_fieldbody_node = nodes.field_body('', fb_parnode)
-
-    return nodes.field('', fn_fieldname_node, fn_fieldbody_node)
+    pass
 
 
 def missing_reference(app, env, node, contnode):
+    """This method does nothing as it was a test to see if it handled missing text substitution
+    references, but it doesn't
+    Will be removed in the future
+    """
     pass
     # Emitted when a cross-reference to a Python module or object cannot be resolved. If the event
     # handler can resolve the reference, it should return a new docutils node to be inserted in the
@@ -261,6 +188,7 @@ def missing_reference(app, env, node, contnode):
 
 
 def doctree_resolved(app, doctree, docname):
+    """Not used, will be removed in the future"""
     pass
 
 
