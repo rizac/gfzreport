@@ -146,7 +146,7 @@ html_theme = 'alabaster'
 #html_short_title = None
 
 # The name of an image file (relative to this directory) to place at the top
-# of the sidebar.
+# of the sidebar. NOTE: IT IS NOT CURRENTLY USED ANYWHERE
 html_logo = "conf_files/html/GFZ-Logo_eng_RGB.png"
 
 # The name of an image file (relative to this directory) to use as a favicon of
