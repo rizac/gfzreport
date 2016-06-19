@@ -14,19 +14,15 @@ from StringIO import StringIO
 from urllib2 import URLError
 import os
 import sys
-from jinja2 import Environment
-from reportbuild.core import utils
 import shutil
 from glob import glob
-from collections import OrderedDict as odict
-import pexpect
-import tarfile
-import zipfile
 import csv
 from jinja2 import Environment
-
+from reportbuild.core.utils import load_module
 
 def get_format(query_str):
+    """Returns the format argument of query_str (a query in string format), or 'xml' if
+    such argument is not found (xml being the FDSN default)"""
     try:
         r = re.compile("[\\?\\&]format=(.*?)[\\&$]")
         return r.search(query_str).groups()[0]
@@ -36,6 +32,8 @@ def get_format(query_str):
 
 
 def read(url):
+    """Reads the specific url, returning a string if 'format=text' is within the url
+    query, or a etree object otherwise"""
     try:
         format_ = get_format(url)
         if format_ == 'text':
@@ -49,6 +47,10 @@ def read(url):
 
 
 def get_query_str(network, start_after_year, format_, **kwargs):
+    """Returns the query string from a given network and a given start_after argument
+    and a specific format_ ("xml" or "text"). All other FDSN arguments to be appended to the query
+    can be specified via kwargs
+    """
     dc_str = ("http://geofon.gfz-potsdam.de/fdsnws/station/1/query?"
               "network=%s&startafter=%s&format=%s") % (network, start_after_year, format_)
     for key, val in kwargs.iteritems():
@@ -189,25 +191,32 @@ def click_path_type(isdir=False):
                       readable=True, resolve_path=True)
 
 
-# def click_get_wildcard_iterator(ctx, param, value):
-#     try:
-#         return utils.split_wildcard(value)
-#     except OSError as oerr:
-#         raise click.BadParameter(str(oerr))
-
-
 def click_get_outdir(ctx, param, value):
     """Does a check on the outdir: wither it does not exists, or it's empty. Returns it
     in these two cases, otherwise raises Click error"""
+    use_default_dir = value is None
+    if use_default_dir:
+        network = ctx.params.get('network', None)
+        if network is None:
+            raise click.BadParameter("optional '%s' missing, but no network specified"
+                                     % param.human_readable_name)
+        from reportgen.network.www import config
+        path = config.SOURCE_PATH
+        value = os.path.join(path, network)
+        # make parent dir if it does not exist:
+        if not os.path.isdir(os.path.dirname(value)):
+            os.makedirs(os.path.dirname(value))
+
     if not os.path.isdir(value):
         if not os.path.isdir(os.path.dirname(value)):
             raise click.BadParameter("'%s' does not exists and cannot be created" % value)
     elif not ctx.params['update']:
-        raise click.BadParameter(("'%s' already exists. Please provide a non-existing dir name"
+        raise click.BadParameter(("'%s' %salready exists. Please provide a non-existing dir name"
                                   "whose path exists (i.e. than can be created via `mkdir`).\n"
                                   "Putting content in an already existing non-empty directory "
                                   "is unsafe as we might have conflicts when building the report") %
-                                 value)
+                                 (value, "(default directory for web page) " if use_default_dir
+                                  else ""))
     return value
 
 
@@ -278,26 +287,31 @@ def get_noise_pdfs_content(dst_dir, reg="^(?P<row>.*?)_(?P<col>[a-zA-Z]+).*$",
     return ret
 
 
-def get_fig_jinja_vars(directive_name, src_path, src_rst_path, **options):
+def get_fig_jinja_vars(fig_name, src_path, src_rst_path, **options):
+    """
+    Returns the variables to be passed to our template.rst for the figure identified by
+    fig_name when building a report.rst
+    Basically, these variables change if the src_path has one image or more than one
+    """
     filenames = [f for f in os.listdir(src_path)]
     caption_str = 'here the figure caption'
 
     if len(filenames) == 0:
-        raise ValueError("No file found in '%s' while building directive '%s'" % (src_path,
-                                                                                  directive_name))
+        raise ValueError("No file found in '%s' while building directive for '%s'" % (src_path,
+                                                                                      fig_name))
     elif len(filenames) == 1:
-        dic = {directive_name+'_directive': 'figure',
-               directive_name+'_content': caption_str,
-               directive_name+'_arg': relpath(os.path.join(src_path, filenames[0]), src_rst_path),
-               directive_name+'_options': options,
+        dic = {fig_name+'_directive': 'figure',
+               fig_name+'_content': caption_str,
+               fig_name+'_arg': relpath(os.path.join(src_path, filenames[0]), src_rst_path),
+               fig_name+'_options': options,
                }
     elif len(filenames) > 1:
         options.update({'dir': relpath(src_path, src_rst_path)})
-        dic = {directive_name+'_directive': 'images-grid',
-               directive_name+'_content':
+        dic = {fig_name+'_directive': 'images-grid',
+               fig_name+'_content':
                "\n".join('"%s"' % f if " " in f else f for f in filenames),
-               directive_name+'_arg': caption_str,
-               directive_name+'_options': options
+               fig_name+'_arg': caption_str,
+               fig_name+'_options': options
                }
     return dic
 
@@ -311,7 +325,11 @@ def relpath(path, reference_path):
 @click.command()
 @click.argument('network')
 @click.argument('start_after', type=int)
-@click.argument('out_path', callback=click_get_outdir)
+@click.option('-o', '--out_path', default=None, callback=click_get_outdir,
+              help=("The output directory. If missing, it defaults to the directory specified in "
+                    "the web config file (config.py) so that the report first draft can be edited "
+                    "in the web application. In any case, if update is set to False (default when "
+                    "missing), it must NOT exist"))
 @click.option('-n', '--noise_pdf', default=None, multiple=True,
               help=("The path to the DIRECTORY of the Noise Probability Density functions images. "
                     "The file names are supposed to be in the format "
@@ -359,11 +377,10 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, upd
 
     NETWORK: the network name, e.g.: ZE.\n
     START_AFTER: the start year, e.g.: 2012.\n
-    OUT_PATH: The output directory. If update is set to False, it must NOT exist
 
     -----------------------------------------
 
-    NOTE: Options input paths (noise_pdf, inst_uptimes, data_aval, see below) must denote one or
+    NOTE: Options input paths 'noise_pdf', 'inst_uptimes' and 'data_aval' must denote one or
     more files. They can be typed ONE OR MORE TIMES, where each file path is a local system paths
     (with or without wildcards):
     \b

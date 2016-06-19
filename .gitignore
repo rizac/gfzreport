@@ -1,11 +1,9 @@
 # added by me:
 .DS_Store
-test-data
-data
-tmp
-tests
-core/extensions/examples
-build
+test-data/
+data/
+tmp/
+reportgen/network/www/config.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
