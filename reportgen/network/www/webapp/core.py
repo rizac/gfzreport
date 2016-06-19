@@ -1,6 +1,10 @@
 '''
 Created on Apr 3, 2016
 
+Core functionalities for the network webapp
+The network web app is a flask app with a config file where we set two variables:
+
+
 @author: riccardo
 '''
 import os
@@ -10,7 +14,7 @@ import shutil
 from StringIO import StringIO
 from flask.helpers import send_from_directory
 from flask import Blueprint
-from flask import request, Response
+from flask import request  # , Response
 from flask import jsonify
 
 
@@ -18,6 +22,7 @@ def get_source_rst_content(app, network, as_js=True):
     """
         Reads the source rst from the sphinx source file. If the argument is True, returns
         javascript formatted string (e.g., with newlines replaced by "\n" etcetera)
+        :return: a UNICODE string denoting the source rst file (decoded with 'utf8')
     """
     filename = get_source_rstfile_path(app, network)
     # json dump might do what we want, but it fails with e.g. "===" (rst headers, not javascript
@@ -42,9 +47,17 @@ def get_source_rst_content(app, network, as_js=True):
 
 def get_root_page(app):
     strio = StringIO()
-    strio.write("<!DOCTYPE html><html><body>NETWORK REPORTS:<ul>")
+    strio.write("""<!DOCTYPE html><html><head>
+    <link rel="stylesheet" href="static/css/bootstrap/css/bootstrap.min.css" />
+    </head><body style='padding:1em'>
+    <div class="panel panel-primary">
+    <div class="panel-heading">
+      <h3 class="panel-title">NETWORK REPORTS</h3>
+    </div>
+    <div class="panel-body"><ul>
+    """)
     data_root = app.config['SOURCE_PATH']
-    str_ = "No networks currently loaded, if needed please report it to the site administrator"
+    str_ = "No network report currently loaded"
     if os.path.isdir(data_root):
         for filename in os.listdir(data_root):
             if not filename[0] in ("_", ".") and os.path.isdir(os.path.join(data_root, filename)):
@@ -52,21 +65,13 @@ def get_root_page(app):
                 # path = os.path.join(data_root, dir_)
                 strio.write("\n<li><a href='/%s'>%s</a>" % (filename, filename))
     strio.write(str_)
-    strio.write("\n</body>\n</html>")
+    strio.write("""</ul>
+    </div>
+  </div>
+    </body>
+    </html>""")
     return strio.getvalue()
 
-
-# def get_report_last_rst(app, network):
-#     network_rst_dir = os.path.join(app.config['NETWORK_DATA_DIR'], network, "build", "rst")
-#     versions = {}
-#     for filename in os.listdir(network_rst_dir):
-#         if filename[:-4] == ".rst":
-#             try:
-#                 vernum = int(filename[:-4])
-#                 versions[vernum] = os.path.join(network_rst_dir, filename)
-#             except ValueError:
-#                 pass
-#     return versions[max(versions.keys())]
 
 def get_source_rstfile_path(app, network):
     return get_source_path(app, network, app.config['REPORT_FILENAME'] + ".rst")
@@ -97,7 +102,8 @@ def needs_build(app, network, build='html', est_build_time_in_sec=0):
         BEFORE the destination last modified time, True is returned, too
     """
     sourcefile = get_source_path(app, network, app.config['REPORT_FILENAME'] + ".rst")
-    destfile = get_build_path(app, network, build, app.config['REPORT_FILENAME'] +
+    destfile = get_build_path(app, network, 'latex' if build == 'pdf' else build,
+                              app.config['REPORT_FILENAME'] +
                               get_file_ext(build))
     if not os.path.isfile(sourcefile):
         return False
@@ -113,9 +119,9 @@ def buildreport(app, network, build='html', force=False):
     if not force and not needs_build(app, network, build):
         return 0
     sourcedir = get_source_path(app, network)
-    builddir = get_build_path(app, network, build)
+    builddir = get_build_path(app, network, 'latex' if build == 'pdf' else build)
     ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
-    if build == ' html':
+    if build == 'html':
         get_jinja_template(app, network, True)
     return ret
 
@@ -130,7 +136,7 @@ def get_jinja_template(app, network, force_rebuild=False):
         child of the base template created above
         The function returns the report template path, as argument of render_template
         :param force_rebuild: if False (defaults to True), then the report template path is just
-        returned (relative to 
+        returned (relative to
         withour creating / overwriting any new file (the file must exist of course, and that's not
         checked for in case)
     """
@@ -203,20 +209,6 @@ def copy_source_rst_to_version_folder(app, network):
     return os.path.basename(dest_file)
 
 
-def get_versioned_source_rst_files(app, network):
-    dest_path = os.path.join(app.config['RST_VERSIONS_PATH'], network)
-    if not os.path.isdir(dest_path):
-        return []
-    ret = {}
-    for f in os.listdir(dest_path):
-        if os.path.splitext(f)[1] == ".rst":
-            try:
-                ret[float(f[:-4])] = f
-            except ValueError:
-                pass
-    return [ret[f] for f in sorted(ret)]
-
-
 def get_network_page(app, network, force_build=False, force_templating=True):
     sourcedir = get_source_path(app, network)
     if not os.path.isdir(sourcedir):  # FIXME: better handling!
@@ -246,6 +238,17 @@ def save_rst(app, network, unicode_text):
         fopen.write(unicode_text.encode('utf8'))
 
     return last_file_name
+
+
+def get_pdf(app, network):
+    ret = buildreport(app, network, "pdf", force=False)
+    if ret == 0:
+        builddir = get_build_path(app, network, "latex")
+        buildfile = os.path.join(builddir, app.config['REPORT_FILENAME'] + ".pdf")
+    if ret != 0 or not os.path.isfile(buildfile):
+        raise ValueError("Unable to locate pdf file. Probably this is due to an "
+                         "internal server error")
+    return buildfile
 
 
 def register_blueprint(app, network):
@@ -284,6 +287,12 @@ def register_blueprint(app, network):
         last_file_name = save_rst(app, network, unicode_text)
         return jsonify({"last_version_filename": last_file_name})  # which converts to a Response
         # return Response({"result": last_file_name}, status=200, mimetype='application/json')
+
+    @netw_bp.route('/pdf', methods=['GET'])
+    def return_pdf():
+        buildfile = get_pdf(app, network)
+        return send_from_directory(os.path.dirname(buildfile), os.path.basename(buildfile),
+                                   cache_timeout=0)
 
     app.register_blueprint(netw_bp)
 

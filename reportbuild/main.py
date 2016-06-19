@@ -52,10 +52,11 @@ def pdflatex(texfile, texfolder=None):
     #                       shell=False)
 def get_tex_files(path):
     ret = {}
-    for file_ in os.listdir(path):
-        absfile = os.path.abspath(os.path.join(path, file_))
-        if os.path.splitext(file_)[1].lower() == '.tex':
-            ret[absfile] = os.stat(absfile)[8]
+    if os.path.isdir(path):
+        for file_ in os.listdir(path):
+            absfile = os.path.abspath(os.path.join(path, file_))
+            if os.path.splitext(file_)[1].lower() == '.tex':
+                ret[absfile] = os.stat(absfile)[8]
 
     return ret
 
