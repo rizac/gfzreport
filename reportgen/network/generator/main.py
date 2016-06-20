@@ -18,7 +18,7 @@ import shutil
 from glob import glob
 import csv
 from jinja2 import Environment
-from reportbuild.core.utils import load_module
+from lxml.etree import XMLSyntaxError
 
 def get_format(query_str):
     """Returns the format argument of query_str (a query in string format), or 'xml' if
@@ -83,7 +83,18 @@ def get_network_stations(network, start_after_year, **kwargs):
         stations = root.findall("./x:Network/x:Station", namespaces=namespaces)
 
         def getchildtext(element, child_tag):
+            elm = element.find("x:%s" % child_tag, namespaces)
+            if elm is None:
+                raise ValueError("XmlError: element '%s' has no child '%s'" % (element.tag,
+                                                                               child_tag))
             return element.find("x:%s" % child_tag, namespaces).text
+
+        def getatt(element, att):
+            try:
+                return element.attrib[att]
+            except KeyError:
+                raise ValueError("XML error: element '%s' has no attribute '%s'" % (element.tag,
+                                                                                    att))
 
         columns = ['Name', 'Lat', 'Lon', 'Ele', 'Azi', 'Rate', 'Sensor', 'ID', 'Logger', 'Id',
                    'Start', 'End', 'Channels']
@@ -94,12 +105,12 @@ def get_network_stations(network, start_after_year, **kwargs):
         # and channel end date. So build the identifier:
         rows = {}
         for sta in stations:
-            sta_name = sta.attrib['code']
+            sta_name = getatt(sta, 'code')
             chans = sta.findall("x:Channel", namespaces=namespaces)
 
             for cha in chans:
-                date0 = cha.attrib['startDate']
-                date1 = cha.attrib['endDate']
+                date0 = getatt(cha, 'startDate')
+                date1 = getatt(cha, 'endDate')
                 tup = (sta_name, date0, date1)
 
                 row = ['']*len(columns)
@@ -118,7 +129,7 @@ def get_network_stations(network, start_after_year, **kwargs):
                 sensor = cha.find("x:Sensor", namespaces=namespaces)
                 row[columns.index('ID')] = getchildtext(sensor, "SerialNumber")
                 row[columns.index('Sensor')] = getchildtext(sensor, "Model")
-                row[columns.index('Channels')] = cha.attrib['code']
+                row[columns.index('Channels')] = getatt(cha, 'code')
 
                 row_orig = rows.get(tup, None)
                 if row_orig is None:
@@ -132,7 +143,7 @@ def get_network_stations(network, start_after_year, **kwargs):
 
         return pd.DataFrame(sorted(rows.values(), key=lambda val: val[columns.index('Name')]),
                             columns=columns)
-    except (URLError, ValueError, TypeError) as exc:
+    except (URLError, ValueError, XMLSyntaxError) as exc:
         raise ValueError(exc.__class__.__name__ + ": " + str(exc))
 
 
@@ -226,31 +237,40 @@ def makedirs(path):
         os.makedirs(path)
 
 
-def copyfiles(src, dst, move=False):
+def copyfiles(src, dst_dir, move=False):
     """
         Extended version which allows to copy files, form local or remote machines
         :param src: a which MUST not be a system directory, denoting:
             * an existing file. In this case `shutil.copy2(src, dst)` will be called (dst can be
               either a file or a directory. If file, it will be overridden)
+            * a directory, in that case all files and dirs within will be moved or copied. If moved,
+              and src is empty after the move (all file succesfully moved) the dir will be deleted
             * a string starting with 'scp ' or 'rsync ', followed by the remote path to copy files
               from. In this case, the argument password must be provided if no ssh key is
-        :param dst: a destination file, or directory
+        :param dst: a destination DIRECTORY
     """
-    if os.path.isdir(src):
-        raise OSError("cannot copy a directory '%s', please provide a file or a glob expression"
-                      % src)
+    files_count = 0
 
-    dst_is_dir = os.path.isdir(dst)
-    if os.path.isfile(src):
+    if os.path.isdir(src):
+        for fle in os.listdir(src):
+            files_count += copyfiles(os.path.join(src, fle), dst_dir, move)
+        # since we moved all files, we remove the dir if it's empty:
+        if move and not os.listdir(src):
+            shutil.rmtree(src, ignore_errors=True)
+
+    elif os.path.isfile(src):
+        dst_dir_exists = os.path.isdir(dst_dir)
         # copytree does not work if dest exists. So
         # for file in os.listdir(src):
         if not move:
-            if not dst_is_dir:
+            if not dst_dir_exists:
                 # copy2 requires a dst folder to exist,
-                makedirs(dst)
-            shutil.copy2(src, dst)
+                makedirs(dst_dir)
+            shutil.copy2(src, dst_dir)
         else:
-            shutil.move(src, dst)
+            shutil.move(src, dst_dir)
+
+        files_count = 1
     else:
         glb_list = glob(src)
         if len(glb_list) and glb_list[0] != src:
@@ -260,7 +280,9 @@ def copyfiles(src, dst, move=False):
             # In principle copy2 below raises the exception but for safety we repeat
             # the test here
             for srcf in glob(src):  # glob returns joined pathname, it's not os.listdir!
-                copyfiles(srcf, dst)
+                files_count += copyfiles(srcf, dst_dir, move)
+
+    return files_count
 
 
 def get_noise_pdfs_content(dst_dir, reg="^(?P<row>.*?)_(?P<col>[a-zA-Z]+).*$",
@@ -386,7 +408,14 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, upd
     \b
     [program_name] --noise_pdf /home/my_images/myfile.png --noise_pdf /home/other_images/*.jpg
     """
+    sys.exit(run(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, update, mv,
+                 network_station_marker, nonnetwork_station_marker, network_station_color,
+                 nonnetwork_station_color))
 
+
+def run(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, update, mv,
+        network_station_marker, nonnetwork_station_marker, network_station_color,
+        nonnetwork_station_color):
     # defining paths:
     _this_dir = os.path.dirname(__file__)
     template_src = os.path.abspath(os.path.join(_this_dir, "template.rst"))
@@ -395,7 +424,7 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, upd
     _data_outdir = os.path.join(out_path, "data")
     noise_pdf_dst = os.path.join(_data_outdir, "noise_pdf")
     # noise_pdf is an object with dirname prop
-    inst_uptimes_dst = os.path.join(_data_outdir, "instr_uptimes")
+    inst_uptimes_dst = os.path.join(_data_outdir, "inst_uptimes")
     data_aval_dst = os.path.join(_data_outdir, "data_aval")
     template_dst = os.path.join(out_path, "report.rst")
     config_dst = out_path  # os.path.abspath(os.path.join(os.path.join(out_path, "config")))
@@ -416,21 +445,26 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, upd
             shutil.copytree(config_src, config_dst)
 
         # copy the images files:
+        # Note: create the sub-directories first, as copyfiles below creates them
+        # only if there are files to copy
+        for path in [inst_uptimes_dst, data_aval_dst, noise_pdf_dst]:
+            makedirs(path)
 
-        # 1) instrumental uptimes
-        for inst_uptime in inst_uptimes:
-            print("Copying file: %s in %s " % (inst_uptime, inst_uptimes_dst))
-            copyfiles(inst_uptime, inst_uptimes_dst, mv)
-
-        # 2) data availability
-        for data_ava in data_aval:
-            print("Copying file: %s in %s " % (data_ava, data_aval_dst))
-            copyfiles(data_ava, data_aval_dst, mv)
-
-        # 3) pdfs
-        for noise_ppd in noise_pdf:
-            print("Copying files: %s in %s " % (noise_ppd, noise_pdf_dst))
-            copyfiles(noise_ppd, noise_pdf_dst, mv)
+        # copy data files: inst_uptimes, data_aval, noise_pdf
+        # note that the first elements of each tuple are LISTS as the arguments have the
+        # flag multiple=True
+        for arg__ in [(inst_uptimes, inst_uptimes_dst),
+                      (data_aval, data_aval_dst),
+                      (noise_pdf, noise_pdf_dst)]:
+            dst__ = arg__[1]
+            for src__ in arg__[0]:
+                print("Copying file: '%s' in '%s'" % (src__, dst__))
+                copyfiles(src__, dst__, mv)
+                # raise Error if no files are in the folder. Sphinx complains afterwards for bad
+                # formed code (e.g. csv tables with no content). If update, skip the check cause we
+                # cannot determine if we actually want to copy files or not
+                if not os.listdir(dst__):
+                    raise IOError("'%s' is empty: no files copied" % dst__)
 
         if create_rst_and_config:
             print("Generating report template")
@@ -449,7 +483,7 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, upd
                         )
 
             args.update(get_fig_jinja_vars("data_aval", data_aval_dst, out_path))
-            args.update(get_fig_jinja_vars("instr_uptimes", inst_uptimes_dst, out_path))
+            args.update(get_fig_jinja_vars("inst_uptimes", inst_uptimes_dst, out_path))
 
             with open(template_src, 'r') as opn:
                 txt = opn.read().decode('UTF8')
@@ -479,4 +513,4 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, upd
         return 1
 
 if __name__ == '__main__':
-    sys.exit(main())
+    main()

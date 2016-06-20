@@ -80,7 +80,9 @@ class MapImgDirective(CsvFigureDirective):
                       'epsg_projection': lambda arg: arg or None,
                       'arcgis_image_service': lambda arg: arg or None,
                       'arcgis_image_xpixels': lambda arg: arg or None,
-                      'arcgis_image_dpi': lambda arg: arg or None
+                      'arcgis_image_dpi': lambda arg: arg or None,
+                      'labels_h_offset_in_km': lambda arg: arg or None,
+                      'labels_v_offset_in_km': lambda arg: arg or None,
                       }
 
     option_spec = CsvFigureDirective.option_spec.copy()  # @UndefinedVariable
@@ -184,7 +186,7 @@ def visit_map_node_html(self, node):
 def get_map_from_csv(**map_args):
     # FIXME: do float check BEFORE, to save time in case of error!
     try:
-        f = plotmap.plot_basemap(**map_args)
+        f = plotmap(**map_args)
         # see http://matplotlib.org/basemap/users/geography.html
         # from plot_map (which calls plot_basemap), we can access the bmap from fig.bmap:
         # f.bmap.shadedrelief()

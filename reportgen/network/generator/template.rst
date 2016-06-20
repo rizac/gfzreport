@@ -373,7 +373,7 @@ Here a reference to :numref:`stations_figure`
 
 Here a reference to :numref:`data_aval_figure`
 
-Here a reference to :numref:`instr_uptimes_figure`
+Here a reference to :numref:`inst_uptimes_figure`
 
 Here a reference to :numref:`noise_pdfs_figure`
 
@@ -564,13 +564,13 @@ Here a reference to :numref:`noise_pdfs_figure`
 
    {{ data_aval_content|indent(3)  }}
    
-.. _instr_uptimes_figure:
+.. _inst_uptimes_figure:
 
-.. {{ instr_uptimes_directive }}:: {{ instr_uptimes_arg }}
-   {% for opt_name in instr_uptimes_options -%}
-   :{{ opt_name }}: {{ instr_uptimes_options[opt_name] | safe }}
+.. {{ inst_uptimes_directive }}:: {{ inst_uptimes_arg }}
+   {% for opt_name in inst_uptimes_options -%}
+   :{{ opt_name }}: {{ inst_uptimes_options[opt_name] | safe }}
    {% endfor -%}
-   {% if instr_uptimes_directive == "figure" -%}
+   {% if inst_uptimes_directive == "figure" -%}
    :latex-includegraphics-opts: angle=-90,width=\textwidth
    :width: 100%
    {% else -%}
@@ -578,4 +578,4 @@ Here a reference to :numref:`noise_pdfs_figure`
    {% endif -%}
    :align: center
 
-   {{ instr_uptimes_content|indent(3)  }}
+   {{ inst_uptimes_content|indent(3)  }}
