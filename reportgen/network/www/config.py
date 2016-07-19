@@ -43,8 +43,10 @@ APP_TEMPLATE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "web
                                                  "templates",
                                                  "editable_page.html"))
 
-# last check about paths conflicts: FIXME: maybe better handling?
-if os.path.samefile(NETWORKS_TEMPLATES_PATH, os.path.dirname(APP_TEMPLATE_PATH)):
+# last check about paths conflicts:
+# note that there is a os.path.samefile function BUT it needs the files to exist.
+# As we have absolute path, we can check their string, but FIXME: maybe better handling?
+if NETWORKS_TEMPLATES_PATH == os.path.dirname(APP_TEMPLATE_PATH):
     raise ValueError("Error in config.py: 'NETWORKS_TEMPLATES_PATH' equals to "
                      "'APP_TEMPLATE_PATH' dirname. "
                      "\nPlease change 'NETWORKS_TEMPLATES_PATH' in '%s'" % str(__file__))
