@@ -20,6 +20,7 @@ import csv
 from jinja2 import Environment
 from lxml.etree import XMLSyntaxError
 
+
 def get_format(query_str):
     """Returns the format argument of query_str (a query in string format), or 'xml' if
     such argument is not found (xml being the FDSN default)"""
@@ -149,7 +150,7 @@ def get_network_stations(network, start_after_year, **kwargs):
 
 def get_all_stations(network, start_after_year, **kwargs):
     """
-        Retutrns all stations froma  given network.
+        Returns all stations from a  given network.
         :param kwargs: keyword arguments optionally to be passed to the query string. Provide any
         fdsn standard *except* 'format' and 'level', which by default will be set to 'text' and
         'station'
@@ -203,8 +204,8 @@ def click_path_type(isdir=False):
 
 
 def click_get_outdir(ctx, param, value):
-    """Does a check on the outdir: wither it does not exists, or it's empty. Returns it
-    in these two cases, otherwise raises Click error"""
+    """Does a check on the outdir: when it's None, called D the dir specified in config.py
+    return D/network"""
     use_default_dir = value is None
     if use_default_dir:
         network = ctx.params.get('network', None)
@@ -213,21 +214,8 @@ def click_get_outdir(ctx, param, value):
                                      % param.human_readable_name)
         from reportgen.network.www import config
         path = config.SOURCE_PATH
-        value = os.path.join(path, network)
-        # make parent dir if it does not exist:
-        if not os.path.isdir(os.path.dirname(value)):
-            os.makedirs(os.path.dirname(value))
+        value = os.path.abspath(os.path.join(path, network))
 
-    if not os.path.isdir(value):
-        if not os.path.isdir(os.path.dirname(value)):
-            raise click.BadParameter("'%s' does not exists and cannot be created" % value)
-    elif not ctx.params['update']:
-        raise click.BadParameter(("'%s' %salready exists. Please provide a non-existing dir name"
-                                  "whose path exists (i.e. than can be created via `mkdir`).\n"
-                                  "Putting content in an already existing non-empty directory "
-                                  "is unsafe as we might have conflicts when building the report") %
-                                 (value, "(default directory for web page) " if use_default_dir
-                                  else ""))
     return value
 
 
@@ -239,15 +227,17 @@ def makedirs(path):
 
 def copyfiles(src, dst_dir, move=False):
     """
-        Extended version which allows to copy files, form local or remote machines
+        Copies /move files recursively, extending shutil and allowing glob expressions
+        in src
         :param src: a which MUST not be a system directory, denoting:
-            * an existing file. In this case `shutil.copy2(src, dst)` will be called (dst can be
-              either a file or a directory. If file, it will be overridden)
-            * a directory, in that case all files and dirs within will be moved or copied. If moved,
-              and src is empty after the move (all file succesfully moved) the dir will be deleted
-            * a string starting with 'scp ' or 'rsync ', followed by the remote path to copy files
-              from. In this case, the argument password must be provided if no ssh key is
-        :param dst: a destination DIRECTORY
+            * an existing file. In this case `shutil.copy2(src, dst)` will be called
+              (If the destination file already exists under 'dst', it will be overridden)
+            * a directory, in that case *all files and dirs within src* will be moved or copied.
+              (if move=True and src is empty after the move, then src will be deleted)
+            * a glob expression such as '/home/*pdf'. Then, all files matching the glob
+                expression will be copied / moved
+        :param dst: a destination DIRECTORY. If it does not exists, it will be created
+        (os.makedirs, basically alias of 'mkdir -p').
     """
     files_count = 0
 
@@ -285,7 +275,7 @@ def copyfiles(src, dst_dir, move=False):
     return files_count
 
 
-def get_noise_pdfs_content(dst_dir, reg="^(?P<row>.*?)_(?P<col>[a-zA-Z]+).*$",
+def get_noise_pdfs_content(dst_dir, reg="^(?P<row>.*)_(?P<col>[A-Z][A-Z][A-Z]).*$",
                            columns=["HHZ", "HHN", "HHE"]):
     from collections import defaultdict as ddict
     reg = re.compile(reg)
@@ -328,6 +318,7 @@ def get_fig_jinja_vars(fig_name, src_path, src_rst_path, **options):
                fig_name+'_options': options,
                }
     elif len(filenames) > 1:
+        filenames = sorted(filenames)
         options.update({'dir': relpath(src_path, src_rst_path)})
         dic = {fig_name+'_directive': 'images-grid',
                fig_name+'_content':
@@ -346,39 +337,60 @@ def relpath(path, reference_path):
 
 @click.command()
 @click.argument('network')
-@click.argument('start_after', type=int)
+@click.argument('start_after')  # , type=int)
 @click.option('-o', '--out_path', default=None, callback=click_get_outdir,
               help=("The output directory. If missing, it defaults to the directory specified in "
-                    "the web config file (config.py) so that the report first draft can be edited "
-                    "in the web application. In any case, if update is set to False (default when "
-                    "missing), it must NOT exist"))
+                    "the web config file (config.py) PLUS the network name. In this case the "
+                    "report can be edited in the web application. The destination directory "
+                    "must *not* exist, or the program will exit (unless --update is "
+                    "explicitly specified, in that case only data is copied. See --update "
+                    "option)"))
 @click.option('-n', '--noise_pdf', default=None, multiple=True,
-              help=("The path to the DIRECTORY of the Noise Probability Density functions images. "
-                    "The file names are supposed to be in the format "
-                    "station_channel"
-                    "E.g., AM01_HHZ.pdf will be "
-                    "recognized as being the image of station AM01 on channel HHZ. As channels "
-                    "consist of alphabetic characters only, also the file "
-                    "AM01_HHZ.whatever.somestring.png is valid and will recognized. "
+              help=("The path (directory, file) of the "
+                    "Noise Probability Density function images. "
+                    "The images will be displayed on a grid. The grid is built by determining "
+                    "each file position (row and column) from its name. File "
+                    "names must thus start with the format 'station_channel': "
+                    "the station (determining the row placement) can be any sequence of characters "
+                    "(even underscores) and the channel (column) can be either HHZ, HHN or HHE. "
+                    "Columns by default are HHZ HHN HHE (displayed in this order in the grid). "
+                    "Example: AM01_HHZ.png and "
+                    "AM01_2_HHZ.png: different rows but same column. AM03_HHN.png and "
+                    "AM03_HHE.png: same row on different columns. "
+                    "Note that everything following the channel will "
+                    "not be parsed, so you should NOT have files like "
+                    "AM01_HHZ.jpg, AM01_HHZ.whatever.jpg, AM01_HHZ_HHE.jpg as they will be "
+                    "considered the same image (which file will be taken, it "
+                    "depends on the inversed order the files are returned from the OS). "
                     "The rows of the resulting image grid will be sorted alphabetically according "
                     "to the station name"))
 @click.option('-i', '--inst_uptimes', default=None, multiple=True,
-              help=('The path to the FILE of the instrument uptimes image. If multiple files '
-                    'are provided, the images will be displayed in a grid of one column'))
+              help=('The path (directory, file) '
+                    'of the instrument uptimes image(s). If multiple files '
+                    'are provided, the images will be displayed in a grid of one column '
+                    'sorted alphabetically by name'))
 @click.option('-d', '--data_aval', default=None, multiple=True,
-              help=('The path to the FILE of the data availability image. If multiple files '
-                    'are provided, the images will be displayed in a grid of one column'))
-@click.option('-u', '--update', is_flag=True, default=False, is_eager=True,  # <- exec it first
-              help=("Flag denoting if the  output directory OUT_PATH has to be updated. If false,"
-                    "(the default) then OUT_PATH must not exist. If True, and OUT_PATH exists, "
-                    "only options input paths (see NOTE above) will be copied in the "
-                    "program-defined sub-directories of OUT_PATH: any other file, e.g., an RsT file "
-                    "directly under OUT_PATH and currently being edited, will not be modified. "
-                    "It is then up to the user to modify the rst file to include newly added files,"
-                    " if any"))
+              help=('The path (directory, file) '
+                    'of the data availability image(s). If multiple files '
+                    'are provided, the images will be displayed in a grid of one column '
+                    'sorted alphabetically by name'))
+@click.option('-u', '--update', is_flag=True, default=False, is_eager=True,  # <- exec it first. Used?
+              help=("Flag denoting if the output directory out_path has to be updated. If false,"
+                    "(the default) then out_path must not exist, and data + config files (template "
+                    ".rst + sphinx config dir) will be copied. If True, "
+                    "only data files (see NOTE above) will be copied in the specific directories "
+                    "(see above). This option is useful if we need to update or add some images "
+                    "but we already "
+                    "edited our .rst file (so we do not want to overwrite the latter): "
+                    "However, it is then up to the user to modify the rst file to include newly "
+                    "added files, if any"))
 @click.option("--mv", is_flag=True, default=False,
-              help=("Set to true (false by default) to move all specified files instead of copying"
-                    "them."))
+              help=("Move all specified files instead of copying"
+                    "them (default False, i.e. missing)"))
+@click.option("--no_prompt", is_flag=True, default=False, is_eager=True,  # <- exec it first. Used?
+              help=("Do not ask before proceeding if the user wants to write to out_path. "
+                    "The default, when this flag is missing, is False"
+                    "(always ask before writing)"))
 @click.option('-m', '--network_station_marker', default="^", type=str,
               help=('The marker used to display network stations on the map. Defaults to ^ '
                     '(Triangle)'))
@@ -391,7 +403,7 @@ def relpath(path, reference_path):
 @click.option('-C', '--nonnetwork_station_color', default="#dddddd", type=str,
               help=('The color used to display  non-network stations (within the network bbox) on '
                     'the map. Defaults to "#dddddd" (gray-like color)'))
-def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, update, mv,
+def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, update, mv, no_prompt,
          network_station_marker, nonnetwork_station_marker, network_station_color,
          nonnetwork_station_color):
     """
@@ -402,38 +414,94 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, upd
 
     -----------------------------------------
 
-    NOTE: Options input paths 'noise_pdf', 'inst_uptimes' and 'data_aval' must denote one or
-    more files. They can be typed ONE OR MORE TIMES, where each file path is a local system paths
-    (with or without wildcards):
-    \b
+    The directory tree that will be created will look like the following:
+
+    out_path
+
+     +- config           [directory: Sphinx configuration stuff]
+
+     +- report.rst       [generated file]
+
+     +- data              [directory]
+
+         +- noise_pdf     [directory]
+
+         +- inst_uptimes  [directory]
+
+         +- data_aval     [directory]
+
+    NOTE: Data files specified by 'noise_pdf', 'inst_uptimes' and 'data_aval' must denote one or
+    more files or directories. They can be typed ONE OR MORE TIMES, where each file path is
+    a local system path (with or without wildcards). They will be copied recursively in the
+    relative output directory under 'data' (see above)
+
+    Example:
+
     [program_name] --noise_pdf /home/my_images/myfile.png --noise_pdf /home/other_images/*.jpg
     """
-    sys.exit(run(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, update, mv,
-                 network_station_marker, nonnetwork_station_marker, network_station_color,
-                 nonnetwork_station_color))
-
-
-def run(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, update, mv,
-        network_station_marker, nonnetwork_station_marker, network_station_color,
-        nonnetwork_station_color):
-    # defining paths:
-    _this_dir = os.path.dirname(__file__)
-    template_src = os.path.abspath(os.path.join(_this_dir, "template.rst"))
-    config_src = os.path.abspath(os.path.join(_this_dir, "config"))
-
-    _data_outdir = os.path.join(out_path, "data")
-    noise_pdf_dst = os.path.join(_data_outdir, "noise_pdf")
-    # noise_pdf is an object with dirname prop
-    inst_uptimes_dst = os.path.join(_data_outdir, "inst_uptimes")
-    data_aval_dst = os.path.join(_data_outdir, "data_aval")
-    template_dst = os.path.join(out_path, "report.rst")
-    config_dst = out_path  # os.path.abspath(os.path.join(os.path.join(out_path, "config")))
-
     # remember: the doc above is shown when calling --help. Arguments DO NOT ACCEPT HELP, THUS
     # IT MUST BE WRITTEN THERE!!
+
+    # FIXME: IMPORTANT: unix shell expands wildcards automatically, so we might avoid the glob
+    # module. Fine, BUT CLICK DOES NOT SUPPORT MULTIPLE (UNDEFINED) OPTIONS
+    # So for the moment we DISABLE that option
+    #
+    # Moreover, if we ever re-implement it in the futre, remember that windows does not expand
+    # wildcards
+    # (http://stackoverflow.com/questions/12501761/passing-multple-files-with-asterisk-to-python-shell-in-windows)
+
+    sys.exit(run(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, update, mv,
+                 no_prompt, network_station_marker, nonnetwork_station_marker,
+                 network_station_color, nonnetwork_station_color))
+
+
+def run(network, start_after, out_path, noise_pdf, inst_uptimes, data_aval, update, mv, no_prompt,
+        network_station_marker, nonnetwork_station_marker, network_station_color,
+        nonnetwork_station_color):
+
+    # first a check on the path. Note that it is not None (see click_get_outdir function)
     out_path_exists = os.path.isdir(out_path)
     try:
-        create_rst_and_config = not update or not out_path_exists
+
+        if out_path_exists and not update:
+            raise ValueError(("'%s' already exists. Please provide a non-existing dir name "
+                              "or supply the '--update' argument to copy data files only.\n"
+                              "Putting content in an already existing non-empty directory "
+                              "is unsafe as we might have conflicts when building the report") %
+                             out_path)
+
+        if not no_prompt:  # FIXME: click has a prompt function but how to deal with the case update
+            # or not? (see http://click.pocoo.org/5/options/#prompting)
+            print("Data %s up to be written to:" %
+                  ("(only) is " if update else "and config files are "))
+            print("%s" % out_path)
+            if not out_path_exists:
+                print("The directory path will be created (mkdir -p)")
+            print("Continue? (y for yes, anything else for abort)")
+            l = sys.stdin.readline()
+            if l.strip() != 'y':
+                raise ValueError("aborted by user")
+
+        # now we have two scenarios:
+        # 1) update is False: then out_path does not exist (see above). We will create the dir
+        # when copying the config file
+        # 2) update is True: then we will make out_path when copying the data files (we will skip
+        # config dir and rst files, not copied)
+
+        # defining paths:
+        _this_dir = os.path.dirname(__file__)
+        template_src = os.path.abspath(os.path.join(_this_dir, "template.rst"))
+        config_src = os.path.abspath(os.path.join(_this_dir, "config"))
+
+        _data_outdir = os.path.join(out_path, "data")
+        noise_pdf_dst = os.path.join(_data_outdir, "noise_pdf")
+        # noise_pdf is an object with dirname prop
+        inst_uptimes_dst = os.path.join(_data_outdir, "inst_uptimes")
+        data_aval_dst = os.path.join(_data_outdir, "data_aval")
+        template_dst = os.path.join(out_path, "report.rst")
+        config_dst = out_path  # os.path.abspath(os.path.join(os.path.join(out_path, "config")))
+
+        create_rst_and_config = not update
         if create_rst_and_config:
             # some check to avoid copying files if useless:
             if not os.path.isfile(template_src):
