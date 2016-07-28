@@ -46,6 +46,11 @@ def get_source_rst_content(app, network, as_js=True):
 
 
 def get_root_page(app):
+    """
+        Returns the root page from where to navigate in the network sub-pages.
+        FIXME: this is an old-style server-side way of creating the page, we might exploit
+        angular (ng-repeat command) but for such a simple page it's fine
+    """
     strio = StringIO()
     strio.write("""<!DOCTYPE html><html><head>
     <link rel="stylesheet" href="static/css/bootstrap/css/bootstrap.min.css" />
