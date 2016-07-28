@@ -58,7 +58,7 @@ should account for that
 			    /* the $http service allows you to make arbitrary ajax requests.
 			     * in this case you might also consider using angular-resource and setting up a
 			     * User $resource. */
-			    $http.post('/' + $scope.network + '/save',
+			    $http.post('save',  //no starting slashes, make it relative to this page 
 			    		   JSON.stringify({ text: $scope.aceEditor.getValue() }),
 			    		   {headers: { 'Content-Type': 'application/json' }}
 			    		   )
