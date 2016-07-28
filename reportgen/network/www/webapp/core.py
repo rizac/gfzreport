@@ -63,7 +63,7 @@ def get_root_page(app):
             if not filename[0] in ("_", ".") and os.path.isdir(os.path.join(data_root, filename)):
                 str_ = ""
                 # path = os.path.join(data_root, dir_)
-                strio.write("\n<li><a href='/%s'>%s</a>" % (filename, filename))
+                strio.write("\n<li><a href='%s'>%s</a>" % (filename, filename))
     strio.write(str_)
     strio.write("""</ul>
     </div>
