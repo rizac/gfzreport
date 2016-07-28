@@ -242,6 +242,12 @@ def save_rst(app, network, unicode_text):
 
 def get_pdf(app, network):
     ret = buildreport(app, network, "pdf", force=False)
+    # FIXME: ret seems to return 1 if pdf raises exceptions
+    # However, we run pdf with interaction=False, so in most cases we might
+    # want to just know if the pdf is there
+    # This has to be fixed somehow in the future
+    # (e.g., show pdf BUT warn if pdflatex did not return 0)
+    ret = 0  # FIXME: horrible hack (for the moment) in order to proceed
     if ret == 0:
         builddir = get_build_path(app, network, "latex")
         buildfile = os.path.join(builddir, app.config['REPORT_FILENAME'] + ".pdf")
