@@ -296,6 +296,7 @@ def register_blueprint(app, network):
     def save():
         unicode_text = request.get_json()['text']
         last_file_name = save_rst(app, network, unicode_text)
+        # note that (editable_page.html) we do not actually make use of the returned response value
         return jsonify({"last_version_filename": last_file_name})  # which converts to a Response
         # return Response({"result": last_file_name}, status=200, mimetype='application/json')
 
