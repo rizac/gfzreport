@@ -125,7 +125,8 @@ def buildreport(app, network, build='html', force=False):
         return 0
     sourcedir = get_source_path(app, network)
     builddir = get_build_path(app, network, 'latex' if build == 'pdf' else build)
-    ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
+    # ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
+    ret = reportbuild_run(sourcedir, builddir, build, "-E")
     if build == 'html':
         get_jinja_template(app, network, True)
     return ret
