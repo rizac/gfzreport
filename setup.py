@@ -23,12 +23,12 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='gfz-reportbuild',
+    name='gfz-reportgen',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.1.0',
+    version='0.1.1',
 
     description=('A python project to generate html / latex / pdf (via pdflatex) reports using'
                 ' the sphinx library'),
@@ -36,7 +36,7 @@ setup(
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/rizac/stream2segment',
+    url='https://github.com/rizac/gfz-reportgen',
 
     # Author details
     author='section2.4',
@@ -93,7 +93,7 @@ setup(
     # it apparently downloads numpy, then obspy, THEN INSTALLS both
     # so that, since obspy requires numpy, it complains that's not installed.
     # numpy must be therefore installed separately, and we write:
-    install_requires=["pandas", "Flask", "Sphinx", "matplotlib", # "obspy",
+    install_requires=["pandas", "Flask", "Sphinx", "obspy",
                       "jinja2", "lxml", "beautifulsoup4", "pexpect"],
                       # note: if you remove obspy THEN you need to add matplotlib!!
 

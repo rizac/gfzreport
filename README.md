@@ -3,6 +3,32 @@ A sphinx-based report generation for use at gfz
 
 ## Installation
 
+### Install a python virtual environment
+
+See notes here
+
+	* [python virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/
+	
+	* [python virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/index.html)
+	
+Activate the virtual environment (see notes above). 
+
+#### Note: on Mac, you might have the following error while executing the web app:
+
+```
+RuntimeError: Python is not installed as a framework. The Mac OS X backend will not be able to function correctly if Python is not installed as a framework. See the Python documentation for more information on installing Python as a framework on Mac OS X. Please either reinstall Python as a framework, or try one of the other backends. If you are Working with Matplotlib in a virtual enviroment see 'Working with Matplotlib in Virtual environments' in the Matplotlib FAQ
+```
+
+You can edit the [matplotlibrc file](http://matplotlib.org/users/customizing.html#the-matplotlibrc-file).
+Locate the line `backend: ...`. Replace it with (or add the following if no such line was found):
+
+```
+backend: TkAgg
+```
+
+(To avoid coupling between code and configuration, we removed the matplotlibrc that was previously shipped
+with this program)
+
 ### Install this python package
 
 Download the reportgen git repository in a local folder, cd into it and install this package:
@@ -47,11 +73,36 @@ According to [basemap requirements](https://github.com/matplotlib/basemap#requir
   4. To test, cd to the examples directory and run 'python simpletest.py'. To run all the examples (except those that have extra dependencies or require an internet connection), execute 'python run_all.py'.
    
 ### Install tex packages
-Tex packages are required to run pdflatex for generating pdf output (we found it more robust and flexible than python  sphinx plugins):
+
+#### Ubuntu
+
+Tex packages are required to run pdflatex for generating pdf output (we found it more robust and flexible than python sphinx plugins):
 
 ```
 sudo apt-get install texlive-latex-base texlive-bibtex-extra texlive-latex-extra texlive-fonts-extra texlive-fonts-recommended texlive-humanities texlive-publishers
 ```
+
+#### Mac OsX
+
+Installation of latex in Mac is quite complex compared to Ubuntu, you have two choices:
+
+  1. Install [MacTex](http://www.tug.org/mactex/index.html) (either on the link provided or
+  via `brew cask install mactex`). This is by far the recommended way, although it might take times (gigabytes to be downloaded)
+
+  2. Install BasicTex via homwbrew which is more lightweight:
+  ```
+    brew install basictex tex-live-utility
+    tlmgr install install basictex
+  ```
+  and then install texlive utilities (but we cannot assure these are sufficient, therefore we discourage this installation procedure as it is up to the user to keep
+  things updated. If a package is missing, then the report generation will fail with unreported missing packages)
+  ```
+    sudo tlmgr install collection-fontsrecommended titlesec framed threeparttable wrapfig capt-of needspace multirow eqparbox varwidth environ trimspaces
+  ```
+
+  Useful links:
+   - [installing fontsrecommended in mac os](http://tex.stackexchange.com/questions/160176/usepackagescaledhelvet-fails-on-mac-with-basictex),
+   - [installing latex on linux and mac os](https://docs.typo3.org/typo3cms/extensions/sphinx/AdministratorManual/RenderingPdf/InstallingLaTeXLinux.html))
 
 ---
 

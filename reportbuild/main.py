@@ -10,7 +10,7 @@ import sys
 import os
 import subprocess
 from sphinx import build_main as sphinx_build_main
-from reportbuild.core.utils import ensurefiler
+# from reportbuild.core.utils import ensurefiler
 import click
 
 _DEFAULT_BUILD_TYPE = 'latex'
@@ -28,7 +28,7 @@ def pdflatex(texfile, texfolder=None):
     if texfolder is None:
         texfolder = os.path.dirname(texfile)
         texfile = os.path.basename(texfile)
-    ensurefiler(os.path.join(texfolder, texfile))
+    # ensurefiler(os.path.join(texfolder, texfile))  # do not check anymore
 
     # seems that we need to call subprocess.call according to this post:
     # http://stackoverflow.com/questions/4230926/pdflatex-in-a-python-subprocess-on-mac
@@ -36,13 +36,17 @@ def pdflatex(texfile, texfolder=None):
     # http://tex.stackexchange.com/questions/91592/where-to-find-official-and-extended-documentation-for-tex-latexs-commandlin
     popenargs = ['pdflatex', "-interaction=nonstopmode", texfile]
     kwargs = dict(cwd=texfolder, shell=False)
-    ret = subprocess.call(popenargs, **kwargs)
-    # run twice for references:
-
-    if ret != 0:
-        sys.stdout.write("WARNING: pdflatex returned an exit status {0:d} (0=Ok)".format(ret))
-
-    ret = subprocess.call(popenargs, **kwargs)
+    try:
+        ret = subprocess.call(popenargs, **kwargs)
+        # run twice for references:
+        if ret != 0:
+            sys.stdout.write("WARNING: pdflatex returned an exit status {0:d} (0=Ok)".format(ret))
+        ret = subprocess.call(popenargs, **kwargs)
+    except OSError as oserr:
+        appendix = "" if oserr.errno != os.errno.ENOENT else " (is pdflatex installed?)"
+        # copied from sphinx, we want to preserve the same way of handling errors:
+        raise OSError(oserr.errno, ("Unable to run 'pdflatex {0}': "
+                                    "{1}{2}\n").format(texfile, str(oserr), appendix))
 
     return ret
 
@@ -68,15 +72,16 @@ def run(sourcedir, outdir, build=_DEFAULT_BUILD_TYPE, *other_sphinxbuild_options
     If 'pdf', then pdflatex and relative libraries must be installed
     :param other_sphinxbuild_options: positional command line argument to be forwarded to
     sphinx-build
-
+    :raise: OsError (returned from pdflatex) or any exception raised by sphinx build (FIXME: check)
     Example
     -------
 
-    run('/me/my/path', '/me/another/path', 'pdf', '-E') 
+    run('/me/my/path', '/me/another/path', 'pdf', '-E')
     """
     old_tex_files = {}
     do_pdf = build == 'pdf'
     if do_pdf:
+        build = 'latex'
         old_tex_files = get_tex_files(outdir)
 
     # call sphinx:
@@ -91,20 +96,9 @@ def run(sourcedir, outdir, build=_DEFAULT_BUILD_TYPE, *other_sphinxbuild_options
                 tex_files.append(fileabspath)
 
         for fileabspath in tex_files:
-            try:
-                res = pdflatex(fileabspath)
-            except OSError as oserr:
-                appendix = ""
-                if oserr.errno == os.errno.ENOENT:
-                    appendix = " (is pdflatex installed?)"
-                # copied from sphinx, we want to preserve the same way of handling errors:
-                sys.stderr.write("Unable to run 'pdflatex {0}': {1}{2}\n".format(fileabspath,
-                                                                                 str(oserr),
-                                                                                 appendix)
-                                 )
-                res = 1
+            res += pdflatex(fileabspath)
 
-    return res
+    return 1 if res else 0
 
 
 # use a commandline ability to forward to sphinx-build with some pre- and post-processing on
@@ -148,7 +142,11 @@ def main(sourcedir, outdir, build, other_sphinxbuild_options, sphinxhelp):
     # for info see:
     # sphinx/cmdline.py, or
     # http://www.sphinx-doc.org/en/1.5.1/man/sphinx-build.html
-    return run(sourcedir, outdir, build, *list(other_sphinxbuild_options))
+    try:
+        return run(sourcedir, outdir, build, *list(other_sphinxbuild_options))
+    except (ValueError, OSError) as exc:  # FIXME: ValueError raised where?
+        sys.stderr.write("%s: %s" % (exc.__class__.__name__, str(exc)))
+        return 1
 
 if __name__ == '__main__':
     sys.exit(main())  # pylint:disable=no-value-for-parameter

@@ -58,91 +58,91 @@ else:
         return False
 
 
-def isstr(val):
-    """
-    Returns if val is a string. Python 2-3 compatible function
-    :return: True if val denotes a string (`basestring` in python < 3 and `str` otherwise)
-    """
-    if ispy2():
-        return isinstance(val, basestring)
-    else:
-        return isinstance(val, str)
+# def isstr(val):
+#     """
+#     Returns if val is a string. Python 2-3 compatible function
+#     :return: True if val denotes a string (`basestring` in python < 3 and `str` otherwise)
+#     """
+#     if ispy2():
+#         return isinstance(val, basestring)
+#     else:
+#         return isinstance(val, str)
 
 
-def _ensure(filepath, mode, mkdirs=False, errmsgfunc=None):
-    """checks for filepath according to mode, raises an OSError if check is false
-    :param mode: either 'd', 'dir', 'r', 'fr', 'w', 'fw' (case insensitive). Checks if file_name is,
-        respectively:
-            - 'd' or 'dir': an existing directory
-            - 'fr', 'r': file for reading (an existing file)
-            - 'fw', 'w': file for writing (a file whose dirname exists)
-    :param mkdirs: boolean indicating, when mode is 'file_w' or 'dir', whether to attempt to
-        create the necessary path. Ignored when mode is 'r'
-    :param errmsgfunc: None by default, it indicates a custom function which returns the string
-        error to be displayed in case of OSError's. Usually there's no need to implement a custom
-        one, but in case the function accepts two arguments, filepath and mode (the latter is
-        either 'r', 'w' or 'd') and returns the relative error message as string
-    :raises: SyntaxError if some argument is invalid, or OSError if filepath is not valid according
-        to mode and mkdirs
-    """
-    # to see OsError error numbers, see here
-    # https://docs.python.org/2/library/errno.html#module-errno
-    # Here we use two:
-    # errno.EINVAL ' invalid argument'
-    # errno.errno.ENOENT 'no such file or directory'
-    if not isstr(filepath) or not filepath:
-        raise SyntaxError("{0}: '{1}' ({2})".format(strerror(errno.EINVAL),
-                                                    str(filepath),
-                                                    str(type(filepath))
-                                                    )
-                          )
-
-    keys = ('fw', 'w', 'fr', 'r', 'd', 'dir')
-
-    # normalize the mode argument:
-    if mode.lower() in keys[2:4]:
-        mode = 'r'
-    elif mode.lower() in keys[:2]:
-        mode = 'w'
-    elif mode.lower() in keys[4:]:
-        mode = 'd'
-    else:
-        raise SyntaxError('mode argument must be in ' + str(keys))
-
-    if errmsgfunc is None:  # build custom errormsgfunc if None
-        def errmsgfunc(filepath, mode):
-            if mode == 'w' or (mode == 'r' and not os.path.isdir(os.path.dirname(filepath))):
-                return "{0}: '{1}' ({2}: '{3}')".format(strerror(errno.ENOENT),
-                                                        os.path.basename(filepath),
-                                                        strerror(errno.ENOTDIR),
-                                                        os.path.dirname(filepath)
-                                                        )
-            elif mode == 'd':
-                return "{0}: '{1}'".format(strerror(errno.ENOTDIR), filepath)
-            elif mode == 'r':
-                return "{0}: '{1}'".format(strerror(errno.ENOENT), filepath)
-
-    if mode == 'w':
-        to_check = os.path.dirname(filepath)
-        func = os.path.isdir
-        mkdir_ = mkdirs
-    elif mode == 'd':
-        to_check = filepath
-        func = os.path.isdir
-        mkdir_ = mkdirs
-    else:  # mode == 'r':
-        to_check = filepath
-        func = os.path.isfile
-        mkdir_ = False
-
-    exists_ = func(to_check)
-    if not func(to_check):
-        if mkdir_:
-            os.makedirs(to_check)
-            exists_ = func(to_check)
-
-    if not exists_:
-        raise OSError(errmsgfunc(filepath, mode))
+# def _ensure(filepath, mode, mkdirs=False, errmsgfunc=None):
+#     """checks for filepath according to mode, raises an OSError if check is false
+#     :param mode: either 'd', 'dir', 'r', 'fr', 'w', 'fw' (case insensitive). Checks if file_name is,
+#         respectively:
+#             - 'd' or 'dir': an existing directory
+#             - 'fr', 'r': file for reading (an existing file)
+#             - 'fw', 'w': file for writing (a file whose dirname exists)
+#     :param mkdirs: boolean indicating, when mode is 'file_w' or 'dir', whether to attempt to
+#         create the necessary path. Ignored when mode is 'r'
+#     :param errmsgfunc: None by default, it indicates a custom function which returns the string
+#         error to be displayed in case of OSError's. Usually there's no need to implement a custom
+#         one, but in case the function accepts two arguments, filepath and mode (the latter is
+#         either 'r', 'w' or 'd') and returns the relative error message as string
+#     :raises: SyntaxError if some argument is invalid, or OSError if filepath is not valid according
+#         to mode and mkdirs
+#     """
+#     # to see OsError error numbers, see here
+#     # https://docs.python.org/2/library/errno.html#module-errno
+#     # Here we use two:
+#     # errno.EINVAL ' invalid argument'
+#     # errno.errno.ENOENT 'no such file or directory'
+#     if not isstr(filepath) or not filepath:
+#         raise SyntaxError("{0}: '{1}' ({2})".format(strerror(errno.EINVAL),
+#                                                     str(filepath),
+#                                                     str(type(filepath))
+#                                                     )
+#                           )
+# 
+#     keys = ('fw', 'w', 'fr', 'r', 'd', 'dir')
+# 
+#     # normalize the mode argument:
+#     if mode.lower() in keys[2:4]:
+#         mode = 'r'
+#     elif mode.lower() in keys[:2]:
+#         mode = 'w'
+#     elif mode.lower() in keys[4:]:
+#         mode = 'd'
+#     else:
+#         raise SyntaxError('mode argument must be in ' + str(keys))
+# 
+#     if errmsgfunc is None:  # build custom errormsgfunc if None
+#         def errmsgfunc(filepath, mode):
+#             if mode == 'w' or (mode == 'r' and not os.path.isdir(os.path.dirname(filepath))):
+#                 return "{0}: '{1}' ({2}: '{3}')".format(strerror(errno.ENOENT),
+#                                                         os.path.basename(filepath),
+#                                                         strerror(errno.ENOTDIR),
+#                                                         os.path.dirname(filepath)
+#                                                         )
+#             elif mode == 'd':
+#                 return "{0}: '{1}'".format(strerror(errno.ENOTDIR), filepath)
+#             elif mode == 'r':
+#                 return "{0}: '{1}'".format(strerror(errno.ENOENT), filepath)
+# 
+#     if mode == 'w':
+#         to_check = os.path.dirname(filepath)
+#         func = os.path.isdir
+#         mkdir_ = mkdirs
+#     elif mode == 'd':
+#         to_check = filepath
+#         func = os.path.isdir
+#         mkdir_ = mkdirs
+#     else:  # mode == 'r':
+#         to_check = filepath
+#         func = os.path.isfile
+#         mkdir_ = False
+# 
+#     exists_ = func(to_check)
+#     if not func(to_check):
+#         if mkdir_:
+#             os.makedirs(to_check)
+#             exists_ = func(to_check)
+# 
+#     if not exists_:
+#         raise OSError(errmsgfunc(filepath, mode))
 
 
 def load_module(filepath, name=None):
@@ -176,32 +176,32 @@ def load_module(filepath, name=None):
     # raise SystemError("unsupported python version: "+ str(sys.version_info))
 
 
-def ensurefiler(filepath):
-    """Checks that filepath denotes a valid file, raises an OSError if not.
-    In many cases it's more convenient to simply call the equivalent
-        os.path.isfile(filepath)
-    except that this function raises a meaningful OSError in case of non-existing parent directory
-    (hopefully saving useless browsing time)
-    :param filepath: a file path
-    :type filepath: string
-    :return: nothing
-    :raises: OSError if filepath does not denote an existing file
-    """
-    _ensure(filepath, 'r', False)  # last arg ignored, set to False for safety
-
-
-def ensuredir(filepath, mkdirs=True):
-    """Checks that filepath denotes a valid existing directory. Raises an OSError if not.
-    In many cases it's more convenient to simply call the equivalent
-        os.path.isdir(filepath)
-    except that this function has the optional mkdirs argument which will try to build filepath if
-    not existing
-    :param filepath: a file path
-    :type filepath: string
-    :param mkdirs: True by default, if D does not exists will try to build it via mkdirs before
-        re-checking again its existence
-    :return: nothing
-    :raises: OSError if filepath directory does not denote an existing directory
-    """
-    _ensure(filepath, 'd', mkdirs)
+# def ensurefiler(filepath):
+#     """Checks that filepath denotes a valid file, raises an OSError if not.
+#     In many cases it's more convenient to simply call the equivalent
+#         os.path.isfile(filepath)
+#     except that this function raises a meaningful OSError in case of non-existing parent directory
+#     (hopefully saving useless browsing time)
+#     :param filepath: a file path
+#     :type filepath: string
+#     :return: nothing
+#     :raises: OSError if filepath does not denote an existing file
+#     """
+#     _ensure(filepath, 'r', False)  # last arg ignored, set to False for safety
+# 
+# 
+# def ensuredir(filepath, mkdirs=True):
+#     """Checks that filepath denotes a valid existing directory. Raises an OSError if not.
+#     In many cases it's more convenient to simply call the equivalent
+#         os.path.isdir(filepath)
+#     except that this function has the optional mkdirs argument which will try to build filepath if
+#     not existing
+#     :param filepath: a file path
+#     :type filepath: string
+#     :param mkdirs: True by default, if D does not exists will try to build it via mkdirs before
+#         re-checking again its existence
+#     :return: nothing
+#     :raises: OSError if filepath directory does not denote an existing directory
+#     """
+#     _ensure(filepath, 'd', mkdirs)
 

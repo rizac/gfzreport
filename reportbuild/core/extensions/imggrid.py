@@ -8,7 +8,8 @@
         data
 
     This directive has to be written and filled like a CSVTable BUT produces a "table" of figures.
-    IT extends both CSVTable and Figure. It first parses the document as CSVTable,
+    IT extends CsvFigureDirective, which in turn extends both CSVTable and Figure. It first parses
+    the document as CSVTable,
     the returned table cell is replaced by images nodes first by joining the dir argument and the
     data provided. Then, the content is parsed as
     Figure directive, and we set the figure children as the table, followed by the caption (if any)
@@ -58,7 +59,7 @@
     extension of docutils.parsers.rst.directives.tables.ListTable, because it has a nice method
     to create table from string content. However, references to
     the table would appeared as "Table #", whereas this directive is intended, as the name says, to
-    display images in a grid. We then tried to return a figure wrapping a table, but this does not
+    be an images grid *figure*. We then tried to return a figure wrapping a table, but this does not
     split if the table is too long (even with a longtable inside a figure). We then passed to a
     solution where we rendered this directive as a longtable followed by a "fake" figure without
     images but holding potential captions and allowing references within the text. Finally, we

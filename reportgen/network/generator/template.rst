@@ -32,15 +32,13 @@
    (discussed below). This definition is quite "fuzzy" because we need to define
    comment blocks before the other directives
 
-.. Section titles (like the one below, which is the document title) are
+.. Section titles (like the one below, which is the auto-generated document title) are
    set by decorating a SINGLE line of text with under- (and optionally over-)
    line characters WHICH MUST BE AT LEAST AS LONG AS the section title length.
    There is no rule about decoration characters. Just be consistent (same
    decoration for sections of the same "level").
 
-=============================================================
-Report title here (on a single line, like ALL SECTION TITLES)
-=============================================================
+{{ title }}
 
 .. Here below the so-called "rst bibliographic fields" (authors, revision, etcetera)
    in the form semicolon + fieldname + semicolon + whitespace + fieldbody
@@ -63,34 +61,48 @@ Report title here (on a single line, like ALL SECTION TITLES)
 
 :authors: Author1, author2, author3
 
+.. subtitle. Filled automatically by default with the network description. Note: you
+   should not specify newlines in it (same for subSubtitle below)
+
+:subtitle: {{ network_description }}
+
+.. this this is the (optional) sub-sub-subtitle (below the subtitle)
+
+:subSubtitle: 
+
 .. a revision mechanism from within the rst is currently not implemented,
    this field can be left as it is:
 
 :revision: 1.0
 
-:strNum: the str num
+.. the Scientific Technical Report (STR) number. Fill in if you know it
 
-.. the doi must be a valid DOI in the format
-   http://doi.org/A/B
-   where A and B are the DOI prefix and suffix
-   (https://en.wikipedia.org/wiki/Digital_object_identifier#Nomenclature). Example:
+:strNum: 
+
+.. the doi. Fill in if you know it. For info on the doi format see
+   https://en.wikipedia.org/wiki/Digital_object_identifier#Nomenclature
+   Example: http://doi.org/10.2312/GFZ.b103-xxxxx
       
-:doi: http://doi.org/10.2312/GFZ.b103-xxxxx
+:doi: 
 
-.. Just a side-note for the urn field below: the sphinx builder will raise a warning
-   as rst imterprets it urn as URL. Please ignore the warning
+.. The urn. Fill in if you know it.
+   Example: urn:nbn:de:kobv:b103-xxxxx
+   Just a side-note for developers the sphinx builder will raise a
+   warning as rst interprets it urn as URL. Please ignore the warning
 
-:urn: urn:nbn:de:kobv:b103-xxxxx
+:urn: 
 
-:issn: 2190-7110
+.. the issn. Fill in if you know it (e.g.: 2190-7110)
 
-:subtitle: this is the (optional) subtitle (below the title)
+:issn: 
 
-:subSubtitle: this is the (optional) sub-sub-subtitle (below the subtitle)
+.. the publication year. Fill in if you know it (e.g., 2016)
 
-:publicationYear: 2016
+:publicationYear: 
 
-:publicationMonth: October
+.. the publication year. Fill in if you know it (e.g., October)
+
+:publicationMonth: 
 
 .. this field is optional and will be rendered (in latex only) under the section
    "Supplementary datasets:" in the back of the cover page. Fill it with
@@ -371,8 +383,6 @@ Here a reference to :numref:`stations_table`
 
 Here a reference to :numref:`stations_figure`
 
-Here a reference to :numref:`data_aval_figure`
-
 Here a reference to :numref:`inst_uptimes_figure`
 
 Here a reference to :numref:`noise_pdfs_figure`
@@ -543,26 +553,14 @@ Here a reference to :numref:`noise_pdfs_figure`
 
 .. ==============================================================================   
 
-.. 4) The fourth directives are the directive to display the data availability and
-   instrumental uptimes. Depending on the number of files uploaded when generating
-   this template, they are either 'figure' or 'images-grid' directives. In any
-   case they will be rendered as figures in html and latex.
+.. 4) The fourth directive is the directive to display the instrumental uptimes
+   (depending on the number of files uploaded when generating
+   this template, it's either a 'figure' or 'images-grid' directive, in any
+   case it will be rendered as figure in html and latex).
    Remember that, contrarily to the csv-table directive, the figure directive
    argument is the file path of the figure (we suggest to use relative path starting
    with the dot ".", relative to this file), and the directive content is the figure
    caption
-
-.. _data_aval_figure:
-
-.. {{ data_aval_directive }}:: {{ data_aval_arg }}
-   {% for opt_name in data_aval_options -%}
-   :{{ opt_name }}: {{ data_aval_options[opt_name] | safe }}
-   {% endfor -%}
-   :latex-includegraphics-opts: width=\textwidth
-   :width: 100%
-   :align: center
-
-   {{ data_aval_content|indent(3)  }}
    
 .. _inst_uptimes_figure:
 

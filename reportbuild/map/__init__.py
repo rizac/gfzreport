@@ -111,10 +111,10 @@ class MapHandler(object):
     def _calc_bounds(min_lons, min_lats, max_lons, max_lats, margins_in_m):
         """Calculates the bounds given the bounding box identified by the arguments and
         given optional margins
-        :param min_lons: the minimum of longitudes
-        :param min_lats: the maximum of latitudes
-        :param max_lons: the minimum of longitudes
-        :param max_lats: the maximum of latitudes
+        :param min_lons: the minimum of longitudes (numeric, scalar)
+        :param min_lats: the maximum of latitudes (numeric, scalar)
+        :param max_lons: the minimum of longitudes (numeric, scalar)
+        :param max_lats: the maximum of latitudes (numeric, scalar)
         :param margins_in_m: the margins in a 4 element list or tuple [top, right, bottom, left].
         Margins are given in meters and converted to degrees inside the method
         :return: the 6-element tuple denoting lon_0, lat_0, min_lons, min_lats, max_lons, max_lats.

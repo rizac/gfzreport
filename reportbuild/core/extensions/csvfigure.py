@@ -1,9 +1,20 @@
 # -*- coding: utf-8 -*-
 """
-    Module holding a custom "abstract" directive which parses a csv-table like directive
-    where each cell is an image fiel name. The resulting nodes returned are a figure wrapping a
-    table. Two methods like itertable and itercols can be accessed to iterate over the csv generated
-    elements
+    Module housing the "abstract" directive CsvFigureDirective.
+    This directive is meant to produce more complex figures via a csv-table-like syntax
+    which might be more convenient than using external files.
+    CsvFigureDirective extends `docutils.parsers.rst.directives.tables` **and**
+    `docutils.parsers.rst.directives.images.Figure`. It returns a figure node (wrapping a csvtable
+    node) which should not be replaced by other node types, as refs, captions and other stuff
+    within the document need to recognize this node as a figure. What can (and usually,
+    **needs to**) be modified by subclasses is the wrapped table node, because this class does not
+    provide any hint how the cell values should be converted to images: subclasses can thus
+    access the nodes with `CsvFigureDirective.itertable` and usually
+    (but not always) replace the csvtable node with one or more image nodes
+    CsvFigureDirective.replace_self(...))
+
+    :see: imggrid.py
+    mapfig.py
 """
 
 from docutils import nodes
@@ -82,7 +93,7 @@ class CsvFigureDirective(CSVTable, Figure):
         csvtable_node = fig_node.children[0]  # fig_node.children[1:] might be messages appended,
         return csvtable_node
 
-    def itercolspecs(self, run_nodes):
+    def _itercolspecs(self, run_nodes):  # FIXME: USED?
         """ Returns an iterator over the parsed csv table yieilding in turn the 'colspec' nodes
         making up the columns specifier. Each of them holds info about the given column.
         The length of the returned iterator (as list) is the number of columns. Each of these
@@ -101,8 +112,8 @@ class CsvFigureDirective(CSVTable, Figure):
         row (integer)
         col (integer)
         isRowHeader (boolean)
-        isStubColumn (boolean)
-        cell_node (node object, most likely Element, which is a node subclass or None),
+        isStubColumn (boolean) (stub column are like row headers but for columns)
+        cell_node (node object - most likely Element object - or None),
         cell_node.rawsource (string or None)
         REMEMBER: cell_node CAN BE NONE!
         :param nodes: the value returned by self.run()
@@ -135,10 +146,10 @@ class CsvFigureDirective(CSVTable, Figure):
                 # (or something so) preceeding the paragraph with the text as last element
                 # So get last element (index [-1])
                 try:
-                    yield row_num, col_num, row_num < header_rows_num,\
-                                col_num < stub_columns_num,\
+                    yield row_num, col_num, row_num < header_rows_num, \
+                                col_num < stub_columns_num, \
                                 entry.children[-1], entry.children[-1].rawsource
                 except IndexError as _:
-                    yield row_num, col_num, row_num < header_rows_num,\
-                                col_num < stub_columns_num,\
+                    yield row_num, col_num, row_num < header_rows_num, \
+                                col_num < stub_columns_num, \
                                 None, None
