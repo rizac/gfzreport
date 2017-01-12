@@ -16,7 +16,7 @@ import click
 _DEFAULT_BUILD_TYPE = 'latex'
 
 
-def pdflatex(texfile, texfolder=None):
+def pdflatex(texfile, texfolder=None, numruns=1):
     """
     Runs pdflatex with the given texfile as input
     :param texfile the input tex file
@@ -25,11 +25,18 @@ def pdflatex(texfile, texfolder=None):
         file name which must exist inside texfolder
     :raise: OsError in case of file not founds, pdflatex not installed etcetera.
     """
+    texexists = False
     if texfolder is None:
+        texexists = os.path.isfile(texfile)
         texfolder = os.path.dirname(texfile)
         texfile = os.path.basename(texfile)
-    # ensurefiler(os.path.join(texfolder, texfile))  # do not check anymore
+    else:
+        texexists = os.path.isfile(os.path.join(texfolder, texfile))
 
+    if not texexists:
+        raise OSError(os.errno.ENOENT, "'%s' does not exist")
+
+    warn_printed = False  # print warning once
     # seems that we need to call subprocess.call according to this post:
     # http://stackoverflow.com/questions/4230926/pdflatex-in-a-python-subprocess-on-mac
     # for interaction options, see here:
@@ -37,16 +44,17 @@ def pdflatex(texfile, texfolder=None):
     popenargs = ['pdflatex', "-interaction=nonstopmode", texfile]
     kwargs = dict(cwd=texfolder, shell=False)
     try:
-        ret = subprocess.call(popenargs, **kwargs)
-        # run twice for references:
-        if ret != 0:
-            sys.stdout.write("WARNING: pdflatex returned an exit status {0:d} (0=Ok)".format(ret))
-        ret = subprocess.call(popenargs, **kwargs)
+        for _ in xrange(numruns):
+            ret = subprocess.call(popenargs, **kwargs)
+            if ret != 0 and not warn_printed:
+                warn_printed = True
+                sys.stdout.write(("WARNING: pdflatex returned an exit "
+                                  "status {0:d} (0=Ok)").format(ret))
     except OSError as oserr:
-        appendix = "" if oserr.errno != os.errno.ENOENT else " (is pdflatex installed?)"
+        appendix = " (is pdflatex installed?)" if oserr.errno == os.errno.ENOENT else ""
         # copied from sphinx, we want to preserve the same way of handling errors:
         raise OSError(oserr.errno, ("Unable to run 'pdflatex {0}': "
-                                    "{1}{2}\n").format(texfile, str(oserr), appendix))
+                                    "{1}{2}\n").format(texfile, os.strerror(oserr.errno), appendix))
 
     return ret
 
@@ -96,7 +104,7 @@ def run(sourcedir, outdir, build=_DEFAULT_BUILD_TYPE, *other_sphinxbuild_options
                 tex_files.append(fileabspath)
 
         for fileabspath in tex_files:
-            res += pdflatex(fileabspath)
+            res += pdflatex(fileabspath, None, 2)
 
     return 1 if res else 0
 

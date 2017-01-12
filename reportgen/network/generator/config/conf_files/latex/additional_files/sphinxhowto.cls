@@ -85,8 +85,8 @@
 	% 3) second title page, with citations and stuff in the lower right corner:	  
 	{\footnotesize
 		
-		Recommended citation			: 									\newline\newline
-		\@author\ (\rstPublicationYear): \@title. DOI: \rstDoi 				\newline\newline\newline
+		Recommended citation:		 									\newline\newline
+		\@author\ (\rstPublicationYear): \@title. Scientific Technical Report \rstStrNum, GFZ German Research Centre for Geosciences. doi: \rstDoi 				\newline\newline\newline
 		\if\relax\rstSupplDatasets\relax\else{Supplementary datasets:}\fi   \newline\newline
 		\rstSupplDatasets 													\newline\newline\newline
 		\if\relax\rstCitationChapter\relax\else{Recommended citation for chapter:}\fi   \newline\newline

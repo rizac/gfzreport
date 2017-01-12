@@ -59,7 +59,8 @@ def depart_lateximg_node_latex(self, node):
         return
     # here the "hack: if the latex includegraphics options are specified,
     # remove the options set with our custom one. Use regexp for that
-    reg = re.compile("^\\s*\\\\includegraphics(\\[.*\\]|)\\{.*\\}\\s*$")
+    # Note that from sphinx 1.5 the command sphinxincludegraphics is used
+    reg = re.compile("^\\s*\\\\(?:sphinx)?includegraphics(\\[.*\\]|)\\{.*\\}\\s*$")
     start = self.__current_image_start
     for idx in xrange(start, len(self.body)):
         m = reg.match(self.body[idx])

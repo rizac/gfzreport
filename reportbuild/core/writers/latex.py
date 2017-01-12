@@ -7,7 +7,7 @@ Created on Apr 4, 2016
 # from sphinx.util import nodes
 # import sphinx.directives
 # from docutils.nodes import SkipNode
-from sphinx.writers.latex import LaTeXTranslator as LT, FOOTER, HEADER
+from sphinx.writers.latex import LaTeXTranslator as LT  # , FOOTER, HEADER
 from collections import OrderedDict as odict
 from sphinx.builders import latex
 
@@ -16,7 +16,11 @@ class LatexTranslator(LT):
 
     def __init__(self, document, builder):
         LT.__init__(self, document, builder)  # FIXME: check why new style super call does not work
-        self.elements.update({'latex_epilog': builder.config.latex_elements.get("epilog", "")})
+        # If we want to add custom stuff to our latex, add in the config.py under 'latex_elements'
+        # the desired key, e.g., 'epilog', and then type here:
+        # self.elements.update({'epilog': builder.config.latex_elements.get("epilog", "")})
+        # then do something with that element key cause sphinx will ignore it (See e.g.
+        # self.astext() where sphinx sets up the doc)
         self.field_list = odict()  # preserves order
         self.field_list_start = []
         self.rst_bib_fields = {}
@@ -99,7 +103,7 @@ class LatexTranslator(LT):
     def astext(self):
         # build a dict of bibliographic fields, and inject them as newcommand 
         # in the latex header
-        commands = ("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+        preamble = ("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
                     "%% AUTO-GENERATED COMMANDS FROM BIBLIOGRAPHIC FIELDS IN THE SOURCE RST:\n" +
                     "\n".join("\\newcommand{\\rst" + (name[0].title() + name[1:]) + "}" +
                               "{" + definition.replace("\n", '\\\\\n') + "}"
@@ -109,13 +113,19 @@ class LatexTranslator(LT):
                     "%(preamble)s\n"
                     "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
                     )
-        HEADER_ = HEADER.replace(r"%(preamble)s", commands)
+        # HEADER_ = HEADER.replace(r"%(preamble)s", commands)
 
-        FOOTER_ = FOOTER.replace("\\end{document}", "%(latex_epilog)s\n\\end{document}")
+        # FOOTER_ = FOOTER.replace("\\end{document}", "%(latex_epilog)s\n\\end{document}")
 
-        return (HEADER_ % self.elements +
-                self.highlighter.get_stylesheet() +
-                u''.join(self.body) +
-                '\n' + self.elements['footer'] + '\n' +
-                self.generate_indices() +
-                FOOTER_ % self.elements)
+        self.elements.update({
+            # merge existing preamble:
+            'preamble': preamble % {'preamble': self.elements.get("preamble", "")},
+        })
+
+        return LT.astext(self)
+#         return (HEADER_ % self.elements +
+#                 self.highlighter.get_stylesheet() +
+#                 u''.join(self.body) +
+#                 '\n' + self.elements['footer'] + '\n' +
+#                 self.generate_indices() +
+#                 FOOTER_ % self.elements)

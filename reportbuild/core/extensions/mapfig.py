@@ -76,13 +76,13 @@ class MapImgDirective(CsvFigureDirective):
     """
 
     own_option_spec = {
-                      'margins_in_km': lambda arg: arg or None,
+                      'map_margins': lambda arg: arg or None,
                       'epsg_projection': lambda arg: arg or None,
                       'arcgis_image_service': lambda arg: arg or None,
                       'arcgis_image_xpixels': lambda arg: arg or None,
                       'arcgis_image_dpi': lambda arg: arg or None,
-                      'labels_h_offset_in_km': lambda arg: arg or None,
-                      'labels_v_offset_in_km': lambda arg: arg or None,
+                      'labels_h_offset': lambda arg: arg or None,
+                      'labels_v_offset': lambda arg: arg or None,
                       }
 
     option_spec = CsvFigureDirective.option_spec.copy()  # @UndefinedVariable

@@ -118,9 +118,9 @@ todo_include_todos = False
 
 # -- Options for HTML output ----------------------------------------------
 
-# a custom html writer which converts psf images to iframes
-# see 
-html_translator_class = 'reportbuild.core.writers.html.HTMLTranslator'
+# a custom html writer which converts psf images to iframes. DEPRECATED SINCE 1.5
+# see http://www.sphinx-doc.org/en/1.5.1/config.html#confval-html_translator_class
+# html_translator_class = 'reportbuild.core.writers.html.HTMLTranslator'
 
 # THIS DOES NOT WORK. TOO BAD!!
 # latex_translator_class = 'writers.latex.LatexTranslator'
@@ -247,7 +247,7 @@ latex_elements = {
 # Additional stuff for the LaTeX preamble.
 'preamble': open("conf_files/latex/gfz-latex-preamble.tex").read(),
 
-'epilog' : open("conf_files/latex/gfz-latex-epilog.tex").read(),
+'atendofbody' : open("conf_files/latex/gfz-latex-atendofbody.tex").read(),
 }
 
 # Grouping the document tree into LaTeX files. List of tuples

@@ -19,11 +19,15 @@ Activate the virtual environment (see notes above).
 RuntimeError: Python is not installed as a framework. The Mac OS X backend will not be able to function correctly if Python is not installed as a framework. See the Python documentation for more information on installing Python as a framework on Mac OS X. Please either reinstall Python as a framework, or try one of the other backends. If you are Working with Matplotlib in a virtual enviroment see 'Working with Matplotlib in Virtual environments' in the Matplotlib FAQ
 ```
 
-You can edit the [matplotlibrc file](http://matplotlib.org/users/customizing.html#the-matplotlibrc-file).
-Locate the line `backend: ...`. Replace it with (or add the following if no such line was found):
+You can edit the [matplotlibrc file](http://matplotlib.org/users/customizing.html#the-matplotlibrc-file)
+in your virtual environment, which you can also locate by typing 
+```
+python -c "import matplotlib;print matplotlib.matplotlib_fname()"
+```
+in the terminal. Then open it, locate the line `backend: ...`. Replace it with (or add the following if no such line was found):
 
 ```
-backend: TkAgg
+backend: Agg
 ```
 
 (To avoid coupling between code and configuration, we removed the matplotlibrc that was previously shipped
@@ -97,7 +101,7 @@ Installation of latex in Mac is quite complex compared to Ubuntu, you have two c
   and then install texlive utilities (but we cannot assure these are sufficient, therefore we discourage this installation procedure as it is up to the user to keep
   things updated. If a package is missing, then the report generation will fail with unreported missing packages)
   ```
-    sudo tlmgr install collection-fontsrecommended titlesec framed threeparttable wrapfig capt-of needspace multirow eqparbox varwidth environ trimspaces
+    sudo tlmgr install collection-fontsrecommended titlesec fncychap tabulary framed threeparttable wrapfig capt-of needspace multirow eqparbox varwidth environ trimspaces
   ```
 
   Useful links:

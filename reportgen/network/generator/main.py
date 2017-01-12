@@ -14,30 +14,30 @@ import shutil
 from jinja2 import Environment
 from reportgen.network.generator.core.utils import makedirs, copyfiles, relpath
 from reportgen.network.generator.core import get_fig_jinja_vars, get_noise_pdfs_content, gen_title,\
-    get_net_desc, get_all_stations_within, get_network_stations
+    get_net_desc, get_network_stations_df, get_other_stations_df, get_map_df
 
 
-def get_stations_df3(network, start_after, network_station_marker, network_station_color,
-                    nonnetwork_station_marker, nonnetwork_station_color):
-
-    network_stations = get_network_stations(network, start_after)
-    all_stations = get_all_stations_within(network_stations, network, start_after)
-
-    # add columns
-    all_stations['Marker'] = nonnetwork_station_marker
-    all_stations['Color'] = nonnetwork_station_color
-    # write markers for network stations:
-    all_stations.loc[all_stations['#Network'] == network, 'Marker'] = network_station_marker
-    all_stations.loc[all_stations['#Network'] == network, 'Color'] = network_station_color
-
-    # rename nonnetwork stations to the names provided in network stations:
-    new_cols = ['Name', 'Lat', 'Lon', 'Marker', 'Color']
-    all_stations = all_stations.rename(columns={'Station': new_cols[0],
-                                                'Latitude': new_cols[1],
-                                                'Longitude': new_cols[2],
-                                                })[new_cols]
-
-    return network_stations, all_stations
+# def get_stations_df3(network, start_after, network_station_marker, network_station_color,
+#                     nonnetwork_station_marker, nonnetwork_station_color):
+# 
+#     network_stations = get_network_stations(network, start_after)
+#     all_stations = get_all_stations_within(network_stations, network, start_after)
+# 
+#     # add columns
+#     all_stations['Marker'] = nonnetwork_station_marker
+#     all_stations['Color'] = nonnetwork_station_color
+#     # write markers for network stations:
+#     all_stations.loc[all_stations['#Network'] == network, 'Marker'] = network_station_marker
+#     all_stations.loc[all_stations['#Network'] == network, 'Color'] = network_station_color
+# 
+#     # rename nonnetwork stations to the names provided in network stations:
+#     new_cols = ['Name', 'Lat', 'Lon', 'Marker', 'Color']
+#     all_stations = all_stations.rename(columns={'Station': new_cols[0],
+#                                                 'Latitude': new_cols[1],
+#                                                 'Longitude': new_cols[2],
+#                                                 })[new_cols]
+# 
+#     return network_stations, all_stations
 
 
 def click_path_type(isdir=False):
@@ -187,11 +187,11 @@ def run(network, start_after, out_path, noise_pdf, inst_uptimes, update, mv, no_
     try:
 
         if out_path_exists and not update:
-            raise ValueError(("'%s' already exists. Please provide a non-existing dir name "
-                              "or supply the '--update' argument to copy data files only.\n"
-                              "Putting content in an already existing non-empty directory "
-                              "is unsafe as we might have conflicts when building the report") %
-                             out_path)
+            # Putting content in an already existing non-empty directory is
+            # unmaintainable as we might have conflicts when building the report:
+            raise ValueError(("'%s' already exists.\nPlease provide a non-existing directory path "
+                              "or supply the '--update' argument to copy data files only "
+                              "(no sphinx config and rst files)") % out_path)
 
         if not no_prompt:  # FIXME: click has a prompt function but how to deal with the case update
             # or not? (see http://click.pocoo.org/5/options/#prompting)
@@ -257,19 +257,21 @@ def run(network, start_after, out_path, noise_pdf, inst_uptimes, update, mv, no_
 
         if create_rst_and_config:
             print("Generating report template")
-            sta_df = get_network_stations(network, start_after)
-            all_sta_df = get_all_stations_within(sta_df)
+            sta_df = get_network_stations_df(network, start_after)
+            all_sta_df = get_other_stations_df(sta_df)
 #             sta_df, all_sta_df = get_stations_df(network, start_after, network_station_marker,
 #                                                  network_station_color, nonnetwork_station_marker,
 #                                                  nonnetwork_station_color)
 
+            map_df = get_map_df(sta_df, all_sta_df)
+
             # building template, see template.rst:
             args = dict(
-                        title=gen_title(sta_df),
+                        title=gen_title(network, sta_df),
                         network_description=get_net_desc(sta_df),
                         stations_table_csv_content=sta_df.to_csv(sep=",", quotechar='"',
                                                                  index=False),
-                        stations_map_csv_content=all_sta_df.to_csv(sep=",", quotechar='"',
+                        stations_map_csv_content=map_df.to_csv(sep=",", quotechar='"',
                                                                    index=False),
                         noise_pdfs_dir_path=relpath(noise_pdf_dst, out_path),
                         noise_pdfs_content=get_noise_pdfs_content(noise_pdf_dst),
@@ -298,10 +300,10 @@ def run(network, start_after, out_path, noise_pdf, inst_uptimes, update, mv, no_
                  os.path.samefile(config_dst, out_path) else " -c " + os.path.abspath(config_dst)))
         print("Where OUTDIR is a selected output directory and -b can be either latex, html or pdf")
         return 0
-#     except (IOError, OSError, ValueError) as exc:
-#         cleanup = not out_path_exists and os.path.isdir(out_path)
-#         print("Aborted: %s" % str(exc))
-#         return 1
+    except (IOError, OSError, ValueError) as exc:
+        cleanup = not out_path_exists and os.path.isdir(out_path)
+        print("Aborted: %s" % str(exc))
+        return 1
     except:
         cleanup = not out_path_exists and os.path.isdir(out_path)
         raise

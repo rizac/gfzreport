@@ -3,13 +3,14 @@ Created on Jan 9, 2017
 
 @author: riccardo
 '''
-
+import pandas as pd
 import urllib2
 import shutil
 from glob import glob
 import os
 import re
-from lxml import etree
+from obspy import read_inventory
+from cStringIO import StringIO
 
 
 def relpath(path, reference_path):
@@ -76,8 +77,8 @@ def copyfiles(src, dst_dir, move=False):
 
 def read_network(network, start_after_year, **kwargs):
     """
-        Retutrns all stations  of given network (starting from the specified year)
-        from the geofon datacenter.
+        Returns all stations  of given network (starting from the specified year)
+        from the geofon datacenter in the form of an obspy inventory object
         :param kwargs: keyword arguments optionally to be passed to the query string. Provide any
         fdsn standard *except* 'format', which by default will be set to 'xml', 'level' (which
         will be set to 'channel'), 'network' and 'startafter' (which are mandatory arguments of this
@@ -87,7 +88,8 @@ def read_network(network, start_after_year, **kwargs):
     kwargs['level'] = 'channel'
     kwargs['startafter'] = start_after_year
     kwargs['format'] = 'xml'
-    return read(get_query("http://geofon.gfz-potsdam.de/fdsnws/station/1/query", **kwargs))
+    return read_stations(get_query("http://geofon.gfz-potsdam.de/fdsnws/station/1/query",
+                                   **kwargs))
 
 
 def get_format(query_str):
@@ -103,30 +105,92 @@ def get_format(query_str):
     return 'xml'
 
 
-def read(url):
-    """Reads the specific url, returning a string if 'format=text' is within the url
-    query, or a etree object otherwise
-    Raises: URLError, HTTTPError, XMLSyntaxError
+def read_stations(url):
+    """Returns an inventory object representing the stations xml file downloaded from url
+    if ''format=xml' in url, otherwise a string representing the content read
+    (in text format)
     """
     format_ = get_format(url)
-    if format_ == 'text':
+    response = None
+    try:
         response = urllib2.urlopen(url)
-        text = response.read()
-        return text
-    else:
-        return etree.parse(url)
+        # Note obspy's read_inventory does not use StringIO's but saves to file
+        # (quite inefficient)
+        return response.read() if format_ == 'text' else read_inventory(StringIO(response.read()),
+                                                                        format='STATIONXML')
+    finally:
+        if response:
+            response.close()
+#     if format_ == 'text':
+#         response = urllib2.urlopen(url)
+#         text = response.read()
+#         return text
+#     else:
+#         return etree.parse(url)
 
 
-# def get_query_str(network, format_, **kwargs):
-#     """Returns the query string from a given network and a given start_after argument
-#     and a specific format_ ("xml" or "text"). All other FDSN arguments to be appended to the query
-#     can be specified via kwargs
-#     """
-#     dc_str = ("http://geofon.gfz-potsdam.de/fdsnws/station/1/query?"
-#               "network=%s&format=%s") % (network, format_)
-#     for key, val in kwargs.iteritems():
-#         dc_str += "&%s=%s" % (str(key), str(val))
-#     return dc_str
+def todf(stations_xml, func, funclevel='station', sortkey=None):
+    """
+        Converts stations_xml to pandas DataFrame: Loops through the `stations_xml`'s
+        network(s), station(s) and channel(s) and executes
+        func at the given funclevel
+        :param: stations_xml: An obspy station inventory object returned from
+        module functions `read_stations` and `read_network`, or, in general, from:
+        ```
+            obspy.read_inventory(..., format='STATIONSXML')
+        ```
+        :param func: a function called on each network / station / channel (depending
+        on the value of `funclevel`) returning a row of the resulting dataframe as dictionary
+        (the dictionary keys will make up the DataFrame columns).
+        Everything not instance of `dict` will be interpreted as an iterable of
+        `dict`s, so that one can return e.g. a list of N `dict`s to add new N rows.
+        Everything evaluating to False (empty dict, empty iterable, empty dicts of an iterable)
+        will be skipped and not added to the DataFrame.
+        The function accepts a variable number of arguments depending on the `funclevel`
+        argument:
+          - funclevel='network': `func(network_obj)`,
+          - funclevel='station': `func(network_obj, station_obj)`
+          - funclevel='channel': `func(network_obj, station_obj, channel_obj)`
+        Note: if you want to preserve the column orders as declared in each returned dict,
+        you can use and return `collections.OrderedDict`'s).
+        No error should be raised if the number of columns is inconsistent across dict's or their
+        order differs, but the result has not been tested (please have a look at pandas DataFrame).
+        :param funclevel: string, either 'network', 'station' or 'channel' indicates at which
+        level in the xml iteration `func` must be called. Depending on this argument
+        `func` will acccept one/two/three arguments:
+          - funclevel='network': `func(network_obj)`,
+          - funclevel='station': `func(network_obj, station_obj)`
+          - funclevel='channel': `func(network_obj, station_obj, channel_obj)`
+        :param sortkey: Behaves like the python `sorted` 'key` argument: an optional key to be used
+        to sort the rows of the resulting Dataframe. It is applied to each dict prior to its
+        conversion to a DataFrame row
+    """
+    arr = []
+
+    def add(val):
+        """Function executing `list.add` or `list.extend` depending on `val` argument"""
+        if not val:
+            return
+        if isinstance(val, dict):
+            arr.append(val)
+        else:
+            arr.extend((v for v in val if v))
+
+    for net in stations_xml:
+        if funclevel == 'network':
+            add(func(net))
+            continue
+        for sta in net:
+            if funclevel == 'station':
+                add(func(net, sta))
+                continue
+            if funclevel == 'channel':
+                for cha in sta:
+                    add(func(net, sta, cha))
+    if sortkey:
+        arr.sort(key=sortkey)
+
+    return pd.DataFrame(arr)
 
 
 def get_query(*urlpath, **query_args):

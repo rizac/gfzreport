@@ -9,6 +9,7 @@ import sys
 import os
 from os import path
 from reportbuild.core.writers.latex import LatexTranslator
+from reportbuild.core.writers.html import HTMLTranslator
 # from docutils import nodes
 
 
@@ -193,6 +194,7 @@ def doctree_resolved(app, doctree, docname):
 
 
 def setup(app):
+    app.set_translator('html', HTMLTranslator)
     app.set_translator('latex', LatexTranslator)
     app.connect('source-read', app_source_read)
     app.connect('doctree-read', app_doctree_read)

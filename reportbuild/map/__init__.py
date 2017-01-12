@@ -4,12 +4,15 @@ Created on Mar 10, 2016
 @author: riccardo
 '''
 import numpy as np
+import re
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
+from itertools import izip
+from matplotlib import pyplot
 
 
-def parse_margins(values):
+def parse_margins(strval):
     """Parses margins as css values
     Returns top, right, bottom, left margins
     :param values: either None, a number, a list of numbers (allowed lengths: 1 to 4)
@@ -24,24 +27,36 @@ def parse_margins(values):
         [x, y, z]    | [x, y, z, y] |
         [x, y, z, t] | [x, y, z, t] |
     """
-    try:
-        mmm = float(values)
-        values = [mmm] * 4
-    except TypeError:
-        if values is None:
-            values = [0] * 4
-    lenm = len(values)
-    if lenm < 1 or lenm > 4:
-        raise ValueError("error in get_margin: specify a 1 to 4 length list of numeric values, "
-                         "in km")
-    if lenm == 3:
-        values = [values[0], values[1], values[2], values[1]]
-    elif lenm == 2:
-        values = [values[0], values[1], values[0], values[1]]
-    elif lenm == 1:
-        values *= 4
+    if strval is None:
+        return [0] * 4
+    margins = re.compile("(?:\\s*,\\s*|\\s*;\\s*|\\s+)").split(strval)
+    if len(margins) == 1:
+        margins *= 4
+    elif len(margins) == 2:
+        margins *= 2
+    elif len(margins) == 3:
+        margins.append(margins[1])
+    elif len(margins) != 4:
+        raise ValueError("unable to parse margins on invalid string '%s'" % strval)
+    return margins
 
-    return values
+
+def parse_distance(dist, lat_0=None):
+    """Returns the distance in degrees. If dist is in km or m, and lat_0 is not None,
+    returns w2lon, else h2lat. dist None defaults to 0"""
+    try:
+        return 0 if dist is None else float(dist)
+    except ValueError:
+        if dist[-3:].lower() == 'deg':
+            return float(dist[:-3])
+        elif dist[-2:] == 'km':
+            dst = 1000 * float(dist[:-2])
+        elif dist[-1:] == 'm':
+            dst = float(dist[:1])
+        else:
+            raise
+
+        return MapHandler.w2lon(dst, lat_0) if lat_0 is not None else MapHandler.h2lat(dst)
 
 
 def get_axes_dims(projection, colorbar=False):
@@ -82,69 +97,71 @@ class MapHandler(object):
     """
         Class handling bounds of a map given points (lons and lats)
     """
-    def __init__(self, lons, lats, margins_km):
-        self.fig = None
-        self.setup(lons, lats, margins_km)
-
-    def setup(self, lons, lats, margins_km):
+    def __init__(self, lons, lats, map_margins, fig=None):
+        """Initializes a new MapHandler. If figure here is None, you **MUST**
+        call self.set_fig(fig) to calculate bounds and other stuff
+        when you have a ready figure"""
         self.lons = lons if len(lons) else [0]
         self.lats = lats if len(lats) else [0]
-        self.max_lons, self.min_lons = self.get_normalized_lons_bounds_(self.lons)
+        self.max_lons, self.min_lons = max(self.lons), min(self.lons)  # self.get_normalized_lons_bounds_(self.lons)
         self.max_lats, self.min_lats = max(self.lats), min(self.lats)
-        self.margins_in_m = map(lambda x: x * 1000, parse_margins(margins_km))
+        self.map_margins = map_margins
         # margins: top, right, bottom, left
-        self.set_fig(self.fig)  # calls self._calc_bounds
+        if fig:
+            self.set_fig(fig)  # calls self._calc_bounds
         # and sets self.llcrnrlon, self.llcrnrlat, self.urcrnrlon, self.urcrnrlat
+        # which are lower-left-corner-lon, etcetera...
+
+#     @staticmethod
+#     def get_normalized_lons_bounds_(lons):
+#         if min(lons) < -150 and max(lons) > 150:
+#             max_lons = max(np.array(lons) % 360)
+#             min_lons = min(np.array(lons) % 360)
+#         else:
+#             max_lons = max(lons)
+#             min_lons = min(lons)
+#
+#         return max_lons, min_lons
 
     @staticmethod
-    def get_normalized_lons_bounds_(lons):
-        if min(lons) < -150 and max(lons) > 150:
-            max_lons = max(np.array(lons) % 360)
-            min_lons = min(np.array(lons) % 360)
-        else:
-            max_lons = max(lons)
-            min_lons = min(lons)
-
-        return max_lons, min_lons
-
-    @staticmethod
-    def _calc_bounds(min_lons, min_lats, max_lons, max_lats, margins_in_m):
+    def _calc_bounds(min_lon, min_lat, max_lon, max_lat, margins):
         """Calculates the bounds given the bounding box identified by the arguments and
         given optional margins
-        :param min_lons: the minimum of longitudes (numeric, scalar)
-        :param min_lats: the maximum of latitudes (numeric, scalar)
-        :param max_lons: the minimum of longitudes (numeric, scalar)
-        :param max_lats: the maximum of latitudes (numeric, scalar)
-        :param margins_in_m: the margins in a 4 element list or tuple [top, right, bottom, left].
+        :param min_lon: the minimum of longitudes (numeric, scalar)
+        :param min_lat: the maximum of latitudes (numeric, scalar)
+        :param max_lon: the minimum of longitudes (numeric, scalar)
+        :param max_lat: the maximum of latitudes (numeric, scalar)
+        :param margins_in_m: the margins in a 1 to 4 element list or tuple [top, right, bottom, left].
         Margins are given in meters and converted to degrees inside the method
-        :return: the 6-element tuple denoting lon_0, lat_0, min_lons, min_lats, max_lons, max_lats.
-        where min_lons, min_lats, max_lons, max_lats are the new bounds and lat_0 and lon_0 are
+        :return: the 6-element tuple denoting lon_0, lat_0, min_lon, min_lat, max_lon, max_lat.
+        where min_lon, min_lat, max_lon, max_lat are the new bounds and lat_0 and lon_0 are
         their midpoint x and y, respectively)
         """
-        top, right, bottom, left = margins_in_m
 
-        h2lat = MapHandler.h2lat
-        w2lon = MapHandler.w2lon
+        mrgns = parse_margins(margins)
+        top = parse_distance(mrgns[0])
+        btm = parse_distance(mrgns[2])
+        left = parse_distance(mrgns[3], min_lat)
+        right = parse_distance(mrgns[1], max_lat)
 
-        vert_margin_low = h2lat(bottom)
-        vert_margin_high = h2lat(top)
+        min_lon, min_lat, max_lon, max_lat = min_lon-left, min_lat-btm, max_lon+right, max_lat+top
 
-        horiz_margin_low = w2lon(left, min_lats)
-        horiz_margin_high = w2lon(right, max_lats)
+        if min_lon == max_lon:
+            min_lon -= 10  # in degrees
+            max_lon += 10  # in degrees
 
-        min_lons, min_lats, max_lons, max_lats = min_lons-horiz_margin_low,\
-            min_lats-vert_margin_low, max_lons+horiz_margin_high, max_lats+vert_margin_high
+        if min_lat == max_lat:
+            min_lat -= 10  # in degrees
+            max_lat += 10  # in degrees
 
-        if min_lons == max_lons:
-            min_lons -= 10  # in degrees
-            max_lons += 10  # in degrees
+        # minima must be within bounds:
+        min_lat = max(-90, min_lat)
+        max_lat = min(90, max_lat)
+        min_lon = max(-180, min_lon)
+        max_lon = min(180, max_lon)
 
-        if min_lats == max_lats:
-            min_lats -= 10  # in degrees
-            max_lats += 10  # in degrees
-
-        lon_0, lat_0 = MapHandler.get_lon0_lat0(min_lons, min_lats, max_lons, max_lats)
-        return lon_0, lat_0, min_lons, min_lats, max_lons, max_lats
+        lon_0, lat_0 = MapHandler.get_lon0_lat0(min_lon, min_lat, max_lon, max_lat)
+        return lon_0, lat_0, min_lon, min_lat, max_lon, max_lat
 
     @staticmethod
     def get_lon0_lat0(min_lons, min_lats, max_lons, max_lats):
@@ -177,29 +194,29 @@ class MapHandler(object):
         # everything
         lon_0, lat_0, llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat =\
             MapHandler._calc_bounds(self.min_lons, self.min_lats, self.max_lons, self.max_lats,
-                                    self.margins_in_m)
+                                    self.map_margins)
 
-        if fig is not None:
-
-            fig_w, fig_h = fig.get_size_inches()
-            aspect = fig_w / fig_h
-
-            map_w = MapHandler.lon2w(urcrnrlon - llcrnrlon, lat_0)
-            map_h = MapHandler.lat2h(urcrnrlat - llcrnrlat)
-
-            if map_w / map_h < aspect:
-                new_map_w = map_h * aspect
-                new_margin_in_deg = MapHandler.w2lon(new_map_w - map_w, lat_0) / 2
-                llcrnrlon -= new_margin_in_deg
-                urcrnrlon += new_margin_in_deg
-            else:
-                new_map_h = map_w / aspect
-                new_margin_in_deg = MapHandler.h2lat(new_map_h - map_h) / 2
-                llcrnrlat -= new_margin_in_deg
-                urcrnrlat += new_margin_in_deg
-
-            # re-calculate lon_0 and lat_0
-            lon_0, lat_0 = MapHandler.get_lon0_lat0(llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat)
+#         if fig is not None:
+# 
+#             fig_w, fig_h = fig.get_size_inches()
+#             aspect = fig_w / fig_h
+# 
+#             map_w = MapHandler.lon2w(urcrnrlon - llcrnrlon, lat_0)
+#             map_h = MapHandler.lat2h(urcrnrlat - llcrnrlat)
+# 
+#             if map_w / map_h < aspect:
+#                 new_map_w = map_h * aspect
+#                 new_margin_in_deg = MapHandler.w2lon(new_map_w - map_w, lat_0) / 2
+#                 llcrnrlon -= new_margin_in_deg
+#                 urcrnrlon += new_margin_in_deg
+#             else:
+#                 new_map_h = map_w / aspect
+#                 new_margin_in_deg = MapHandler.h2lat(new_map_h - map_h) / 2
+#                 llcrnrlat -= new_margin_in_deg
+#                 urcrnrlat += new_margin_in_deg
+# 
+#             # re-calculate lon_0 and lat_0
+#             lon_0, lat_0 = MapHandler.get_lon0_lat0(llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat)
 
         self.lon_0, self.lat_0, self.llcrnrlon, self.llcrnrlat, self.urcrnrlon, self.urcrnrlat = \
             lon_0, lat_0, llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat
@@ -330,50 +347,80 @@ def normalize_arg(obj, size=None, dtype=None):
     return x
 
 
-def parseargs(lons, lats, labels, sizes, colors, markers):
+def torgba(html_str):
+    """Converts html_str into a tuple of rgba colors in 0, 255 if alpha channel is not
+    specified, or [0,1] otherwise
+    :param html_str: a valid html string in hexadecimal format.
+    Can have length 4, 7 or 9 such as #F1a, #fa98e3, #fc456a09
+    :return: a rgba vector, i.e. a 4-element numpy array of values in [0,1] denoting `html_str`
+    :raise: ValueError if html_str is invalid
+    """
+    if len(html_str) not in (4, 7, 9) or not html_str[0] == '#':
+        raise ValueError("'%s' invalid html string" % html_str)
+    elif len(html_str) == 4:
+        rgb = [html_str[i:i+1]*2 for i in xrange(1, len(html_str))]
+    else:
+        rgb = [html_str[i:i+2] for i in xrange(1, len(html_str), 2)]
+
+    if len(rgb) == 3:
+        rgb += ['FF']
+
+    return np.true_divide(np.array([int(r, 16) for r in rgb]), 255)
+
+
+def parseargs(lons, lats, labels, sizes, colors, markers, legend_labels):
     lons = normalize_arg(lons, dtype=float)  # basically: convert to float array if scalar (size=0)
     lats = normalize_arg(lats, dtype=float)  # basically: convert to float array if scalar (size=0)
     if len(lons) != len(lats):
         raise ValueError('mismatch in lengths: lons (%d) and lats (%d)' % (len(lons), len(lats)))
     leng = len(lons)
-    labels = normalize_arg(labels, size=leng)  # ensure either 'scalar' or array of len=leng
+    labels = normalize_arg(labels, size=leng)
     colors = normalize_arg(colors, size=leng)
     markers = normalize_arg(markers, size=leng)
+    legend_labels = normalize_arg(legend_labels, size=leng)
     # colors[np.isnan(colors) | (colors <= 0)] = 1.0  # nan colors default to 1 (black?)
     sizes = normalize_arg(sizes, size=leng, dtype=float)
-    sizes[sizes <= 0] = np.nan  # sizes non positive to nan
-    nan_points = np.isnan(lons) | np.isnan(lats) | np.isnan(sizes)  # | np.isnan(colors)
-    valid_points = np.logical_not(nan_points)
+    valid_points = np.logical_not(np.isnan(lons) | np.isnan(lats) | (sizes <= 0))
+
+    # convert html strings to rgba if the former are in string format:
+    # the loop below is quite inefficient but we cannot help it, unless vectorization on string
+    # is possible (but then we would return arrays, and this raises ValueError
+    if colors.dtype.char in ('U', 'S'):
+        colors = np.array([torgba(c) for c in colors])
+
     # return all points whose corresponding numeric values are not nan:
     return (lons[valid_points],
             lats[valid_points],
             labels[valid_points],
             sizes[valid_points],
             colors[valid_points],
-            markers[valid_points])
+            markers[valid_points],
+            legend_labels[valid_points])
 
-
+# values below CAN be None but CANNOT be arrays containing None's
 def plotmap(lons,
             lats,
             labels=None,
+            legend_labels=None,
             sizes=100,  # can be scalar (including None or nan) or array
-            colors="#EEC100",  # can be scalar (including None or nan) or array
+            colors="#EEC10000",  # can be scalar (including None or nan) or array. Note can also be rgba in html format. matplotlib does support this only for 4 elements arrays, but we will convert it
             markers="^",
+            labels_fontsize=10,
             labels_text_weight='regular',
-            labels_text_color='k',
-            labels_text_contour_width=2,
+            labels_text_color='w',
+            labels_text_contour_width=0,  # set to zero for no contour
             labels_text_contour_color='white',
-            labels_h_offset_in_km=5,
-            labels_v_offset_in_km=5,
-            margins_in_km=100,
+            labels_h_offset=None,  # None defaults to 0, type a string with units as 'm', 'km' or 'deg'. No unit (or number) defaults to deg
+            labels_v_offset=None,  # None defaults to 0, type a string with units as 'm', 'km' or 'deg'. No unit (or number) defaults to deg
+            map_margins='5deg',  # None defaults to [0,0,0,0], is like css margins but units are km, m or deg. (no unit defaults to deg)
             epsg_projection='4326',  # 4326,  # 3395,  # 3857,
             arcgis_image_service='ESRI_Imagery_World_2D',  # 'ESRI_StreetMap_World_2D'
             arcgis_image_xpixels=1500,
             arcgis_image_dpi=96,
-            num_max_meridians=5,
-            meridians_linewidth=1.,
-            num_max_parallels=5,
-            parallels_linewidth=1.,
+            num_max_meridians=5,  # set to 0 to disable meridians AND tick labels
+            meridians_linewidth=1.,  # set to 0 to disable meridians (tick labels shown)
+            num_max_parallels=5,  # set to 0 to disable parallels AND tick labels
+            parallels_linewidth=1.,  # set to 0 to disable parallels (tick labels shown)
             title=None,
             show=False,
             fig=None,
@@ -409,8 +456,9 @@ def plotmap(lons,
     :param labels_text_contour_width: (default: 1). Width in points, 0 avoids painting it
     :param labels_text_contour_color: (default 'white'). The labels contour color. Set to None
         to skip painting contour. For the options, see ref:`labels_text_colors`
-    :param margins_in_km: (default 100) the margins in km of the map bbox, calculated according to
-        the points lats and lons
+    :param margins_in_km: (default 50km) the margins in km of the map bbox, calculated according to
+        the points lats and lons. Can be specified as css margin property, separating values
+        with commas or spaces, and with units which can be 'deg', 'm' or 'km'
     :param epsg_projection: (default: '4326') the map projection. FIXME: see?  # 4326,# 3395,# 3857,
     :param arcgis_image_service: (default 'ESRI_Imagery_World_2D'). FIXME: see?  # 'ESRI_StreetMap_World_2D'
     :param arcgis_image_xpixels: (default 1500). FIXME: see?
@@ -435,8 +483,8 @@ def plotmap(lons,
     :type fig: :class:`matplotlib.figure.Figure`. You can access the basemap with fig.bmap
 
     """
-    lons, lats, labels, sizes, colors, markers =\
-        parseargs(lons, lats, labels, sizes, colors, markers)
+    lons, lats, labels, sizes, colors, markers, legend_labels =\
+        parseargs(lons, lats, labels, sizes, colors, markers, legend_labels)
 
     if fig is None:
         fig = plt.figure()
@@ -463,7 +511,7 @@ def plotmap(lons,
 #                            alpha=0.5)
         # done
 
-        handler = MapHandler(lons, lats, margins_in_km).set_fig(fig)
+        handler = MapHandler(lons, lats, map_margins).set_fig(fig)
         bmap = Basemap(llcrnrlon=handler.llcrnrlon,
                        llcrnrlat=handler.llcrnrlat,
                        urcrnrlon=handler.urcrnrlon,
@@ -532,10 +580,12 @@ def plotmap(lons,
     # Input arguments lon, lat can be either scalar floats,
     # sequences, or numpy arrays.
 
-    lbl_lons = lons + np.sign(labels_h_offset_in_km) * \
-        MapHandler.w2lon(1000 * np.abs(labels_h_offset_in_km), lats)
-    lbl_lats = lats + np.sign(labels_h_offset_in_km) * \
-        MapHandler.h2lat(1000 * np.abs(labels_v_offset_in_km))
+    # parse hoffset and voffset and assure they are at least arrays of 1 elements
+    # (for aligning text labels, see below)
+    hoffset = np.array(parse_distance(labels_h_offset, lats), copy=False, ndmin=1)
+    voffset = np.array(parse_distance(labels_v_offset), copy=False, ndmin=1)
+    lbl_lons = lons + hoffset
+    lbl_lats = lats + voffset
 
     xlbl, ylbl = bmap(lbl_lons, lbl_lats)
 
@@ -556,6 +606,20 @@ def plotmap(lons,
         if len(lons) > 1:
             kwargs['zorder'] = 100
 
+        kwargs['fontsize'] = labels_fontsize
+        # from:
+        # horizontalalignment controls whether the x positional argument for the text indicates
+        # the left, center or right side of the text bounding box.
+        # verticalalignment controls whether the y positional argument for the text indicates
+        # the bottom, center or top side of the text bounding box.
+        # multialignment, for newline separated strings only, controls whether the different lines
+        # are left, center or right justified
+        kwargs['horizontalalignment'] = 'left' if hoffset[0] > 0 else 'right' if \
+            hoffset[0] < 0 else 'center'
+        kwargs['multialignment'] = kwargs['horizontalalignment']
+        kwargs['verticalalignment'] = 'top' if voffset[0] > 0 else 'bottom' if \
+            voffset[0] < 0 else 'center'
+
         for name, xpt, ypt in zip(labels, xlbl, ylbl):
             # Check if the point can actually be seen with the current bmap
             # projection. The bmap object will set the coordinates to very
@@ -566,16 +630,38 @@ def plotmap(lons,
 
     # plot points
     x, y = bmap(lons, lats)
+    # store handles to points, and relative labels, if any
+    leg_handles, leg_labels = [], []
     # bmap.scatter accepts all array-like args except markers. Avoid several useless loops
     # and do only those for distinct markers:
     mrks = np.unique(markers)
-    for mrk in mrks:
-        _scatter = bmap.scatter(x[markers == mrk],
-                                y[markers == mrk],
-                                marker=mrk,
-                                s=sizes[markers == mrk],
-                                c=colors[markers == mrk],
-                                zorder=10)
+    print_legend = False
+    for mrk in np.nditer(mrks):
+        # markers == mrk fails if mrk is None. np.equal fails on non numeric data. So:
+        m_mask = np.equal(markers, mrk) if mrk is None else markers == mrk
+        _x = x[m_mask]
+        _y = y[m_mask]
+        _m = mrk
+        _s = sizes[m_mask]
+        _c = colors[m_mask]
+        _l = legend_labels[m_mask]
+        if not _l.any():
+            _l = np.array([None])  # use all of them in a run
+        for leg in np.unique(_l):
+            l_mask = np.equal(_l, leg) if leg is None else _l == leg  # see note on m_mask above
+            _scatter = bmap.scatter(_x[l_mask],
+                                    _y[l_mask],
+                                    marker=mrk,
+                                    s=sizes[l_mask],
+                                    c=colors[l_mask],
+                                    # label=leg or None,  # empty label defaults to None (for safety)
+                                    zorder=10)
+            if leg:
+                print_legend=True
+
+    if print_legend:
+        # handles, labels = map_ax.get_legend_handles_labels()
+        map_ax.legend(numpoints=1)
 
     if title:
         plt.suptitle(title)
@@ -584,14 +670,3 @@ def plotmap(lons,
         plt.show()
 
     return fig
-
-
-
-
-if __name__ == "__main__":
-    lons = [88, 77.5, 85]
-    lats = [2.5, -2.6, 5]  # [83.5, 72.6]
-
-    # fig = plot_basemap(lons, lats,
-    #                    sizes=100, labels=['?? something very LONG!'] * len(lons), show=True,)
-    # plt.show()
