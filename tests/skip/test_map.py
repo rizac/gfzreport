@@ -30,10 +30,13 @@ def show(fig, asfile=True):
         plt.show(block=True)
 
 if __name__ == '__main__':
-    lonslats = list(product([-2, 2.1], [-1, 1]))
+    lonslats = list(product([-50, 78.1], [49,79, 78]))  # [-20, -22, -21]))
     labels = [str(x) for x in lonslats]
     lonz, latz = zip(*lonslats)
-    f = plotmap(lonz, latz, labels=labels, legend_labels=[None, 'A', None, None],
-                parallels_linewidth=0, meridians_linewidth=0)  # , show=True)
+    f = plotmap(lonz, latz, markers=['o', '^', '^', 's', 's', 's'],
+                map_margins="10deg", fig_margins="1,3,8,1",
+                labels=labels, legend_labels=['circle', 'tri', None, 'sq1', 'sq2', None],
+                parallels_linewidth=1, meridians_linewidth=1, arcgis_image_xpixels=1500,
+                arcgis_image_dpi=96, legend_loc='bottom')  # , basemap_background_type = 'shadedrelief')  # , show=True)
     show(f)
     pass

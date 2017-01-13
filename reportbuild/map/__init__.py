@@ -1,35 +1,63 @@
 '''
+This module implements the function `plotmap` which plots scattered points on a geographic
+map. The function is highly customizable and is basically a wrapper around the
+Basemap library (for the map background) plus matplotlib utilities (for plotting points, shapes,
+labels and legend)
+
 Created on Mar 10, 2016
 
 @author: riccardo
 '''
 import numpy as np
 import re
-from mpl_toolkits.basemap import Basemap
+from itertools import izip
+from urllib2 import URLError, HTTPError
+import socket
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
-from itertools import izip
-from matplotlib import pyplot
+from mpl_toolkits.basemap import Basemap
 
 
-def parse_margins(strval):
-    """Parses margins as css values
-    Returns top, right, bottom, left margins
-    :param values: either None, a number, a list of numbers (allowed lengths: 1 to 4)
-    :return: a 4 element tuple identifying the top, right, bottom, left values of the margins. The
-        idea is the same as css margins.
-        :Examples:
-        value is     |    returns   |
-        -----------------------------
-        None,        | [0, 0, 0, 0] |
-        x or [x]     | [x, x, x, x] |
-        [x, t]       | [x, y ,x, y] |
-        [x, y, z]    | [x, y, z, y] |
-        [x, y, z, t] | [x, y, z, t] |
+def parse_margins(obj, parsefunc=lambda margins: [float(val) for val in margins]):
+    """Parses obj returning a 4 element numpy array denoting the top, right, bottom and left
+    values.This function first converts obj to a 4 element list L, and then 
+    calls `parsefunc`, which by default converts all L values into float
+    :param obj: either None, a number, a list of numbers (allowed lengths: 1 to 4),
+    a comma/semicolon/spaces separated string (e.g. "4deg 0.0", "1, 1.2", "2km,4deg", "1 ; 2")
+    :param parsefunc: a function to be applied to obj converted to list. By default, returns
+    float(v) for any v in L
+    :return: a 4 element numpy array of floats denoting the top, right, bottom, left values of
+    the margins. The idea is the same as css margins, as depicted in the table below.
+    :Examples:
+        Called f `parsefunc`, then:
+        ============= =========================
+        obj is     returns
+        ============= =========================
+        None          [0, 0, 0, 0]
+        ------------- -------------------------
+        string        the list obtained after
+                      splitting string via
+                      regexp where comma,
+                      semicolon and spaces
+                      are valid separators
+        ------------- -------------------------
+        x or [x]      parsefunc([x, x, x, x])
+        ------------- -------------------------
+        [x, y]        parsefunc([x, y ,x, y])
+        ------------- -------------------------
+        [x, y, z]     parsefunc([x, y, z, y])
+        ------------- -------------------------
+        [x, y, z, t]  parsefunc([x, y, z, t])
+        ============= =========================
     """
-    if strval is None:
-        return [0] * 4
-    margins = re.compile("(?:\\s*,\\s*|\\s*;\\s*|\\s+)").split(strval)
+    if obj is None:
+        margins = [0] * 4
+    elif hasattr(obj, "__iter__") and not isinstance(obj, str):
+        # is an iterable not string. Note the if above is py2 py3 compatible
+        margins = list(obj)
+    else:
+        margins = re.compile("(?:\\s*,\\s*|\\s*;\\s*|\\s+)").split(obj)
+
     if len(margins) == 1:
         margins *= 4
     elif len(margins) == 2:
@@ -37,13 +65,17 @@ def parse_margins(strval):
     elif len(margins) == 3:
         margins.append(margins[1])
     elif len(margins) != 4:
-        raise ValueError("unable to parse margins on invalid string '%s'" % strval)
-    return margins
+        raise ValueError("unable to parse margins on invalid value '%s'" % obj)
+
+    return np.asarray(parsefunc(margins))
+    # return margins
 
 
 def parse_distance(dist, lat_0=None):
     """Returns the distance in degrees. If dist is in km or m, and lat_0 is not None,
-    returns w2lon, else h2lat. dist None defaults to 0"""
+    returns w2lon, else h2lat. dist None defaults to 0
+    :param dist: float, int None, string. If string and has a unit, see above
+    """
     try:
         return 0 if dist is None else float(dist)
     except ValueError:
@@ -56,189 +88,158 @@ def parse_distance(dist, lat_0=None):
         else:
             raise
 
-        return MapHandler.w2lon(dst, lat_0) if lat_0 is not None else MapHandler.h2lat(dst)
+        return w2lon(dst, lat_0) if lat_0 is not None else h2lat(dst)
 
 
-def get_axes_dims(projection, colorbar=False):
-    """ returns a tuple where the first element is the dimensions [x0,y0,width, height]
-    of an axes on which and its second element is None if colorbar is not True, else
-    the dimension of a colorbar we are about to plot a map.
-    Dimensions are useful to set later, e.g., on a figure:
-    map_ax_dims, _ = get_basemap_axes_dims('local')
-    fig.add_axes(map_ax_dims)
-
-    :param projection: a projection, three cases are possible: 'global', 'local' or anything else
-    :param colorbar: if True, space will be reserved for a potential colorbar
-    :return: a tuple of
+def get_lon0_lat0(min_lons, min_lats, max_lons, max_lats):
+    """ Calculates lat_0, lon_0, i.e., the mid point of the bounding box denoted by the
+    arguments
+    :param min_lons: the minimum of longitudes
+    :param min_lats: the maximum of latitudes
+    :param max_lons: the minimum of longitudes
+    :param max_lats: the maximum of latitudes
+    :return: the 2-element tuple denoting the mid point lon_0, lat_0
     """
-    cm_ax = None
-    map_ax = None
-    if projection == "local":
-        ax_x0, ax_width = 0.10, 0.80
-    elif projection == "global":
-        ax_x0, ax_width = 0.01, 0.98
-    else:
-        ax_x0, ax_width = 0.05, 0.90
+    lat_0 = max_lats / 2. + min_lats / 2.
+    lon_0 = max_lons / 2. + min_lons / 2.
+    if lon_0 > 180:  # FIXME: necessary?? see self.get_normalized... above
+        lon_0 -= 360
+    return lon_0, lat_0
 
-    if colorbar:
-        map_ax = [ax_x0, 0.13, ax_width, 0.77]
-        cm_ax = [ax_x0, 0.05, ax_width, 0.05]
-    else:
-        ax_y0, ax_height = 0.05, 0.85
-        if projection == "local":
-            ax_y0 += 0.05
-            ax_height -= 0.05
-        map_ax = [ax_x0, ax_y0, ax_width, ax_height]
 
-    return map_ax, cm_ax
+def mapbounds(min_lon, min_lat, max_lon, max_lat, margins):
+    """Calculates the bounds given the bounding box identified by the arguments and
+    given optional margins
+    :param min_lon: the minimum longitude (numeric, scalar)
+    :param min_lat: the maximum latitude (numeric, scalar)
+    :param max_lon: the minimum longitude (numeric, scalar)
+    :param max_lat: the maximum latitude (numeric, scalar)
+    :param margins: the margins as a css-like string (with units 'deg', 'km' or 'm'), or as
+    a 1 to 4 element array of numeric values (in that case denoting degrees).
+    As in css, a 4 element array denotes the [top, right, bottom, left] values.
+    None defaults to [0, 0, 0, 0].
+    :return: the 6-element tuple denoting lon_0, lat_0, min_lon, min_lat, max_lon, max_lat.
+    where min_lon, min_lat, max_lon, max_lat are the new bounds and lon_0 and lat_0 are
+    their midpoints (x and y, respectively)
+    """
+
+    def parsefunc(mrgns):
+        """parses mrgns as array of strings into array of floats
+        """
+        return parse_distance(mrgns[0]), parse_distance(mrgns[1], max_lat), \
+            parse_distance(mrgns[2]), parse_distance(mrgns[3], min_lat)
+
+    top, right, btm, left = parse_margins(margins, parsefunc)
+    min_lon, min_lat, max_lon, max_lat = min_lon-left, min_lat-btm, max_lon+right, max_lat+top
+
+    if min_lon == max_lon:
+        min_lon -= 10  # in degrees
+        max_lon += 10  # in degrees
+
+    if min_lat == max_lat:
+        min_lat -= 10  # in degrees
+        max_lat += 10  # in degrees
+
+    # minima must be within bounds:
+    min_lat = max(-90, min_lat)
+    max_lat = min(90, max_lat)
+    min_lon = max(-180, min_lon)
+    max_lon = min(180, max_lon)
+
+    lon_0, lat_0 = get_lon0_lat0(min_lon, min_lat, max_lon, max_lat)
+    return lon_0, lat_0, min_lon, min_lat, max_lon, max_lat
+
+
+# static constant converter (degree to meters and viceversa) for latitudes
+DEG2M_LAT = 2 * np.pi * 6371 * 1000 / 360
+
+
+def lat2h(distance_in_degrees):
+    """converts latitude distance from degrees to height in meters
+    :param distance_in_degrees: a distance (python scalar or numpy array) along the great circle
+    espressed in degrees"""
+    deg2m_lat = DEG2M_LAT  # 2 * np.pi * 6371 * 1000 / 360
+    return distance_in_degrees * deg2m_lat
+
+
+def h2lat(distance_in_meters):
+    """converts latitude distance from height in meters to degrees
+    :param distance_in_degrees: a distance  (python scalar or numpy array) along the great circle
+    espressed in degrees"""
+    deg2m_lat = DEG2M_LAT  # deg2m_lat = 2 * np.pi * 6371 * 1000 / 360
+    return distance_in_meters / deg2m_lat
+
+
+def lon2w(distance_in_degrees, lat_0):
+    """converts longitude distance from degrees to width in meters
+    :param distance_in_degrees: a distance  (python scalar or numpy array)
+    along the lat_0 circle expressed in degrees
+    :param lat_0: if missing or None, defaults to the internal lat_0, which is set as the mean
+    of all points passed to this object. Otherwise, expresses the latitude of the circle along
+    which the lon2w(distance_in_degrees) must be converted to meters"""
+    deg2m_lat = DEG2M_LAT
+    deg2m_lon = deg2m_lat * np.cos(lat_0 / 180 * np.pi)
+    return distance_in_degrees * deg2m_lon
+
+
+def w2lon(distance_in_meters, lat_0):
+    """converts longitude distance from width in meters to degrees
+    :param distance_in_meters: a distance  (python scalar or numpy array)
+    along the lat_0 circle expressed in meters
+    :param lat_0: if missing or None, defaults to the internal lat_0, which is set as the mean
+    of all points passed to this object. Otherwise, expresses the latitude (in degrees) of the
+    circle along which w2lon(distance_in_meters) must be converted to degrees"""
+    deg2m_lat = DEG2M_LAT  # deg2m_lat = 2 * np.pi * 6371 * 1000 / 360
+    deg2m_lon = deg2m_lat * np.cos(lat_0 / 180 * np.pi)
+    return distance_in_meters / deg2m_lon
 
 
 class MapHandler(object):
     """
         Class handling bounds of a map given points (lons and lats)
     """
-    def __init__(self, lons, lats, map_margins, fig=None):
+    def __init__(self, lons, lats, map_margins):
         """Initializes a new MapHandler. If figure here is None, you **MUST**
         call self.set_fig(fig) to calculate bounds and other stuff
         when you have a ready figure"""
-        self.lons = lons if len(lons) else [0]
+        self.lons = lons if len(lons) else [0]  # FIXME: use numpy arrays!!
         self.lats = lats if len(lats) else [0]
-        self.max_lons, self.min_lons = max(self.lons), min(self.lons)  # self.get_normalized_lons_bounds_(self.lons)
+        self.max_lons, self.min_lons = max(self.lons), min(self.lons)
         self.max_lats, self.min_lats = max(self.lats), min(self.lats)
-        self.map_margins = map_margins
-        # margins: top, right, bottom, left
-        if fig:
-            self.set_fig(fig)  # calls self._calc_bounds
-        # and sets self.llcrnrlon, self.llcrnrlat, self.urcrnrlon, self.urcrnrlat
-        # which are lower-left-corner-lon, etcetera...
-
-#     @staticmethod
-#     def get_normalized_lons_bounds_(lons):
-#         if min(lons) < -150 and max(lons) > 150:
-#             max_lons = max(np.array(lons) % 360)
-#             min_lons = min(np.array(lons) % 360)
-#         else:
-#             max_lons = max(lons)
-#             min_lons = min(lons)
-#
-#         return max_lons, min_lons
-
-    @staticmethod
-    def _calc_bounds(min_lon, min_lat, max_lon, max_lat, margins):
-        """Calculates the bounds given the bounding box identified by the arguments and
-        given optional margins
-        :param min_lon: the minimum of longitudes (numeric, scalar)
-        :param min_lat: the maximum of latitudes (numeric, scalar)
-        :param max_lon: the minimum of longitudes (numeric, scalar)
-        :param max_lat: the maximum of latitudes (numeric, scalar)
-        :param margins_in_m: the margins in a 1 to 4 element list or tuple [top, right, bottom, left].
-        Margins are given in meters and converted to degrees inside the method
-        :return: the 6-element tuple denoting lon_0, lat_0, min_lon, min_lat, max_lon, max_lat.
-        where min_lon, min_lat, max_lon, max_lat are the new bounds and lat_0 and lon_0 are
-        their midpoint x and y, respectively)
-        """
-
-        mrgns = parse_margins(margins)
-        top = parse_distance(mrgns[0])
-        btm = parse_distance(mrgns[2])
-        left = parse_distance(mrgns[3], min_lat)
-        right = parse_distance(mrgns[1], max_lat)
-
-        min_lon, min_lat, max_lon, max_lat = min_lon-left, min_lat-btm, max_lon+right, max_lat+top
-
-        if min_lon == max_lon:
-            min_lon -= 10  # in degrees
-            max_lon += 10  # in degrees
-
-        if min_lat == max_lat:
-            min_lat -= 10  # in degrees
-            max_lat += 10  # in degrees
-
-        # minima must be within bounds:
-        min_lat = max(-90, min_lat)
-        max_lat = min(90, max_lat)
-        min_lon = max(-180, min_lon)
-        max_lon = min(180, max_lon)
-
-        lon_0, lat_0 = MapHandler.get_lon0_lat0(min_lon, min_lat, max_lon, max_lat)
-        return lon_0, lat_0, min_lon, min_lat, max_lon, max_lat
-
-    @staticmethod
-    def get_lon0_lat0(min_lons, min_lats, max_lons, max_lats):
-        """ Calculates lat_0, lon_0, i.e., the mid point of the bounding box denoted by the
-        arguments
-        :param min_lons: the minimum of longitudes
-        :param min_lats: the maximum of latitudes
-        :param max_lons: the minimum of longitudes
-        :param max_lats: the maximum of latitudes
-        :return: the 2-element tuple denoting the mid point lon_0, lat_0
-        """
-        lat_0 = max_lats / 2. + min_lats / 2.
-        lon_0 = max_lons / 2. + min_lons / 2.
-        if lon_0 > 180:  # FIXME: necessary?? see self.get_normalized... above
-            lon_0 -= 360
-        return lon_0, lat_0
-
-    def set_fig(self, fig):
-        """
-            Sets the figure and re-calculates map bounds accordingly to take as most figure space
-            as possible
-            :param fig: the figure. Can be None, in that case map bounds are re-calculated according
-            to the points passed in the constructor or in the setup function
-            :return: self, so that this method can be chained to the constructor:
-                m = MapHandler(...).set_gif(figure)
-        """
-        self.fig = fig
-
-        # calculate bounds WITH the margins otherwise appending margins later should re-calculate
-        # everything
-        lon_0, lat_0, llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat =\
-            MapHandler._calc_bounds(self.min_lons, self.min_lats, self.max_lons, self.max_lats,
-                                    self.map_margins)
-
-#         if fig is not None:
-# 
-#             fig_w, fig_h = fig.get_size_inches()
-#             aspect = fig_w / fig_h
-# 
-#             map_w = MapHandler.lon2w(urcrnrlon - llcrnrlon, lat_0)
-#             map_h = MapHandler.lat2h(urcrnrlat - llcrnrlat)
-# 
-#             if map_w / map_h < aspect:
-#                 new_map_w = map_h * aspect
-#                 new_margin_in_deg = MapHandler.w2lon(new_map_w - map_w, lat_0) / 2
-#                 llcrnrlon -= new_margin_in_deg
-#                 urcrnrlon += new_margin_in_deg
-#             else:
-#                 new_map_h = map_w / aspect
-#                 new_margin_in_deg = MapHandler.h2lat(new_map_h - map_h) / 2
-#                 llcrnrlat -= new_margin_in_deg
-#                 urcrnrlat += new_margin_in_deg
-# 
-#             # re-calculate lon_0 and lat_0
-#             lon_0, lat_0 = MapHandler.get_lon0_lat0(llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat)
-
         self.lon_0, self.lat_0, self.llcrnrlon, self.llcrnrlat, self.urcrnrlon, self.urcrnrlat = \
-            lon_0, lat_0, llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat
+            mapbounds(self.min_lons, self.min_lats, self.max_lons, self.max_lats, map_margins)
 
-        return self
+    def _get_map_dims(self):  # , fig_size_in_inches, colorbar=False):
+        """Returns the map dimension width, height, in meters"""
 
-    def get_bb(self):  # EXPERIMENTAL. CALCULATE BBOX. LATER
-        raise NotImplementedError()
-        if self.fig is None:
-            raise ValueError('no figure set. Call set_fig first')
-#         r = self.fig.canvas.get_renderer()
-#         t = plt.text(0.5, 0.5, 'test')
-#         bb = t.get_window_extent(renderer=r)
-#         width = bb.width
-#         height = bb.height
+        max_lons, min_lons = self.urcrnrlon, self.llcrnrlon
+        max_lats, min_lats = self.urcrnrlat, self.llcrnrlat
+        height = lat2h(max_lats - min_lats)
+        width = lon2w(max_lons - min_lons, self.lat_0)
+        return width, height
 
-        return self
+    def get_parallels(self, max_labels_count=8):
+        width, height = self._get_map_dims()
+        lat_0 = self.lat_0
+        N1 = int(np.ceil(height / max(width, height) * max_labels_count))
+        parallels = MapHandler._linspace(lat_0 - h2lat(height / 2),
+                                         lat_0 + h2lat(height / 2), N1)
+        return parallels
+
+    def get_meridians(self, max_labels_count=8):
+        width, height = self._get_map_dims()
+        lon_0 = self.lon_0
+        lat_0 = self.lat_0
+        N2 = int(np.ceil(width / max(width, height) * max_labels_count))
+        meridians = MapHandler._linspace(lon_0 - w2lon(width / 2, lat_0),
+                                         lon_0 + w2lon(width / 2, lat_0), N2)
+        meridians[meridians > 180] -= 360
+        return meridians
 
     @staticmethod
-    def linspace(val1, val2, N):
+    def _linspace(val1, val2, N):
         """
-        returns around N 'nice' values between val1 and val2
+        returns around N 'nice' values between val1 and val2. Copied from obspy.plot_map
         """
         dval = val2 - val1
         round_pos = int(round(-np.log10(1. * dval / N)))
@@ -252,75 +253,6 @@ class MapHandler(object):
         new_val2 = np.floor(val2 / delta) * delta
         N = (new_val2 - new_val1) / delta + 1
         return np.linspace(new_val1, new_val2, N)
-
-    def _get_map_dims(self):  # , fig_size_in_inches, colorbar=False):
-        """Returns the map dimension width, height, in meters"""
-
-        max_lons, min_lons = self.urcrnrlon, self.llcrnrlon
-        max_lats, min_lats = self.urcrnrlat, self.llcrnrlat
-        height = MapHandler.lat2h(max_lats - min_lats)
-        width = MapHandler.lon2w(max_lons - min_lons, self.lat_0)
-
-        return width, height
-
-    def get_parallels(self, max_labels_count=8):
-        width, height = self._get_map_dims()
-        lat_0 = self.lat_0
-        N1 = int(np.ceil(height / max(width, height) * max_labels_count))
-        h2lat = MapHandler.h2lat
-        parallels = self.linspace(lat_0 - h2lat(height / 2),
-                                  lat_0 + h2lat(height / 2), N1)
-        return parallels
-
-    def get_meridians(self, max_labels_count=8):
-        width, height = self._get_map_dims()
-        lon_0 = self.lon_0
-        lat_0 = self.lat_0
-        w2lon = MapHandler.w2lon
-        N2 = int(np.ceil(width / max(width, height) * max_labels_count))
-        meridians = self.linspace(lon_0 - w2lon(width / 2, lat_0),
-                                  lon_0 + w2lon(width / 2, lat_0), N2)
-        meridians[meridians > 180] -= 360
-        return meridians
-
-    # static constant converter (degree to meters and viceversa) for latitudes
-    DEG2M_LAT = 2 * np.pi * 6371 * 1000 / 360
-
-    @staticmethod
-    def lat2h(distance_in_degrees):
-        """converts latitude distance from degrees to height in meters
-        :param distance_in_degrees: a distance along the great circle espressed in degrees"""
-        deg2m_lat = MapHandler.DEG2M_LAT  # 2 * np.pi * 6371 * 1000 / 360
-        return distance_in_degrees * deg2m_lat
-
-    @staticmethod
-    def h2lat(distance_in_meters):
-        """converts latitude distance from height in meters to degrees
-        :param distance_in_degrees: a distance along the great circle espressed in degrees"""
-        deg2m_lat = MapHandler.DEG2M_LAT  # deg2m_lat = 2 * np.pi * 6371 * 1000 / 360
-        return distance_in_meters / deg2m_lat
-
-    @staticmethod
-    def lon2w(distance_in_degrees, lat_0):
-        """converts longitude distance from degrees to width in meters
-        :param distance_in_degrees: a distance along the lat_0 circle expressed in degrees
-        :param lat_0: if missing or None, defaults to the internal lat_0, which is set as the mean
-        of all points passed to this object. Otherwise, expresses the latitude of the circle along
-        which the lon2w(distance_in_degrees) must be converted to meters"""
-        deg2m_lat = MapHandler.DEG2M_LAT  # deg2m_lat = 2 * np.pi * 6371 * 1000 / 360
-        deg2m_lon = deg2m_lat * np.cos(lat_0 / 180 * np.pi)
-        return distance_in_degrees * deg2m_lon
-
-    @staticmethod
-    def w2lon(distance_in_meters, lat_0):
-        """converts longitude distance from width in meters to degrees
-        :param distance_in_meters: a distance along the lat_0 circle expressed in meters
-        :param lat_0: if missing or None, defaults to the internal lat_0, which is set as the mean
-        of all points passed to this object. Otherwise, expresses the latitude (in degrees) of the
-        circle along which w2lon(distance_in_meters) must be converted to degrees"""
-        deg2m_lat = MapHandler.DEG2M_LAT  # deg2m_lat = 2 * np.pi * 6371 * 1000 / 360
-        deg2m_lon = deg2m_lat * np.cos(lat_0 / 180 * np.pi)
-        return distance_in_meters / deg2m_lon
 
 
 def normalize_arg(obj, size=None, dtype=None):
@@ -397,56 +329,82 @@ def parseargs(lons, lats, labels, sizes, colors, markers, legend_labels):
             markers[valid_points],
             legend_labels[valid_points])
 
+
+# def get_ax_size(ax, fig):
+#     bbox = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+#     return bbox.width, bbox.height
+
+def pix2inch(pix, fig):
+    """Converts pixel to inches on a given matplotlib figure"""
+    return pix / fig.dpi
+
+
+def inch2pix(inch, fig):
+    """Converts inches to pixel on a given matplotlib figure"""
+    return inch * fig.dpi 
+
+
 # values below CAN be None but CANNOT be arrays containing None's
 def plotmap(lons,
             lats,
             labels=None,
             legend_labels=None,
-            sizes=100,  # can be scalar (including None or nan) or array
-            colors="#EEC10000",  # can be scalar (including None or nan) or array. Note can also be rgba in html format. matplotlib does support this only for 4 elements arrays, but we will convert it
+            sizes=20,
+            colors="#FF4400",  # can be scalar (including None or nan) or array. Note can also be rgba in html format. matplotlib does support this only for 4 elements arrays, but we will convert it
             markers="^",
-            labels_fontsize=10,
+            fontsize=None,
+            fig_margins="2",  # nunmeric None (=0) or float-parsable string, in font height units!!
             labels_text_weight='regular',
-            labels_text_color='w',
+            labels_text_color='k',
             labels_text_contour_width=0,  # set to zero for no contour
             labels_text_contour_color='white',
             labels_h_offset=None,  # None defaults to 0, type a string with units as 'm', 'km' or 'deg'. No unit (or number) defaults to deg
             labels_v_offset=None,  # None defaults to 0, type a string with units as 'm', 'km' or 'deg'. No unit (or number) defaults to deg
-            map_margins='5deg',  # None defaults to [0,0,0,0], is like css margins but units are km, m or deg. (no unit defaults to deg)
-            epsg_projection='4326',  # 4326,  # 3395,  # 3857,
-            arcgis_image_service='ESRI_Imagery_World_2D',  # 'ESRI_StreetMap_World_2D'
+            map_margins='0.5deg',  # None defaults to [0,0,0,0], is like css margins but units are km, m or deg. (no unit defaults to deg)
+            epsg_projection='3857',  # 4326,  # 3395,  # 3857,
+            arcgis_image_service='World_Street_Map',  # 'ESRI_Imagery_World_2D', 'World_Topo_Map', 'World_Terrain_Base'
             arcgis_image_xpixels=1500,
             arcgis_image_dpi=96,
+            urlfail='ignore',  # ignore or raise
             num_max_meridians=5,  # set to 0 to disable meridians AND tick labels
             meridians_linewidth=1.,  # set to 0 to disable meridians (tick labels shown)
             num_max_parallels=5,  # set to 0 to disable parallels AND tick labels
             parallels_linewidth=1.,  # set to 0 to disable parallels (tick labels shown)
+            legend_loc='bottom',  # top bottom right left
+            legend_fancybox=True,
+            legend_shadow=True,
+            legend_borderaxespad=1.5,  # in font units
             title=None,
             show=False,
             fig=None,
             **kwargs):  # @UnusedVariable
     """
-    Creates a basemap plot with a data point scatter plot. Code copied and modified from obspy
-    basemap
-
-    :param lons: Longitudes of the data points.
-    :type lons: list/tuple of floats, or a single scalar number (will be converted to a single
-        point list)
-    :param lats: Latitudes of the data points. Must be the same length as lons
-    :type lats: list/tuple of floats, or a single scalar number (1 point only)
-    :param labels: Annotations for the individual data points. Defaults to None if missing.
-        If labels is a "scalar" (i.e. something not tuple/list etcetera) will be converted to the
-        list [labels, labels, ... ] of the same length as len(lons)
-    :type labels: list/tuple of str
-    :param sizes: Sizes of the individual points in the scatter plot. Defaults to None if missing.
-        If sizes is a "scalar" (i.e. something not tuple/list etcetera) will be converted to the
-        list [sizes, sizes, ... ] of the same length as len(lons).
-    :type sizes: float or list/tuple of floats
-    :param colors: list/tuple of strings dentoting html colors. Defaults to "#EEC00" if missing.
-        If colors is a "scalar" (i.e. something not tuple/list etcetera) will be converted to the
-        list [colors, colors, ... ] of the same length as len(lons)
-    :type colors: string or list/tuple of strings
-    :param markers: (default "^"): a string of markers. A single string applies to all values
+    Plots a map with optional scatter points. In the following, with the term 'array' we denote
+    either a numpy array or a list/tuple.
+    Scatter points will be identified by the arrays `lons` and `lats`, whose length L must be equal.
+    If numeric, they will be converted to a single element array.
+    All other arguments related to scatter points (`labels`, `legend_labels`, `sizes`, `colors`,
+    `markers`) behave as many matplotlib arguments, i.e. they are supposed to be arrays of length
+    L or, if they denote a single value, they will be internally converted to an array with the
+    value repeated L times.
+    :param lons: (numeric array or scalar) Longitudes of the data points
+    :param lats: (numeric array or scalar) Latitudes of the data points.
+    Must be the same length as lons
+    :param labels: (array of strings or string. Default: None, no labels) Annotations (labels)
+    for the individual data points on the map
+    :param legend_labels: (array of strings or string. Default: None, no legend) Annotations
+    (labels) for the legend. You can supply a sparse array where only some points (will relative
+    marker and color) will be displayed on the legend. All other values can be None or empty string
+    :param sizes: (numeric array or scalar. Default: 10) Sizes of the
+    individual points in the scatter plot.
+    :param colors: (array of strings, string, or array of 3-4 element tuples. Default: "#FF4400")
+    Colors for the scatter points (fill color). The argument is the same as `matplotlib.scatter`
+    color argument. You can type color transparency by supplying string of 9 elements wher
+    the last two characters denote the transparency ('00' fully transparent, 'ff' fully opaque).
+    Note that this is a feature not implemented in current `matplotlib`
+    :param markers: (array of strings or string. Default "^"): The markers (shapes) of the scatter
+    point. Please have a look at `matplotlib` documentation for available symbols
+    
     :param labels_text_weight: string (default: 'normal'). A numeric value in range 0-1000 or
         'ultralight' or 'light' or 'normal' or 'regular' or 'book' or 'medium' or 'roman' or
         'semibold' or 'demibold' or 'demi' or 'bold' or 'heavy' or 'extra bold' or 'black'
@@ -488,60 +446,53 @@ def plotmap(lons,
 
     if fig is None:
         fig = plt.figure()
+        map_ax = fig.add_axes([0, 0, 1, 1])  # set axes size the same as figure
 
-        # setup the axes dimensions
-        map_ax_dims, cm_ax_dims = get_axes_dims('local', colorbar=False)
-        map_ax = fig.add_axes(map_ax_dims)
-        if cm_ax_dims:
-            cm_ax = fig.add_axes(cm_ax_dims)
-
-        # TEST: add global world to indicate the map location
-#             map_ax2 = fig.add_axes([0.7, 0.8, 0.19, 0.19])
-#             bmap_ = Basemap(projection='ortho',
-#                             resolution=_BASEMAP_RESOLUTIONS[resolution],
-#                             area_thresh=1000.0, lat_0=round(np.mean(lats), 4),
-#                             lon_0=round(np.mean(lons), 4), ax=map_ax2)
-
-#             Y, X = np.meshgrid([0, max(lons)], [0, max(lats)])
-#             bmap_.etopo()
-#             bmap_.contourf(
-#                            X,
-#                            Y,
-#                            np.array([[1 , 1],[1 , 1]]),
-#                            alpha=0.5)
-        # done
-
-        handler = MapHandler(lons, lats, map_margins).set_fig(fig)
+        # setup handler for managing basemap coordinates and meridians / parallels calculation:
+        handler = MapHandler(lons, lats, map_margins)
         bmap = Basemap(llcrnrlon=handler.llcrnrlon,
                        llcrnrlat=handler.llcrnrlat,
                        urcrnrlon=handler.urcrnrlon,
                        urcrnrlat=handler.urcrnrlat,
                        epsg=epsg_projection,
+                       resolution='i',
                        ax=map_ax)
-#         bmap.arcgisimage(service='ESRI_Imagery_World_2D', xpixels=1500, verbose= True)
-        # services here: http://server.arcgisonline.com/arcgis/rest/services
-        bmap.arcgisimage(service=arcgis_image_service, xpixels=arcgis_image_xpixels,
-                         dpi=arcgis_image_dpi, verbose=True)
 
-        # ax.xaxis.set_tick_params(width=5)
-        # ax.yaxis.set_tick_params(width=5)
+        try:
+            # set the map image via a map service. In case you need the returned values, note that
+            # This function returns an ImageAxis (or AxisImage, check matplotlib doc)
+            bmap.arcgisimage(service=arcgis_image_service, xpixels=arcgis_image_xpixels,
+                             dpi=arcgis_image_dpi, verbose=True)
+        except (URLError, HTTPError, socket.error) as exc:
+            # failed, maybe there is not internet connection
+            if urlfail == 'ignore':
+                # Print a simple map offline
+                bmap.drawcoastlines()
+                watercolor = '#4444bb'
+                bmap.fillcontinents(color='#eebb66', lake_color=watercolor)
+                bmap.drawmapboundary(fill_color=watercolor)
+            else:
+                raise
 
         if num_max_parallels:
             parallels = handler.get_parallels(num_max_parallels)
             # Old basemap versions have problems with non-integer parallels.
             try:
-                bmap.drawparallels(parallels, labels=[0, 1, 1, 0], linewidth=parallels_linewidth)
+                bmap.drawparallels(parallels, labels=[0, 1, 1, 0], linewidth=parallels_linewidth,
+                                   fontsize=fontsize)
             except KeyError:
                 parallels = sorted(list(set(map(int, parallels))))
-                bmap.drawparallels(parallels, labels=[0, 1, 1, 0], linewidth=parallels_linewidth)
+                bmap.drawparallels(parallels, labels=[0, 1, 1, 0], linewidth=parallels_linewidth,
+                                   fontsize=fontsize)
 
         if num_max_meridians:
             meridians = handler.get_meridians(num_max_meridians)
-            bmap.drawmeridians(meridians, labels=[1, 0, 0, 1], linewidth=meridians_linewidth)
+            bmap.drawmeridians(meridians, labels=[1, 0, 0, 1], linewidth=meridians_linewidth,
+                               fontsize=fontsize)
 
         fig.get_axes()[0].tick_params(direction='out', length=15)
         fig.bmap = bmap
-    else:
+    else:  # FIXME: branch not tested!!!
         error_message_suffix = (
             ". Please provide a figure object from a previous call to the "
             ".plot() method of e.g. an Inventory or Catalog object.")
@@ -560,7 +511,7 @@ def plotmap(lons,
 
     # compute the native bmap projection coordinates for events.
 
-    # from the docs:
+    # from the docs (this is kind of outdated, however leave here for the moment):
     # Calling a Basemap class instance with the arguments lon, lat will
     # convert lon/lat (in degrees) to x/y map projection
     # coordinates (in meters).  If optional keyword ``inverse`` is
@@ -587,9 +538,10 @@ def plotmap(lons,
     lbl_lons = lons + hoffset
     lbl_lats = lats + voffset
 
+    # convert labels coordinates:
     xlbl, ylbl = bmap(lbl_lons, lbl_lats)
 
-    # plot labels
+    # plot point labels
     max_points = -1  # negative means: plot all
     if max_points < 0 or len(lons) < max_points:
 
@@ -606,8 +558,10 @@ def plotmap(lons,
         if len(lons) > 1:
             kwargs['zorder'] = 100
 
-        kwargs['fontsize'] = labels_fontsize
-        # from:
+        kwargs['fontsize'] = fontsize
+
+        # adjust text ref. corner:
+        # from (FIXME: add ref?)
         # horizontalalignment controls whether the x positional argument for the text indicates
         # the left, center or right side of the text bounding box.
         # verticalalignment controls whether the y positional argument for the text indicates
@@ -635,33 +589,111 @@ def plotmap(lons,
     # bmap.scatter accepts all array-like args except markers. Avoid several useless loops
     # and do only those for distinct markers:
     mrks = np.unique(markers)
-    print_legend = False
-    for mrk in np.nditer(mrks):
+    for mrk in mrks:
         # markers == mrk fails if mrk is None. np.equal fails on non numeric data. So:
         m_mask = np.equal(markers, mrk) if mrk is None else markers == mrk
-        _x = x[m_mask]
-        _y = y[m_mask]
-        _m = mrk
-        _s = sizes[m_mask]
-        _c = colors[m_mask]
-        _l = legend_labels[m_mask]
-        if not _l.any():
-            _l = np.array([None])  # use all of them in a run
-        for leg in np.unique(_l):
-            l_mask = np.equal(_l, leg) if leg is None else _l == leg  # see note on m_mask above
-            _scatter = bmap.scatter(_x[l_mask],
-                                    _y[l_mask],
+        __x = x[m_mask]
+        __y = y[m_mask]
+        __m = mrk
+        __s = sizes[m_mask]
+        __c = colors[m_mask]
+        __l = legend_labels[m_mask]
+        if not __l.any():
+            __l = np.array([None])  # use all of them in a run
+        for leg in np.unique(__l):
+            l_mask = np.equal(__l, leg) if leg is None else __l == leg  # see note on m_mask above
+            _scatter = bmap.scatter(__x[l_mask],
+                                    __y[l_mask],
                                     marker=mrk,
-                                    s=sizes[l_mask],
-                                    c=colors[l_mask],
-                                    # label=leg or None,  # empty label defaults to None (for safety)
+                                    s=__s[l_mask],
+                                    c=__c[l_mask],
                                     zorder=10)
             if leg:
-                print_legend=True
+                leg_handles.append(_scatter)
+                leg_labels.append(leg)
 
-    if print_legend:
-        # handles, labels = map_ax.get_legend_handles_labels()
-        map_ax.legend(numpoints=1)
+    if leg_handles:
+        # we do have legend to show. Adjust legend reference corner:
+        if legend_loc == 'bottom':
+            loc = 'upper center'
+            bbox_to_anchor = (0.5, -0.05)
+        elif legend_loc == 'top':
+            loc = 'lower center'
+            bbox_to_anchor = (0.5, 1.05)
+        elif legend_loc == 'left':
+            loc = 'center right'
+            bbox_to_anchor = (-0.05, 0.5)
+        elif legend_loc == 'right':
+            loc = 'center left'
+            bbox_to_anchor = (1, 0.5)
+
+        # http://stackoverflow.com/questions/17411940/matplotlib-scatter-plot-legend
+        leg = map_ax.legend(leg_handles, leg_labels, scatterpoints=1, ncol=2,
+                            loc=loc, bbox_to_anchor=bbox_to_anchor, fancybox=legend_fancybox,
+                            shadow=legend_shadow, borderaxespad=legend_borderaxespad,
+                            fontsize=fontsize)
+
+    # re-position the axes. The REAL map aspect ratio seems to be this:
+    realratio_h_w = bmap.aspect
+    fig_w, fig_h = fig.get_size_inches()
+    figratio_h_w = np.true_divide(fig_h, fig_w)
+
+    if figratio_h_w >= realratio_h_w:
+        # we have margins (blank space) above and below
+        # thus, we assume:
+        map_w = fig_w
+        # and we calculate map_h
+        map_h = map_w * realratio_h_w
+        # assume there is the same amount of space above and below:
+        vpad = (fig_h - map_h) / 2.0
+        # hpad is zero:
+        hpad = 0
+    else:
+        # we have margins (blank space) left and right
+        # thus, we assume:
+        map_h = fig_h
+        # and consequently:
+        map_w = map_h / realratio_h_w
+        # assume there is the same amount of space above and below:
+        hpad = (fig_w - map_w) / 2.0
+        # wpad is zero:
+        vpad = 0
+
+    # calculate new fig dimensions EXACTLY as contour of the map
+    new_fig_w = fig_w - 2 * hpad
+    new_fig_h = fig_h - 2 * vpad
+
+    # now margins:
+    marginz = parse_margins(fig_margins)  # margins are in fontheight units. Get font height:
+    fontw, fonth = 0, 0
+    if len(np.nonzero(marginz)[0]):
+        rend = fig.canvas.get_renderer()
+        txt = map_ax.text(0, 0, 'm', fontsize=fontsize)
+        bbx = txt.get_window_extent(renderer=rend)
+        fonth = pix2inch(bbx.height, fig)  # in pixels I guess
+        fontw = fonth  # dont set it to bb.width, use height.Check em maybe to see if we are right
+        txt.remove()
+
+    # calculate insets in inches (top right bottom left)
+    insets_inch = marginz * [fonth, fontw, fonth, fontw]
+
+    # set to fig dimensions
+    new_fig_w += insets_inch[1] + insets_inch[3]
+    new_fig_h += insets_inch[0] + insets_inch[2]
+
+    fig.set_size_inches(new_fig_w, new_fig_h, forward=True)
+    # (forward necessary if fig is in GUI, let's set for safety)
+
+    # now the axes which are relative to the figure. Thus first normalize inches:
+    insets_inch /= [fig_h, fig_w, fig_h, fig_w]
+
+    # pos1 = map_ax.get_position()  # get the original position
+    # NOTE: it seems that pos[0], pos[1] indicate the x and y of the LOWER LEFT corner, not
+    # upper left!
+    pos2 = [insets_inch[3], insets_inch[2],
+            1 - (insets_inch[1] + insets_inch[3]),
+            1 - (insets_inch[0] + insets_inch[2])]
+    map_ax.set_position(pos2)
 
     if title:
         plt.suptitle(title)
