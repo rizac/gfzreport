@@ -1,8 +1,8 @@
 '''
-This module implements the function `plotmap` which plots scattered points on a geographic
-map. The function is highly customizable and is basically a wrapper around the
-Basemap library (for the map background) plus matplotlib utilities (for plotting points, shapes,
-labels and legend)
+This module implements the function `plotmap` which plots scattered points on a map
+retrieved using ArgGIS Server REST API. The function is highly customizable and is basically a
+wrapper around the `Basemap` library (for the map background)
+plus matplotlib utilities (for plotting points, shapes, labels and legend)
 
 Created on Mar 10, 2016
 
@@ -10,12 +10,14 @@ Created on Mar 10, 2016
 '''
 import numpy as np
 import re
-from itertools import izip
+from itertools import izip, chain
 from urllib2 import URLError, HTTPError
 import socket
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
 from mpl_toolkits.basemap import Basemap
+from matplotlib.font_manager import FontProperties
+from matplotlib import rcParams
 
 
 def parse_margins(obj, parsefunc=lambda margins: [float(val) for val in margins]):
@@ -255,7 +257,7 @@ class MapHandler(object):
         return np.linspace(new_val1, new_val2, N)
 
 
-def normalize_arg(obj, size=None, dtype=None):
+def _normalize(obj, size=None, dtype=None):
     """"Casts" obj to a numpy array of the given optional size and optional dtype, and returns it.
     If size is not None, the array must have length size. If not, and has length 1, it will be
     resized to the specified size. Otherwise a ValueError is raised
@@ -300,18 +302,18 @@ def torgba(html_str):
     return np.true_divide(np.array([int(r, 16) for r in rgb]), 255)
 
 
-def parseargs(lons, lats, labels, sizes, colors, markers, legend_labels):
-    lons = normalize_arg(lons, dtype=float)  # basically: convert to float array if scalar (size=0)
-    lats = normalize_arg(lats, dtype=float)  # basically: convert to float array if scalar (size=0)
+def _shapeargs(lons, lats, labels, sizes, colors, markers, legend_labels):
+    lons = _normalize(lons, dtype=float)  # basically: convert to float array if scalar (size=0)
+    lats = _normalize(lats, dtype=float)  # basically: convert to float array if scalar (size=0)
     if len(lons) != len(lats):
         raise ValueError('mismatch in lengths: lons (%d) and lats (%d)' % (len(lons), len(lats)))
     leng = len(lons)
-    labels = normalize_arg(labels, size=leng)
-    colors = normalize_arg(colors, size=leng)
-    markers = normalize_arg(markers, size=leng)
-    legend_labels = normalize_arg(legend_labels, size=leng)
+    labels = _normalize(labels, size=leng)
+    colors = _normalize(colors, size=leng)
+    markers = _normalize(markers, size=leng)
+    legend_labels = _normalize(legend_labels, size=leng)
     # colors[np.isnan(colors) | (colors <= 0)] = 1.0  # nan colors default to 1 (black?)
-    sizes = normalize_arg(sizes, size=leng, dtype=float)
+    sizes = _normalize(sizes, size=leng, dtype=float)
     valid_points = np.logical_not(np.isnan(lons) | np.isnan(lats) | (sizes <= 0))
 
     # convert html strings to rgba if the former are in string format:
@@ -341,173 +343,325 @@ def pix2inch(pix, fig):
 
 def inch2pix(inch, fig):
     """Converts inches to pixel on a given matplotlib figure"""
-    return inch * fig.dpi 
+    return inch * fig.dpi
+
+
+def _joinargs(key_prefix, kwargs, **already_supplied_args):
+    '''updates already_supplied_args with kwargs using a given prefix in kwargs to identify
+    common keys. Used in plotmap for kwargs'''
+    key_prefix += "_"
+    len_prefix = len(key_prefix)
+    already_supplied_args.update({k[len_prefix:]: v
+                                  for k, v in kwargs.iteritems() if k.startswith(key_prefix)})
+    return already_supplied_args
+
+
+def _mp_set_custom_props(drawfunc_retval, lines_props, labels_props):
+    """Sets custom properties on drawparallels or drawmeridians return function.
+    drawfunc_retval is a dict of numbers mapped to tuples where the first element is a list of
+    matplotlib lines, and the second element is a list of matplotlib texts"""
+    _setprop(chain.from_iterable((lin for lin, lab in drawfunc_retval.itervalues())), lines_props)
+    _setprop(chain.from_iterable((lab for lin, lab in drawfunc_retval.itervalues())), labels_props)
+
+
+def _setprop(iterator_of_mp_objects, props):
+    '''sets the given properties of an iterator of same type matplotlib objects'''
+    if not props:
+        return
+    prp = {}
+    for obj in iterator_of_mp_objects:
+        if not prp:
+            prp = {"set_%s" % name: val for name, val in props.iteritems()
+                   if hasattr(obj, "set_%s" % name)}
+        for name, val in prp.iteritems():
+            getattr(obj, name)(val)
 
 
 # values below CAN be None but CANNOT be arrays containing None's
 def plotmap(lons,
             lats,
             labels=None,
-            legend_labels=None,
+            legendlabels=None,
             sizes=20,
-            colors="#FF4400",  # can be scalar (including None or nan) or array. Note can also be rgba in html format. matplotlib does support this only for 4 elements arrays, but we will convert it
-            markers="^",
+            markers="o",
+            colors="#FF4400",
             fontsize=None,
-            fig_margins="2",  # nunmeric None (=0) or float-parsable string, in font height units!!
-            labels_text_weight='regular',
-            labels_text_color='k',
-            labels_text_contour_width=0,  # set to zero for no contour
-            labels_text_contour_color='white',
-            labels_h_offset=None,  # None defaults to 0, type a string with units as 'm', 'km' or 'deg'. No unit (or number) defaults to deg
-            labels_v_offset=None,  # None defaults to 0, type a string with units as 'm', 'km' or 'deg'. No unit (or number) defaults to deg
-            map_margins='0.5deg',  # None defaults to [0,0,0,0], is like css margins but units are km, m or deg. (no unit defaults to deg)
-            epsg_projection='3857',  # 4326,  # 3395,  # 3857,
-            arcgis_image_service='World_Street_Map',  # 'ESRI_Imagery_World_2D', 'World_Topo_Map', 'World_Terrain_Base'
-            arcgis_image_xpixels=1500,
-            arcgis_image_dpi=96,
-            urlfail='ignore',  # ignore or raise
-            num_max_meridians=5,  # set to 0 to disable meridians AND tick labels
-            meridians_linewidth=1.,  # set to 0 to disable meridians (tick labels shown)
-            num_max_parallels=5,  # set to 0 to disable parallels AND tick labels
-            parallels_linewidth=1.,  # set to 0 to disable parallels (tick labels shown)
-            legend_loc='bottom',  # top bottom right left
-            legend_fancybox=True,
-            legend_shadow=True,
-            legend_borderaxespad=1.5,  # in font units
+            fontweight='regular',
+            fontcolor='k',
+            labels_h_offset=None,
+            labels_v_offset=None,
+            map_margins='0.5deg',
+            fig_margins='2',
+            arcgis_service='World_Street_Map',
+            arcgis_xpixels=1500,
+            urlfail='ignore',
+            max_meridians=5,
+            max_parallels=5,
+            legend_pos='bottom',
+            legend_borderaxespad=1.5,
+            legend_ncol=1,
             title=None,
             show=False,
-            fig=None,
             **kwargs):  # @UnusedVariable
     """
-    Plots a map with optional scatter points. In the following, with the term 'array' we denote
-    either a numpy array or a list/tuple.
-    Scatter points will be identified by the arrays `lons` and `lats`, whose length L must be equal.
-    If numeric, they will be converted to a single element array.
-    All other arguments related to scatter points (`labels`, `legend_labels`, `sizes`, `colors`,
-    `markers`) behave as many matplotlib arguments, i.e. they are supposed to be arrays of length
-    L or, if they denote a single value, they will be internally converted to an array with the
-    value repeated L times.
-    :param lons: (numeric array or scalar) Longitudes of the data points
-    :param lats: (numeric array or scalar) Latitudes of the data points.
-    Must be the same length as lons
-    :param labels: (array of strings or string. Default: None, no labels) Annotations (labels)
-    for the individual data points on the map
-    :param legend_labels: (array of strings or string. Default: None, no legend) Annotations
-    (labels) for the legend. You can supply a sparse array where only some points (will relative
-    marker and color) will be displayed on the legend. All other values can be None or empty string
-    :param sizes: (numeric array or scalar. Default: 10) Sizes of the
+    Makes a scatter plot of points on a map background using ArcGIS REST API.
+
+    :param lons: (array-like of length N or scalar) Longitudes of the data points, in degreee
+    :param lats: (array-like of length N or scalar) Latitudes of the data points, in degree
+    :param labels: (array-like of length N or string. Default: None, no labels) Annotations
+    (labels) for the individual data points on the map. If non-array (e.g. string), the same value
+    will be applied to all points
+    :param legendlabels: (array-like of length N or string. Default: None, no legend)
+    Annotations (labels) for the legend. You can supply a sparse array where only some points
+    will be displayed on the legend. All points with no legend label will not show up in the
+    legend
+    :param sizes: (array-like of length N or number. Default: 20) Sizes (in points^2) of the
     individual points in the scatter plot.
-    :param colors: (array of strings, string, or array of 3-4 element tuples. Default: "#FF4400")
-    Colors for the scatter points (fill color). The argument is the same as `matplotlib.scatter`
-    color argument. You can type color transparency by supplying string of 9 elements wher
-    the last two characters denote the transparency ('00' fully transparent, 'ff' fully opaque).
-    Note that this is a feature not implemented in current `matplotlib`
-    :param markers: (array of strings or string. Default "^"): The markers (shapes) of the scatter
-    point. Please have a look at `matplotlib` documentation for available symbols
-    
-    :param labels_text_weight: string (default: 'normal'). A numeric value in range 0-1000 or
-        'ultralight' or 'light' or 'normal' or 'regular' or 'book' or 'medium' or 'roman' or
-        'semibold' or 'demibold' or 'demi' or 'bold' or 'heavy' or 'extra bold' or 'black'
-    :param labels_text_color: (default 'k'). Single letters ('b', 'g', 'r', 'c', 'm', 'y',
-        'k'=black, 'w'), rgb tuple (1, 0.6, 0), html colors ('#EEFF65' but also legal html names
-        for colors, like 'red', 'burlywood', or an integer in [0,1] to specify gray shades (0=black)
-    :param labels_text_contour_width: (default: 1). Width in points, 0 avoids painting it
-    :param labels_text_contour_color: (default 'white'). The labels contour color. Set to None
-        to skip painting contour. For the options, see ref:`labels_text_colors`
-    :param margins_in_km: (default 50km) the margins in km of the map bbox, calculated according to
-        the points lats and lons. Can be specified as css margin property, separating values
-        with commas or spaces, and with units which can be 'deg', 'm' or 'km'
-    :param epsg_projection: (default: '4326') the map projection. FIXME: see?  # 4326,# 3395,# 3857,
-    :param arcgis_image_service: (default 'ESRI_Imagery_World_2D'). FIXME: see?  # 'ESRI_StreetMap_World_2D'
-    :param arcgis_image_xpixels: (default 1500). FIXME: see?
-    :param arcgis_image_dpi: (default 96). FIXME: see?
-    :param num_max_meridians: (default: 5). Set to zero to avoid plotting meridians at all
-        (including axis ticks)
-    :param meridians_linewidth: (default 1.). Set to zero to avoid showing meridians lines on the
-        map
-    :param num_max_parallels: (default: 5). Set to zero to avoid plotting meridians at all
-        (including axis ticks)
-    :param parallels_linewidth: (default: 1.). Set to zero to avoid showing parallels lines on the
-        map
-    :param title: Title above plot
-    :type title: str
-    :param show: Whether to show the figure after plotting or not. Can be used
-        to do further customization of the plot before showing it.
-    :type show: bool
-    :param fig: Figure instance to reuse, returned from a previous
-        :func:`plot_basemap` call. If a previous basemap plot is reused, any
-        kwargs regarding the basemap background will be ignored.
-        In other words, only points will be printed. This functionality has not been tested yet
-    :type fig: :class:`matplotlib.figure.Figure`. You can access the basemap with fig.bmap
+    :param markers: (array-like of length N,
+    `MarkerStyle<http://matplotlib.org/api/markers_api.html#matplotlib.markers.MarkerStyle>`_  or
+    string. Default: 'o' - circle) The markers (shapes) to be drawn for each point on the map.
+    See `markers <http://matplotlib.org/api/markers_api.html#module-matplotlib.markers>`_ for
+    more information on the different styles of markers scatter supports. Marker can be either
+    an instance of the class or the text shorthand for a particular marker.
+    :param colors:  (array-like of length N,
+    `matplotlib color <http://matplotlib.org/api/colors_api.html>`_, e.g. string.
+    Default: "#FF4400")
+    Colors for the markers (fill color). You can type color transparency by supplying string of 9
+    elements where the last two characters denote the transparency ('00' fully transparent,
+    'ff' fully opaque). Note that this is a feature not implemented in `matplotlib` colors, where
+    transparency is given as the last element of the numeric tuple (r, g, b, a)
+    :param fontsize: (numeric or None. Default: None) The fontsize for all texts drawn on the
+    map (labels, axis tick labels, legend). None uses the default figure font size for all. Custom
+    values for the individual text types (e.g. legend texts vs labels texts) can be supplied
+    via the `kwargs` argument and a given prefix (see below)
+    :param fontweight: (string or number. Default: 'regular') The font weight for all texts drawn
+    on the map (labels, axis tick labels, legend). Accepts the values (see
+    http://matplotlib.org/api/text_api.html#matplotlib.text.Text.set_weight):
+    ```
+    [a numeric value in range 0-1000 | 'ultralight' | 'light' |
+    'normal' | 'regular' | 'book' | 'medium' | 'roman' | 'semibold' | 'demibold' | 'demi' |
+    'bold' | 'heavy' | 'extra bold' | 'black' ]
+    ```
+    Custom
+    values for the individual text types (e.g. legend texts vs labels texts) can be supplied
+    via the `kwargs` argument and a given prefix (see below)
+    :param fontcolor: (`matplotlib color <http://matplotlib.org/api/colors_api.html>`_ or
+    string. Default: 'k', black) The font color for all texts drawn on the
+    map (labels, axis tick labels, legend). Custom
+    values for the individual text types (e.g. legend texts vs labels texts) can be supplied
+    via the `kwargs` argument and a given prefix (see below)
+    :param labels_h_offset: (string, number. Defaults None=0) The horizontal offset to be applied
+    to each label on the map relative to its point coordinates. Negative values will shift the
+    labels westward, positive values eastward. Useful for not overlapping
+    markers and labels.
+    If numeric, it is assumed to be the expressed in degrees. Otherwise, you can supply a string
+    with a number followed by one of the units 'm', 'km' or 'deg' (e.g., '5km', '0.5deg').
+    Note that this value affects the
+    `horizontalalignment` and `multialignment` properties of the labels
+    (for info see http://matplotlib.org/api/text_api.html#matplotlib.text.Text). Supplying
+    `labels_horizontalalignment` or `labels_ha` as optional argument will override
+    this behaviour (see `kwargs` below)
+    :param labels_v_offset: (string, number. Defaults None=0) The vertical offset to be applied
+    to each label on the map relative to its point coordinates. Negative values will shift the
+    labels southhward, positive values northward. See notes on `labels_h_offset` for details
+    Note that this value affects the
+    `verticalalignment` property of the labels
+    (for info see http://matplotlib.org/api/text_api.html#matplotlib.text.Text). Supplying
+    `labels_verticalalignment` or `labels_va` as optional argument will override
+    this behaviour (see `kwargs` below)
+    :param map_margins: (array-like of 1,2,3,4 elements, numeric or string, or None=0.
+    Default: '0.5deg').
+    The map margins, i.e. how much the map has to 'expand/shrink' in any direction, relative
+    to the bounding box calculated to include all points.
+    If array-like, it behaves like the css 'margin' property of html: 4 elements will denote
+    [top, right, bottom, left], two elements will denote [top/bottom, left/right], three
+    elements [top, right/left, bottom], a single element array (or a single number or a string)
+    applies the value to all directions.
+    Finally, elements of the array must be expressed as the arguments `labels_h_offset` or
+    `labels_v_offset`: numbers denoting degrees or strings with units 'm', 'km', 'deg'. Negative
+    values will shrink the map.
+    If string, the argument will be first splitted using commas, semicolon or spaces as delimiters
+    (if no delimiter is found, the string is taken as a single chunk) and converted to an array-like
+    object.
+    :param fig_margins: (array-like of 1,2,3,4 elements, number or None=0. Default:2) The
+    figure margins *in font height units* (e.g., 2 means: twice the font height). This argument
+    behaves exactly as `map_margins` but expands/shrinks the distances between map and figure
+    (image) bounds. Useful to include axis tick labels or legend, if they overflow.
+    Note also that strings
+    are allowed only if they are parsable to float (e.g. "5,6; -12  1")
+    :param arcgis_service: (string, default:  'World_Street_Map'). The map image type, or
+    more technically the service for the map
+    hosted on ArcGIS server. Other values are 'ESRI_Imagery_World_2D'
+    (default in
+    `Basemap.arcgisimage <http://matplotlib.org/basemap/api/basemap_api.html#mpl_toolkits.basemap.Basemap.arcgisimage>`_),
+    'World_Topo_Map', 'World_Terrain_Base'. For details, see:
+    http://server.arcgisonline.com/arcgis/rest/services.
+    :param arcgis_xpixels: (numeric, default: 3000). Requested number of image pixels
+    in x-direction (default is 400 in
+    `Basemap.arcgisimage <http://matplotlib.org/basemap/api/basemap_api.html#mpl_toolkits.basemap.Basemap.arcgisimage>`_).
+    The documentation is quite unclear but this parameter seems to set the zoom of the image. From
+    this `link <http://basemaptutorial.readthedocs.io/en/latest/backgrounds.html#arcgisimage>`_:
+    A bigger number will ask a bigger image, so the image will have more detail.
+    So when the zoom is bigger, `xsize` must be bigger to maintain the resolution
+    :param urlfail: (string, 'raise' or 'ignore'. Default: 'ignore'). Tells what to do if the
+    ArcGIS requet fails (URLError, no internet connection etcetera). By default, on failure a raw
+    map with continents contour, and oceans will be plotted (good for
+    debug). Otherwise, the exception resulting from the web request is raised
+    :param max_meridians: (numeric default: 5). The number of maximum meridians to be drawn. Set to
+    <=0 to hide meridians. Note that also x-axis labels are drawn.
+    To further manipulate meridians display, use any argument starting with
+    'mlabels_', 'mlines_' or 'meridians' (see `kwargs` below). E.g., to show only the labels and not
+    the lines, supply as argument `meridians_linewidth=0` or 'mlines_linewidth=0'.
+    :param max_parallels: (numeric default: 5). The number of maximum parallels to be drawn. Set to
+    <=0 to hide parallels. Note that also y-axis labels are drawn.
+    To further manipulate parallels display, use any argument starting with
+    'plabels_', 'plines_' or 'parallels' (see `kwargs` below). E.g., to show only the labels and not
+    the lines, supply as argument `parallels_linewidth=0` or 'plines_linewidth=0'.
+    :param legend_pos: (string in ['top'. 'bottom', 'right', 'left'], default='bottom'). The legend
+    location with respect to the map. It also adjusts the bounding box that the legend will be
+    anchored to.
+    For
+    customizing entirely the legend placement overriding this parameter, provide `legend_loc`
+    (and optionally `legend_bbox_to_anchor`) in `kwargs` (see below)
+    :param legend_borderaxespad: (numeric, default 1.5) The pad between the axes and legend border,
+    in font units
+    :param legend_ncol: (integer, default=1) The legend number of columns
+    :param title (string or None. Default: None): Title above plot (Note: not tested)
+    :param show (boolean, default: False): Whether to show the figure after plotting or not
+    (Note: not tested). Can be used to do further customization of the plot before showing it.
+    :param fig: (matplotlib figure or None, default: None). Note: deprecated, pass None as
+    supplying an already existing figure with other axes might break the figure layout
+    :param kwargs: any kind of additional argument passed to `matplotlib` and `Basemap` functions
+    or objects.
+    The name of the argument must be of the form
+    ```
+    prefix_propertyname=propertyvalue
+    ```
+    where prefix indicates the function/object to be called with keyword argument:
+    ```
+    propertyname=propertyvalue
+    ```
 
+    Current supported prefixes are (for available property names see links):
+
+    Prefix        Passes `propertyname` to
+    ============ ==================================================================================
+    arcgis       `Basemap.arcgisimage <http://matplotlib.org/basemap/api/basemap_api.html#mpl_toolkits.basemap.Basemap.arcgisimage>_
+                 used to retrieve the background map using ArgGIS Server REST API. See also
+                 http://basemaptutorial.readthedocs.io/en/latest/backgrounds.html#arcgisimage
+    basemap      `Basemap <http://matplotlib.org/basemap/api/basemap_api.html#mpl_toolkits.basemap.Basemap>`_
+                 the object responsible of drawing and managing the map. Note that
+                 `basemap_resolution=h` and `basemap_epsg=4326` by default.
+    labels       All `texts <http://matplotlib.org/api/text_api.html#matplotlib.text.Text>`_
+                 used to display the point labels on the map
+    legend       The `legend <http://matplotlib.org/api/legend_api.html#matplotlib.legend.Legend>`_.
+                 See the already implemented arguments `legend_borderaxespad`,
+                 `legend_ncol`
+    legendlabels All `texts <http://matplotlib.org/api/text_api.html#matplotlib.text.Text>`_
+                 used to display the text labels of the legend
+    meridians    `Basemap.drawmeridians`. For more detailed settings on meridians, see
+                 `mlines` and `mlabels`
+    parallels    `Basemap.drawparallels`. For more detailed settings on parallels, see
+                 `plines` and `plabels`
+    plines       All `lines <http://matplotlib.org/api/lines_api.html#matplotlib.lines.Line2D>`_
+                 used to display the parallels
+    plabels      All `texts <http://matplotlib.org/api/text_api.html#matplotlib.text.Text>`_
+                 used to display the parallels labels on the y axis
+    mlines       All `lines <http://matplotlib.org/api/lines_api.html#matplotlib.lines.Line2D>`_
+                 used to display the meridians
+    mlabels      All `texts <http://matplotlib.org/api/text_api.html#matplotlib.text.Text>`_
+                 used to display the meridians labels on the x axis
+    ============ ==================================================================================
+
+    Examples
+    --------
+
+    - `legend_title='abc'` will call `legend(..., title='abc', ...)`
+    - `labels_path_effects=[PathEffects.withStroke(linewidth=2, foreground='white')]` will set the
+      a white contour around each label text
+    - `meridians_labelstyle="+/-"` will call `Basemap.drawmeridians(..., labelstyle="+/-", ...)`
+
+    Notes:
+    ------
+    The objects referenced by `plines`, `plabels`, `mlines`, `mlabels` and `legendlabels`
+    cannot be initialized directly with the given properties, which will be set after they are
+    created assuming that for any property `foo` passed as keyword argument in their constructor
+    there exist a method `set_foo(...)` (which will be called with the given propertyvalue).
+    This is most likely always true according to matplotlib api, but we cannot assure it works
+    100% of the times
     """
-    lons, lats, labels, sizes, colors, markers, legend_labels =\
-        parseargs(lons, lats, labels, sizes, colors, markers, legend_labels)
+    lons, lats, labels, sizes, colors, markers, legendlabels =\
+        _shapeargs(lons, lats, labels, sizes, colors, markers, legendlabels)
 
-    if fig is None:
-        fig = plt.figure()
-        map_ax = fig.add_axes([0, 0, 1, 1])  # set axes size the same as figure
+    fig = plt.figure()
+    map_ax = fig.add_axes([0, 0, 1, 1])  # set axes size the same as figure
 
-        # setup handler for managing basemap coordinates and meridians / parallels calculation:
-        handler = MapHandler(lons, lats, map_margins)
-        bmap = Basemap(llcrnrlon=handler.llcrnrlon,
-                       llcrnrlat=handler.llcrnrlat,
-                       urcrnrlon=handler.urcrnrlon,
-                       urcrnrlat=handler.urcrnrlat,
-                       epsg=epsg_projection,
-                       resolution='i',
-                       ax=map_ax)
+    # setup handler for managing basemap coordinates and meridians / parallels calculation:
+    handler = MapHandler(lons, lats, map_margins)
 
-        try:
-            # set the map image via a map service. In case you need the returned values, note that
-            # This function returns an ImageAxis (or AxisImage, check matplotlib doc)
-            bmap.arcgisimage(service=arcgis_image_service, xpixels=arcgis_image_xpixels,
-                             dpi=arcgis_image_dpi, verbose=True)
-        except (URLError, HTTPError, socket.error) as exc:
-            # failed, maybe there is not internet connection
-            if urlfail == 'ignore':
-                # Print a simple map offline
-                bmap.drawcoastlines()
-                watercolor = '#4444bb'
-                bmap.fillcontinents(color='#eebb66', lake_color=watercolor)
-                bmap.drawmapboundary(fill_color=watercolor)
-            else:
-                raise
+    kwa = _joinargs('basemap', kwargs,
+                    llcrnrlon=handler.llcrnrlon,
+                    llcrnrlat=handler.llcrnrlat,
+                    urcrnrlon=handler.urcrnrlon,
+                    urcrnrlat=handler.urcrnrlat,
+                    epsg='4326',  # 4326,  # 3395,  # 3857,
+                    resolution='i', # 'h',
+                    ax=map_ax)
+    bmap = Basemap(**kwa)
 
-        if num_max_parallels:
-            parallels = handler.get_parallels(num_max_parallels)
-            # Old basemap versions have problems with non-integer parallels.
-            try:
-                bmap.drawparallels(parallels, labels=[0, 1, 1, 0], linewidth=parallels_linewidth,
-                                   fontsize=fontsize)
-            except KeyError:
-                parallels = sorted(list(set(map(int, parallels))))
-                bmap.drawparallels(parallels, labels=[0, 1, 1, 0], linewidth=parallels_linewidth,
-                                   fontsize=fontsize)
-
-        if num_max_meridians:
-            meridians = handler.get_meridians(num_max_meridians)
-            bmap.drawmeridians(meridians, labels=[1, 0, 0, 1], linewidth=meridians_linewidth,
-                               fontsize=fontsize)
-
-        fig.get_axes()[0].tick_params(direction='out', length=15)
-        fig.bmap = bmap
-    else:  # FIXME: branch not tested!!!
-        error_message_suffix = (
-            ". Please provide a figure object from a previous call to the "
-            ".plot() method of e.g. an Inventory or Catalog object.")
-        try:
-            map_ax = fig.axes[0]
-        except IndexError as e:
-            e.args = tuple([e.args[0] + error_message_suffix] +
-                           list(e.args[1:]))
+    try:
+        kwa = _joinargs("arcgis", kwargs, service=arcgis_service, xpixels=arcgis_xpixels)
+        # set the map image via a map service. In case you need the returned values, note that
+        # This function returns an ImageAxis (or AxisImage, check matplotlib doc)
+        bmap.arcgisimage(**kwa)
+    except (URLError, HTTPError, socket.error) as exc:
+        # failed, maybe there is not internet connection
+        if urlfail == 'ignore':
+            # Print a simple map offline
+            bmap.drawcoastlines()
+            watercolor = '#4444bb'
+            bmap.fillcontinents(color='#eebb66', lake_color=watercolor)
+            bmap.drawmapboundary(fill_color=watercolor)
+        else:
             raise
+
+    # draw meridians and parallels. From basemap.drawmeridians / drawparallels doc:
+    # returns a dictionary whose keys are the meridian values, and
+    # whose values are tuples containing lists of the
+    # matplotlib.lines.Line2D and matplotlib.text.Text instances
+    # associated with each meridian. Deleting an item from the
+    # dictionary removes the correpsonding meridian from the plot.
+    if max_parallels > 0:
+        kwa = _joinargs("parallels", kwargs, linewidth=1, fontsize=fontsize,
+                        labels=[0, 1, 1, 0], fontweight=fontweight)
+        parallels = handler.get_parallels(max_parallels)
+        # Old basemap versions have problems with non-integer parallels.
         try:
-            bmap = fig.bmap
-        except AttributeError as e:
-            e.args = tuple([e.args[0] + error_message_suffix] +
-                           list(e.args[1:]))
-            raise
+            # Note: the method below # returns a list of text object
+            # represeting the tick labels
+            _dict = bmap.drawparallels(parallels, **kwa)
+        except KeyError:
+            parallels = sorted(list(set(map(int, parallels))))
+            _dict = bmap.drawparallels(parallels, **kwa)
+
+        # set custom properties:
+        kwa_lines = _joinargs("plines", kwargs)
+        kwa_labels = _joinargs("plabels", kwargs, color=fontcolor)
+        _mp_set_custom_props(_dict, kwa_lines, kwa_labels)
+
+    if max_meridians > 0:
+        kwa = _joinargs("meridians", kwargs, linewidth=1, fontsize=fontsize,
+                        labels=[1, 0, 0, 1], fontweight=fontweight)
+        meridians = handler.get_meridians(max_meridians)
+        _dict = bmap.drawmeridians(meridians, **kwa)
+
+        # set custom properties:
+        kwa_lines = _joinargs("mlines", kwargs)
+        kwa_labels = _joinargs("mlabels", kwargs, color=fontcolor)
+        _mp_set_custom_props(_dict, kwa_lines, kwa_labels)
+
+    # fig.get_axes()[0].tick_params(direction='out', length=15)  # does not work, check basemap
+    fig.bmap = bmap
 
     # compute the native bmap projection coordinates for events.
 
@@ -544,23 +698,7 @@ def plotmap(lons,
     # plot point labels
     max_points = -1  # negative means: plot all
     if max_points < 0 or len(lons) < max_points:
-
-        # set arguments
-        kwargs = {
-                  "weight": labels_text_weight,
-                  "color": labels_text_color,
-                  }
-        if labels_text_contour_width > 0 and labels_text_contour_color is not None:
-            kwargs['path_effects'] = [PathEffects.withStroke(linewidth=labels_text_contour_width,
-                                                             foreground=labels_text_contour_color)]
-
-        # this is copied from obspy code. There is no mention about the reason though
-        if len(lons) > 1:
-            kwargs['zorder'] = 100
-
-        kwargs['fontsize'] = fontsize
-
-        # adjust text ref. corner:
+        # Set alignments which control also the corner point reference when placing labels
         # from (FIXME: add ref?)
         # horizontalalignment controls whether the x positional argument for the text indicates
         # the left, center or right side of the text bounding box.
@@ -568,11 +706,12 @@ def plotmap(lons,
         # the bottom, center or top side of the text bounding box.
         # multialignment, for newline separated strings only, controls whether the different lines
         # are left, center or right justified
-        kwargs['horizontalalignment'] = 'left' if hoffset[0] > 0 else 'right' if \
-            hoffset[0] < 0 else 'center'
-        kwargs['multialignment'] = kwargs['horizontalalignment']
-        kwargs['verticalalignment'] = 'top' if voffset[0] > 0 else 'bottom' if \
-            voffset[0] < 0 else 'center'
+        ha = 'left' if hoffset[0] > 0 else 'right' if hoffset[0] < 0 else 'center'
+        va = 'bottom' if voffset[0] > 0 else 'top' if voffset[0] < 0 else 'center'
+        ma = ha
+        kwa = _joinargs("labels", kwargs, fontweight=fontweight, color=fontcolor,
+                        zorder=100, fontsize=fontsize, horizontalalignment=ha,
+                        verticalalignment=va, multialignment=ma)
 
         for name, xpt, ypt in zip(labels, xlbl, ylbl):
             # Check if the point can actually be seen with the current bmap
@@ -580,7 +719,7 @@ def plotmap(lons,
             # large values if it cannot project a point.
             if xpt > 1e25:
                 continue
-            map_ax.text(xpt, ypt, name, **kwargs)
+            map_ax.text(xpt, ypt, name, **kwa)
 
     # plot points
     x, y = bmap(lons, lats)
@@ -588,20 +727,36 @@ def plotmap(lons,
     leg_handles, leg_labels = [], []
     # bmap.scatter accepts all array-like args except markers. Avoid several useless loops
     # and do only those for distinct markers:
-    mrks = np.unique(markers)
+    # unique markers (sorted according to their index in markers, not their value):
+    mrks = markers[np.sort(np.unique(markers, return_index=True)[1])]
     for mrk in mrks:
-        # markers == mrk fails if mrk is None. np.equal fails on non numeric data. So:
-        m_mask = np.equal(markers, mrk) if mrk is None else markers == mrk
+        # Note using masks with '==' (numpy==1.11.3):
+        #
+        # >>> a = np.array([1,2,3])
+        # >>> a == 3
+        # array([False, False,  True], dtype=bool)  # OK
+        # >>> a == None
+        # False                                     # NOT AS EXPECTED!
+        # >>> np.equal(a, None)
+        # array([False, False, False], dtype=bool)  # OK
+        #
+        # (Note also that a == None issues:
+        # FutureWarning: comparison to `None` will result in an elementwise object
+        # comparison in the future.)
+        #
+        # So the correct way is to write
+        # mask = np.equal(array, val) if val is None else (a == val)
+
+        m_mask = np.equal(markers, mrk) if mrk is None else markers == mrk  # see above
         __x = x[m_mask]
         __y = y[m_mask]
         __m = mrk
         __s = sizes[m_mask]
         __c = colors[m_mask]
-        __l = legend_labels[m_mask]
-        if not __l.any():
-            __l = np.array([None])  # use all of them in a run
-        for leg in np.unique(__l):
-            l_mask = np.equal(__l, leg) if leg is None else __l == leg  # see note on m_mask above
+        __l = legendlabels[m_mask]
+        # unique legends (sorted according to their index in __l, not their value):
+        for leg in __l[np.sort(np.unique(__l, return_index=True)[1])]:
+            l_mask = np.equal(__l, leg) if leg is None else __l == leg  # see above
             _scatter = bmap.scatter(__x[l_mask],
                                     __y[l_mask],
                                     marker=mrk,
@@ -613,25 +768,39 @@ def plotmap(lons,
                 leg_labels.append(leg)
 
     if leg_handles:
+        # if we provided `legend_loc`, use that:
+        loc = kwargs.get('legend_loc', None)
+        bbox_to_anchor = None  # defaults in matplotlib legend
         # we do have legend to show. Adjust legend reference corner:
-        if legend_loc == 'bottom':
-            loc = 'upper center'
-            bbox_to_anchor = (0.5, -0.05)
-        elif legend_loc == 'top':
-            loc = 'lower center'
-            bbox_to_anchor = (0.5, 1.05)
-        elif legend_loc == 'left':
-            loc = 'center right'
-            bbox_to_anchor = (-0.05, 0.5)
-        elif legend_loc == 'right':
-            loc = 'center left'
-            bbox_to_anchor = (1, 0.5)
+        if loc is None:
+            if legend_pos == 'bottom':
+                loc = 'upper center'
+                bbox_to_anchor = (0.5, -0.05)
+            elif legend_pos == 'top':
+                loc = 'lower center'
+                bbox_to_anchor = (0.5, 1.05)
+            elif legend_pos == 'left':
+                loc = 'center right'
+                bbox_to_anchor = (-0.05, 0.5)
+            elif legend_pos == 'right':
+                loc = 'center left'
+                bbox_to_anchor = (1, 0.5)
+            else:
+                raise ValueError('invalid legend_pos value:"%s"' % legend_pos)
 
+        # The plt.legend has the prop argument which sets the font properties:
+        # family, style, variant, weight, stretch, size, fname. See
+        # http://matplotlib.org/api/font_manager_api.html#matplotlib.font_manager.FontProperties
+        # However, that property does not allow to set font color. So we
+        # use the get_text method of Legend. Note that we pass font size *now* even if
+        # setting it later works as well (the legend frame is resized accordingly)
+        kwa = _joinargs("legend", kwargs, scatterpoints=1, ncol=legend_ncol, loc=loc,
+                        bbox_to_anchor=bbox_to_anchor, borderaxespad=legend_borderaxespad,
+                        fontsize=fontsize)
         # http://stackoverflow.com/questions/17411940/matplotlib-scatter-plot-legend
-        leg = map_ax.legend(leg_handles, leg_labels, scatterpoints=1, ncol=2,
-                            loc=loc, bbox_to_anchor=bbox_to_anchor, fancybox=legend_fancybox,
-                            shadow=legend_shadow, borderaxespad=legend_borderaxespad,
-                            fontsize=fontsize)
+        leg = map_ax.legend(leg_handles, leg_labels, **kwa)
+        # set properties supplied via 'legend_'
+        _setprop(leg.get_texts(), _joinargs("legendlabels", kwargs, color=fontcolor))
 
     # re-position the axes. The REAL map aspect ratio seems to be this:
     realratio_h_w = bmap.aspect
@@ -665,17 +834,28 @@ def plotmap(lons,
 
     # now margins:
     marginz = parse_margins(fig_margins)  # margins are in fontheight units. Get font height:
-    fontw, fonth = 0, 0
+    fontsize_inch = 0
     if len(np.nonzero(marginz)[0]):
+        # Calculate the font size in pixels.
+        # We want to be consistent with matplotlib way of getting fontsize.
+        # inspecting matplotlib.legend.Legend.draw we end up with:
+        # 1. Get the renderer
         rend = fig.canvas.get_renderer()
-        txt = map_ax.text(0, 0, 'm', fontsize=fontsize)
-        bbx = txt.get_window_extent(renderer=rend)
-        fonth = pix2inch(bbx.height, fig)  # in pixels I guess
-        fontw = fonth  # dont set it to bb.width, use height.Check em maybe to see if we are right
-        txt.remove()
+        # 2. get the fontsize in points. We might use `fontsize` but it might be None and we want
+        # the default in case. There are several 'defaults' (rcParams['font.size'],
+        # rcParams["legend.fontsize"])... we don't care for now, use the first. How to get
+        # rcParams['font.size'] ? Either this: (see at matplotlib.Legend.__init__):
+        # fontsize_pt = FontProperties(size=fontsize, weight=fontweight).get_size_in_points()
+        # or simply do:
+        fontsize_pt = fontsize or rcParams['font.size']
+        # Now use renderer to convert to pixels:
+        # For info see matplotlib.text.Text.get_window_extent
+        fontsize_px = rend.points_to_pixels(fontsize_pt)
+        # finally inches:
+        fontsize_inch = pix2inch(rend.points_to_pixels(fontsize_px), fig)
 
     # calculate insets in inches (top right bottom left)
-    insets_inch = marginz * [fonth, fontw, fonth, fontw]
+    insets_inch = marginz * fontsize_inch
 
     # set to fig dimensions
     new_fig_w += insets_inch[1] + insets_inch[3]
