@@ -20,7 +20,9 @@ from sphinx.util import ensuredir
 import os
 import re
 from reportbuild.map import plotmap
-from StringIO import StringIO
+import inspect
+from itertools import izip
+
 
 _OVERWRITE_IMAGE_ = False  # set to True while debugging / testing to force map image creation
 # (otherwise, it check if the image is already present according to the arguments given)
@@ -33,7 +35,8 @@ csv_headers = {
                "labels": re.compile("(?:names?|captions?|labels?)", re.IGNORECASE),
                "sizes": re.compile("sizes?", re.IGNORECASE),
                "colors": re.compile("colors?", re.IGNORECASE),
-               "markers": re.compile("markers?", re.IGNORECASE)
+               "markers": re.compile("markers?", re.IGNORECASE),
+               "legendlabels": re.compile("legends?", re.IGNORECASE),
                }
 
 
@@ -41,49 +44,85 @@ class mapnode(nodes.Element):
     # class dict mapping option specific map directives keys to
     # the map keywords
 
+    # IMPORTANT: __init__ must take exactly these arguments otherwise
+    # sphinx.util.nodes._new_copy (used internally by sphinx) does not work
     def __init__(self, rawsource='', *children, **attributes):
         super(mapnode, self).__init__(rawsource, *children, **attributes)
-        if self.attributes.get("__data__", None) is None:
-            self.attributes["__data__"] = {c: [] for c in csv_headers.keys()}
-        if self.attributes.get("__data_hash__", None) is None:
-            self.attributes["__data_hash__"] = build_hash(self.attributes["__data__"])
+        # create a custom attribute __plotmap__ in which we set all plotmap attributes:
+        plotmapdata = dict(attributes["__parsed_content__"])  # copy it
+        for key, val in attributes.iteritems():
+            if key.startswith("map_"):
+                plotmapdata[key[4:]] = val
+        self.attributes["__plotmapargs__"] = plotmapdata
+
+        # make a normalized string by replacing newlines:
+        r = re.compile("\\s*\\n+\\s*")
+        strhash = r.sub(' ', rawsource).strip()
+        self._data_hash__ = hash(strhash)
 
 
-def build_hash(map_date):
+def get_defargs(exclude=['lons', 'lats', 'labels', 'legendlabels', 'markers', 'colors', 'show'],
+                **overriden_defaults):
+    """Returns a dict of arguments for the MapImgDirective mapped to their defaults
+    These are automatically created according to the plotmap function (using inspect module).
+    Only arguments whose default is string (py2-3 compatible), numeric or boolean are accepted
+    **Note that the keys of the returned dict are prefixed with 'map_'**
+    :param overriden_defaults: optional keyword argument that will override a default value of
+    a plotmap argument. If a key is not present in the defaults it will be ignored
     """
-    Builds the hash for the given map_date (a dict of lists of strings)
-    and returns the hash (integer)
-    """
-    # Note also below: we provide ALL arguments as strings, as calculating the hash of big
-    # value with mixed types (e.g. None and strings) seems NOT to be consistent
-    # It's probably due to the nature of hash algorithms but we didn't find any
-    # on the internet
-    sio = StringIO()
-    for key in csv_headers:
-        sio.write(key)
-        if key in map_date:
-            sio.write(",")
-            sio.write(",".join(map_date[key]))
-        sio.write("\n")
-    ret = hash(sio.getvalue())
-    sio.close()
-    return ret
+    try:
+        # we want to forward plotmap arguments as directive options. Only arguments
+        # with string, numeric or boolean defaults are "optionable". Deal with py2/ py3 problem:
+        _valid_classes = (str, unicode, float, int, bool)
+    except NameError:
+        _valid_classes = (str, float, int, bool)  # python 3
+
+    # exclude plotmap args that are set into the directive body:
+    no_opt_args = set(exclude)
+    # get optional plotmap args and returns their defaults:
+    insp = inspect.getargspec(plotmap)
+    ret = {}
+    for arg, val in izip(insp.args[-len(insp.defaults):], insp.defaults):
+        if arg not in no_opt_args and type(val) in _valid_classes:
+            ret[arg] = val
+    # add also the following arguments for plotmap kwargs:
+    ret['meridians_linewidth'] = 1
+    ret['parallels_linewidth'] = 1
+
+    for key, val in overriden_defaults.iteritems():
+        if key in ret:
+            ret[key] = val
+
+    # make directive options prefixed with 'map_' to avoid confusion with other rst options
+    # inherited from CsvFigureDirective
+    return {('map_%s' % key): val for key, val in ret.iteritems()}
 
 
 class MapImgDirective(CsvFigureDirective):
     """
     Directive that builds plots using a csv file
     """
-
-    own_option_spec = {
-                      'map_margins': lambda arg: arg or None,
-                      'epsg_projection': lambda arg: arg or None,
-                      'arcgis_image_service': lambda arg: arg or None,
-                      'arcgis_image_xpixels': lambda arg: arg or None,
-                      'arcgis_image_dpi': lambda arg: arg or None,
-                      'labels_h_offset': lambda arg: arg or None,
-                      'labels_v_offset': lambda arg: arg or None,
-                      }
+    # we need to hardcode ownoptionspec dynamically generating them from plotmap
+    # arguments is unfeasable
+    own_option_spec = dict(map_sizes=lambda val: float(val),
+                           map_fontsize=lambda val: val or None,
+                           map_fontweight=lambda val: val,
+                           map_fontcolor=lambda val: val,
+                           map_labels_h_offset=lambda val: val or 0,
+                           map_labels_v_offset=lambda val: val or 0,
+                           map_mapmargins=lambda val: val or 0,
+                           map_figmargins=lambda val: val or 0,
+                           map_arcgis_service=lambda val: val,
+                           map_arcgis_xpixels=lambda val: int(val),
+                           map_urlfail=lambda val: val,
+                           map_maxmeridians=lambda val: int(val),
+                           map_maxparallels=lambda val: int(val),
+                           map_meridians_linewidth=lambda val: float(val),
+                           map_parallels_linewidth=lambda val: float(val),
+                           map_legend_pos=lambda val: val,
+                           map_legend_borderaxespad=lambda val: float(val),
+                           map_legend_ncol=lambda val: int(val),
+                           map_title=lambda val: val or None,)
 
     option_spec = CsvFigureDirective.option_spec.copy()  # @UndefinedVariable
     option_spec.update(own_option_spec)
@@ -121,8 +160,7 @@ class MapImgDirective(CsvFigureDirective):
 
                 data[column_indices[col]].append(node_text or "")
 
-        self.options["__data__"] = data
-        map_node = mapnode(self.block_text, **self.options)
+        map_node = mapnode(self.block_text, __parsed_content__=data, **self.options)
         self.get_table_node(nodez).replace_self(map_node)
 
         return nodez
@@ -135,8 +173,8 @@ def visit_map_node_html(self, node):
 
     # FIXME: add class support, add width and height support, add labels, colors and markers support
 
-    data = node.attributes['__data__']  # FIXME: error!
-    _uuid = get_hash(node)
+    data = node.attributes['__plotmapargs__']  # FIXME: error!
+    _uuid = node._data_hash__
 
     markers = []
     for lon, lat, labl in zip(data['lons'], data['lats'], data['labels']):
@@ -198,28 +236,17 @@ def get_map_from_csv(**map_args):
     return f
 
 
-def get_hash(node):
-    lst = [node['__data_hash__']]
-    for arg in MapImgDirective.own_option_spec:
-        lst.append(node.attributes.get(arg, ""))
-        # Note above: using None as default seems not to return an unique hash
-        # hash calculation requires algorithms which are difficult to find on google
-        # provide EVERYTHING as string and results seem to be consistent
-    return hash(tuple(lst))
-
-
-# from sphinx.writers.latex import LaTeXTranslator
 def visit_map_node_latex(self, node):
     """
     self is the builder, although not well documented FIXME: setuo this doc!
     http://www.sphinx-doc.org/en/stable/_modules/sphinx/application.html
     """
-    _uuid = get_hash(node)
+    _uuid = node._data_hash__
     fname = 'map_plot-%s.png' % str(_uuid)
     outfn = os.path.join(self.builder.outdir, fname)
 
     if _OVERWRITE_IMAGE_ or not os.path.isfile(outfn):
-        data = node.attributes['__data__']
+        data = node.attributes['__plotmapargs__']
         fig = get_map_from_csv(**data)
         ensuredir(os.path.dirname(outfn))
         fig.savefig(outfn)

@@ -22,7 +22,7 @@ from matplotlib import rcParams
 
 def parse_margins(obj, parsefunc=lambda margins: [float(val) for val in margins]):
     """Parses obj returning a 4 element numpy array denoting the top, right, bottom and left
-    values.This function first converts obj to a 4 element list L, and then 
+    values. This function first converts obj to a 4 element list L, and then 
     calls `parsefunc`, which by default converts all L values into float
     :param obj: either None, a number, a list of numbers (allowed lengths: 1 to 4),
     a comma/semicolon/spaces separated string (e.g. "4deg 0.0", "1, 1.2", "2km,4deg", "1 ; 2")
@@ -58,7 +58,10 @@ def parse_margins(obj, parsefunc=lambda margins: [float(val) for val in margins]
         # is an iterable not string. Note the if above is py2 py3 compatible
         margins = list(obj)
     else:
-        margins = re.compile("(?:\\s*,\\s*|\\s*;\\s*|\\s+)").split(obj)
+        try:
+            margins = [float(obj)] * 4
+        except (TypeError, ValueError):
+            margins = re.compile("(?:\\s*,\\s*|\\s*;\\s*|\\s+)").split(obj)
 
     if len(margins) == 1:
         margins *= 4
@@ -69,7 +72,7 @@ def parse_margins(obj, parsefunc=lambda margins: [float(val) for val in margins]
     elif len(margins) != 4:
         raise ValueError("unable to parse margins on invalid value '%s'" % obj)
 
-    return np.asarray(parsefunc(margins))
+    return np.asarray(parsefunc(margins) if hasattr(parsefunc, "__call__") else margins)
     # return margins
 
 
@@ -109,7 +112,7 @@ def get_lon0_lat0(min_lons, min_lats, max_lons, max_lats):
     return lon_0, lat_0
 
 
-def mapbounds(min_lon, min_lat, max_lon, max_lat, margins):
+def getbounds(min_lon, min_lat, max_lon, max_lat, margins):
     """Calculates the bounds given the bounding box identified by the arguments and
     given optional margins
     :param min_lon: the minimum longitude (numeric, scalar)
@@ -209,7 +212,7 @@ class MapHandler(object):
         self.max_lons, self.min_lons = max(self.lons), min(self.lons)
         self.max_lats, self.min_lats = max(self.lats), min(self.lats)
         self.lon_0, self.lat_0, self.llcrnrlon, self.llcrnrlat, self.urcrnrlon, self.urcrnrlat = \
-            mapbounds(self.min_lons, self.min_lats, self.max_lons, self.max_lats, map_margins)
+            getbounds(self.min_lons, self.min_lats, self.max_lons, self.max_lats, map_margins)
 
     def _get_map_dims(self):  # , fig_size_in_inches, colorbar=False):
         """Returns the map dimension width, height, in meters"""
@@ -382,21 +385,21 @@ def plotmap(lons,
             lats,
             labels=None,
             legendlabels=None,
-            sizes=20,
             markers="o",
             colors="#FF4400",
+            sizes=20,
             fontsize=None,
             fontweight='regular',
             fontcolor='k',
-            labels_h_offset=None,
-            labels_v_offset=None,
-            map_margins='0.5deg',
-            fig_margins='2',
+            labels_h_offset=0,
+            labels_v_offset=0,
+            mapmargins='0.5deg',
+            figmargins=2,
             arcgis_service='World_Street_Map',
             arcgis_xpixels=1500,
             urlfail='ignore',
-            max_meridians=5,
-            max_parallels=5,
+            maxmeridians=5,
+            maxparallels=5,
             legend_pos='bottom',
             legend_borderaxespad=1.5,
             legend_ncol=1,
@@ -469,7 +472,7 @@ def plotmap(lons,
     (for info see http://matplotlib.org/api/text_api.html#matplotlib.text.Text). Supplying
     `labels_verticalalignment` or `labels_va` as optional argument will override
     this behaviour (see `kwargs` below)
-    :param map_margins: (array-like of 1,2,3,4 elements, numeric or string, or None=0.
+    :param mapmargins: (array-like of 1,2,3,4 elements, numeric or string, or None=0.
     Default: '0.5deg').
     The map margins, i.e. how much the map has to 'expand/shrink' in any direction, relative
     to the bounding box calculated to include all points.
@@ -483,9 +486,9 @@ def plotmap(lons,
     If string, the argument will be first splitted using commas, semicolon or spaces as delimiters
     (if no delimiter is found, the string is taken as a single chunk) and converted to an array-like
     object.
-    :param fig_margins: (array-like of 1,2,3,4 elements, number or None=0. Default:2) The
+    :param figmargins: (array-like of 1,2,3,4 elements, number or None=0. Default:2) The
     figure margins *in font height units* (e.g., 2 means: twice the font height). This argument
-    behaves exactly as `map_margins` but expands/shrinks the distances between map and figure
+    behaves exactly as `mapmargins` but expands/shrinks the distances between map and figure
     (image) bounds. Useful to include axis tick labels or legend, if they overflow.
     Note also that strings
     are allowed only if they are parsable to float (e.g. "5,6; -12  1")
@@ -507,12 +510,12 @@ def plotmap(lons,
     ArcGIS requet fails (URLError, no internet connection etcetera). By default, on failure a raw
     map with continents contour, and oceans will be plotted (good for
     debug). Otherwise, the exception resulting from the web request is raised
-    :param max_meridians: (numeric default: 5). The number of maximum meridians to be drawn. Set to
+    :param maxmeridians: (numeric default: 5). The number of maximum meridians to be drawn. Set to
     <=0 to hide meridians. Note that also x-axis labels are drawn.
     To further manipulate meridians display, use any argument starting with
     'mlabels_', 'mlines_' or 'meridians' (see `kwargs` below). E.g., to show only the labels and not
     the lines, supply as argument `meridians_linewidth=0` or 'mlines_linewidth=0'.
-    :param max_parallels: (numeric default: 5). The number of maximum parallels to be drawn. Set to
+    :param maxparallels: (numeric default: 5). The number of maximum parallels to be drawn. Set to
     <=0 to hide parallels. Note that also y-axis labels are drawn.
     To further manipulate parallels display, use any argument starting with
     'plabels_', 'plines_' or 'parallels' (see `kwargs` below). E.g., to show only the labels and not
@@ -597,7 +600,7 @@ def plotmap(lons,
     map_ax = fig.add_axes([0, 0, 1, 1])  # set axes size the same as figure
 
     # setup handler for managing basemap coordinates and meridians / parallels calculation:
-    handler = MapHandler(lons, lats, map_margins)
+    handler = MapHandler(lons, lats, mapmargins)
 
     kwa = _joinargs('basemap', kwargs,
                     llcrnrlon=handler.llcrnrlon,
@@ -631,10 +634,10 @@ def plotmap(lons,
     # matplotlib.lines.Line2D and matplotlib.text.Text instances
     # associated with each meridian. Deleting an item from the
     # dictionary removes the correpsonding meridian from the plot.
-    if max_parallels > 0:
+    if maxparallels > 0:
         kwa = _joinargs("parallels", kwargs, linewidth=1, fontsize=fontsize,
                         labels=[0, 1, 1, 0], fontweight=fontweight)
-        parallels = handler.get_parallels(max_parallels)
+        parallels = handler.get_parallels(maxparallels)
         # Old basemap versions have problems with non-integer parallels.
         try:
             # Note: the method below # returns a list of text object
@@ -649,10 +652,10 @@ def plotmap(lons,
         kwa_labels = _joinargs("plabels", kwargs, color=fontcolor)
         _mp_set_custom_props(_dict, kwa_lines, kwa_labels)
 
-    if max_meridians > 0:
+    if maxmeridians > 0:
         kwa = _joinargs("meridians", kwargs, linewidth=1, fontsize=fontsize,
                         labels=[1, 0, 0, 1], fontweight=fontweight)
-        meridians = handler.get_meridians(max_meridians)
+        meridians = handler.get_meridians(maxmeridians)
         _dict = bmap.drawmeridians(meridians, **kwa)
 
         # set custom properties:
@@ -833,7 +836,7 @@ def plotmap(lons,
     new_fig_h = fig_h - 2 * vpad
 
     # now margins:
-    marginz = parse_margins(fig_margins)  # margins are in fontheight units. Get font height:
+    marginz = parse_margins(figmargins)  # margins are in fontheight units. Get font height:
     fontsize_inch = 0
     if len(np.nonzero(marginz)[0]):
         # Calculate the font size in pixels.

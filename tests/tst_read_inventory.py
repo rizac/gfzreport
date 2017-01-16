@@ -54,7 +54,7 @@ def read(filelike, func, funclevel='station', sortkey=None):
 
 
 if __name__ == '__main__':
-    file = abspath(join(dirname(__file__), "..", "test-data", "tmp.network.xml"))
+    file = abspath(join(dirname(__file__), "testdata", "tmp.network.xml"))
     sortfunc= lambda val: val['Name']
 
     def int_(val):

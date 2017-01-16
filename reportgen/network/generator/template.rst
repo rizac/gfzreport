@@ -483,12 +483,12 @@ Here a reference to :numref:`noise_pdfs_figure`
 
 .. _stations_table:
 
-.. csv-table:: This is the table caption
+.. csv-table:: Station table. Note that start and end times represent the maximum validity of the corresponding configurations, not the actual data availability or time in the field. Azi: Azimuth of north or '1' component.
    :delim: ,
    :quote: "
    :header-rows: 1
    
-   {{ stations_table_csv_content|indent(3) }}
+   {{ stations_table.content|indent(3) }}
 
 .. restore normal size in latex only:
 
@@ -511,13 +511,15 @@ Here a reference to :numref:`noise_pdfs_figure`
 
 .. _stations_figure:
 
-.. map-figure:: This is the figure caption
+.. map-figure:: Station distribution in experiment (red symbols). If present, white-filled symbols show permanent stations and other temporary experiments archived at EIDA or IRIS-DMC, whose activ- ity period overlapped at least partially with the time of the experiment. If present, open symbols show station sites which were no longer active at the time of the experiment, e.g. prior temporary experiments.
    :header-rows: 1
    :align: center
    :delim: ,
    :quote: "
-   
-   {{ stations_map_csv_content|indent(3)  }}
+   {% for opt_name in stations_map.options -%}
+   :{{ opt_name }}: {{ stations_map.options[opt_name] | safe }}
+   {% endfor %}
+   {{ stations_map.content|indent(3)  }}
 
 .. ==============================================================================   
 
@@ -543,12 +545,12 @@ Here a reference to :numref:`noise_pdfs_figure`
 .. _noise_pdfs_figure:
 
 .. images-grid:: here the figure caption
-   :dir: {{ noise_pdfs_dir_path | safe  }}
+   :dir: {{ noise_pdfs.dirpath | safe  }}
    :align: center
    :header-rows: 1
    :latex-includegraphics-opts: trim=8 30 76 0,width=0.33\textwidth,clip
 
-   {{ noise_pdfs_content|indent(3) }}
+   {{ noise_pdfs.content|indent(3) }}
    
 
 .. ==============================================================================   
@@ -564,16 +566,23 @@ Here a reference to :numref:`noise_pdfs_figure`
    
 .. _inst_uptimes_figure:
 
-.. {{ inst_uptimes_directive }}:: {{ inst_uptimes_arg }}
-   {% for opt_name in inst_uptimes_options -%}
-   :{{ opt_name }}: {{ inst_uptimes_options[opt_name] | safe }}
+{% if inst_uptimes.directive == 'images-grid' -%}
+.. images-grid:: Overview of uptimes of all stations generated with `obspy-scan`
+   {% for opt_name in inst_uptimes.options -%}
+   :{{ opt_name }}: {{ inst_uptimes.options[opt_name] | safe }}
    {% endfor -%}
-   {% if inst_uptimes_directive == "figure" -%}
+   :latex-includegraphics-opts: width=\textwidth
+   :align: center
+   
+   {{ inst_uptimes.content|indent(3)  }}
+{% else -%}
+.. figure:: {{ inst_uptimes.arg  }}
+   {% for opt_name in inst_uptimes.options -%}
+   :{{ opt_name }}: {{ inst_uptimes.options[opt_name] | safe }}
+   {% endfor -%}
    :latex-includegraphics-opts: angle=-90,width=\textwidth
    :width: 100%
-   {% else -%}
-   :latex-includegraphics-opts: width=\textwidth
-   {% endif -%}
    :align: center
-
-   {{ inst_uptimes_content|indent(3)  }}
+   
+   Overview of uptimes of all stations generated with `obspy-scan`
+{% endif %}

@@ -13,8 +13,10 @@ import sys
 import shutil
 from jinja2 import Environment
 from reportgen.network.generator.core.utils import makedirs, copyfiles, relpath
-from reportgen.network.generator.core import get_fig_jinja_vars, get_noise_pdfs_content, gen_title,\
-    get_net_desc, get_network_stations_df, get_other_stations_df, get_map_df
+from reportgen.network.generator.core import get_noise_pdfs_content, gen_title,\
+    get_net_desc, get_network_stations_df, get_other_stations_df, get_map_df, get_figdirective_vars
+from reportbuild.map import parse_margins
+from reportbuild.core.extensions import mapfig
 
 
 # def get_stations_df3(network, start_after, network_station_marker, network_station_color,
@@ -62,9 +64,32 @@ def click_get_outdir(ctx, param, value):
     return value
 
 
+def click_get_margins(ctx, param, value):
+    """Does a check on the outdir: when it's None, it returns the dir specified in
+    ```reportgen.network.www.config.SOURCE_PATH```
+    """
+    try:
+        return parse_margins(value)
+    except:
+        raise click.BadParameter("invalid value for '%s': '%s'"
+                                 % (param.human_readable_name, str(value)))
+
 @click.command()
 @click.argument('network')
 @click.argument('start_after')  # , type=int)
+@click.option('-a', '--area_margins', default=0,  callback=click_get_margins,
+              help=("The search margins (in degrees) relative to the bounding box calculated "
+                    "from the network station locations. The new square area (bbox + margins) "
+                    "will be used to search for non-network stations to be displayed on the "
+                    "map and will set the map image margins (later editable in the "
+                    ".rst file). "
+                    "Specify 1 to 4 values separated by commas (no spaces allowed) denoting "
+                    "top,left,bottom,right (4 values), "
+                    "top,left_and_right, bottom (3 values), "
+                    "top_and_bottom, left_and_right (2 values), "
+                    "or a single value that will be applied to all directions. "
+                    "Negative values will shrink the box, positive will "
+                    "expand it"))
 @click.option('-o', '--out_path', default=None, callback=click_get_outdir,
               help=("The output directory. If missing, it defaults to the directory specified in "
                     "the web config file (config.py) PLUS the network and the start_after "
@@ -126,7 +151,7 @@ def click_get_outdir(ctx, param, value):
 @click.option('-C', '--nonnetwork_station_color', default="#dddddd", type=str,
               help=('The color used to display  non-network stations (within the network bbox) on '
                     'the map. Defaults to "#dddddd" (gray-like color)'))
-def main(network, start_after, out_path, noise_pdf, inst_uptimes, update, mv, no_prompt,
+def main(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes, update, mv, no_prompt,
          network_station_marker, nonnetwork_station_marker, network_station_color,
          nonnetwork_station_color):
     """
@@ -171,12 +196,18 @@ def main(network, start_after, out_path, noise_pdf, inst_uptimes, update, mv, no
     # wildcards
     # (http://stackoverflow.com/questions/12501761/passing-multple-files-with-asterisk-to-python-shell-in-windows)
 
-    sys.exit(run(network, start_after, out_path, noise_pdf, inst_uptimes, update, mv,
+    # Note also that area margins are in degree because we want to make life easier
+    # If you want to support 'm' and 'km', be aware that we need to convert margins back to string
+    # to pass these to the initial map settings (supporting only degrees makes life easier,
+    # just write in the map figure rst option:
+    # ", ".join(str(m) for m in area_margins)
+    sys.exit(run(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes, update, mv,
                  no_prompt, network_station_marker, nonnetwork_station_marker,
                  network_station_color, nonnetwork_station_color))
 
 
-def run(network, start_after, out_path, noise_pdf, inst_uptimes, update, mv, no_prompt,
+def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_uptimes, update,
+        mv, no_prompt,
         network_station_marker, nonnetwork_station_marker, network_station_color,
         nonnetwork_station_color):
 
@@ -253,31 +284,34 @@ def run(network, start_after, out_path, noise_pdf, inst_uptimes, update, mv, no_
                 # formed code (e.g. csv tables with no content). If update, skip the check cause we
                 # cannot determine if we actually want to copy files or not
                 if not os.listdir(dst__):
-                    raise IOError("'%s' is empty: no files copied" % dst__)
+                    raise IOError("No files copied. Please check '%s'" % src__)
 
         if create_rst_and_config:
             print("Generating report template")
             sta_df = get_network_stations_df(network, start_after)
-            all_sta_df = get_other_stations_df(sta_df)
-#             sta_df, all_sta_df = get_stations_df(network, start_after, network_station_marker,
-#                                                  network_station_color, nonnetwork_station_marker,
-#                                                  nonnetwork_station_color)
-
+            all_sta_df = get_other_stations_df(sta_df, area_margins_in_deg)
             map_df = get_map_df(sta_df, all_sta_df)
 
+            # convert area margins into plotmap map_margins arg:
+            mymapdefaults = dict(mapmargins=", ".join("%sdeg" % str(m)
+                                                      for m in area_margins_in_deg),
+                                 sizes=50, fontsize=8, figmargins="1,2,9,0", legend_ncol=2)
             # building template, see template.rst:
+            # when possible, we put everything in the rst.
             args = dict(
                         title=gen_title(network, sta_df),
                         network_description=get_net_desc(sta_df),
-                        stations_table_csv_content=sta_df.to_csv(sep=",", quotechar='"',
+                        stations_table={'content': sta_df.to_csv(sep=",", quotechar='"',
                                                                  index=False),
-                        stations_map_csv_content=map_df.to_csv(sep=",", quotechar='"',
-                                                                   index=False),
-                        noise_pdfs_dir_path=relpath(noise_pdf_dst, out_path),
-                        noise_pdfs_content=get_noise_pdfs_content(noise_pdf_dst),
+                                        },
+                        stations_map={'content': map_df.to_csv(sep=",", quotechar='"', index=False),
+                                      'options': mapfig.get_defargs(**mymapdefaults)
+                                      },
+                        noise_pdfs={'dirpath': relpath(noise_pdf_dst, out_path),
+                                    'content': get_noise_pdfs_content(noise_pdf_dst)
+                                    },
+                        inst_uptimes=get_figdirective_vars(inst_uptimes_dst, out_path)
                         )
-
-            args.update(get_fig_jinja_vars("inst_uptimes", inst_uptimes_dst, out_path))
 
             with open(template_src, 'r') as opn:
                 txt = opn.read().decode('UTF8')
@@ -303,6 +337,7 @@ def run(network, start_after, out_path, noise_pdf, inst_uptimes, update, mv, no_
     except (IOError, OSError, ValueError) as exc:
         cleanup = not out_path_exists and os.path.isdir(out_path)
         print("Aborted: %s" % str(exc))
+        raise
         return 1
     except:
         cleanup = not out_path_exists and os.path.isdir(out_path)
