@@ -77,7 +77,7 @@ def click_get_margins(ctx, param, value):
 @click.command()
 @click.argument('network')
 @click.argument('start_after')  # , type=int)
-@click.option('-a', '--area_margins', default=0,  callback=click_get_margins,
+@click.option('-a', '--area_margins', default=None,  callback=click_get_margins,
               help=("The search margins (in degrees) relative to the bounding box calculated "
                     "from the network station locations. The new square area (bbox + margins) "
                     "will be used to search for non-network stations to be displayed on the "

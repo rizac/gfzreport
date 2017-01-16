@@ -544,7 +544,7 @@ Here a reference to :numref:`noise_pdfs_figure`
 
 .. _noise_pdfs_figure:
 
-.. images-grid:: here the figure caption
+.. images-grid:: Noise probability density functions for all stations for database holdings
    :dir: {{ noise_pdfs.dirpath | safe  }}
    :align: center
    :header-rows: 1
