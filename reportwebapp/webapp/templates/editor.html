@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Editor</title>
+	<!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap/css/bootstrap.min.css') }}">
+	 -->
+	 <script src="{{url_for('static', filename='js/ace-build/ace.js')}}"></script>
+	 <style>
+	 html, body, div.ace_editor{
+		height:100%;
+	 }
+	 body, html{
+		margin:0;
+		padding: 0;
+	  }
+	 </style>
+</head>
+<body>
+<div id='ace_editor' style="display: block; height:100%"></div>
+
+    <script type="text/javascript">
+        
+        /* ace stuff: */
+	    var editor = ace.edit("ace_editor");
+	    /*editor.setTheme("ace/theme/vibrant_ink");*/
+	    editor.setTheme("ace/theme/clouds");
+	    editor.getSession().setMode("ace/mode/rst");
+	    editor.setValue("{{ source_data | safe }}");
+	    editor.clearSelection();
+	    editor.setOptions({
+  			fontFamily: "'Menlo', 'Ubuntu Mono', 'monospace'",
+  			//fontSize: "10pt",
+  			//showPrintMargin: true,
+			printMarginColumn: 100
+		});
+		
+		/* add listener for the buttons save and save compile.
+		For info see: http://stackoverflow.com/questions/19670178/ace-editor-change-event
+		*/
+
+		/* 
+		   using input event instead of change since it's called with some timeout
+		   Note that the event below IS CALLED ANYWAY AT PAGE LOAD
+		   possibly after setValue above??
+		   In order to know if it's not the first time, we set a global variable:
+		*/
+		/* var _$_editor__UNINIT = true; //the name is weird to avoid conflicts (it's global)
+		//and we will use it below
+		editor.on("input", function() {
+			if (_$_editor__UNINIT){
+        		_$_editor__UNINIT = false; //this is called at page load, just set the flag
+        		//to enter the other if branch (here below) the next time
+        		
+        		 
+        		//   reset the undo manager (for safety, maybe we will use it in future releases)
+        		//   for info, see:
+        		//   http://stackoverflow.com/questions/30986732/reset-the-undo-stack-in-ace-editor
+        		//   the undo manager seems not to be clean at startup
+        		//   probably cause this method is fired with some timeout
+        		//   from editor.setValue
+        		
+        		editor.getSession().setUndoManager(new ace.UndoManager());
+        	}
+			isMod = !editor.session.getUndoManager().isClean();
+			
+			//REMOVE THIS COMMENT
+			//set the angular scope variable and see if it's working
+			//For info on how to access angular scope from within the normal DOM, see:
+			//http://stackoverflow.com/questions/17656244/how-to-change-angularjs-data-outside-the-scope
+			if(window.parent != window && window.parent.angular){
+				var $scope = window.parent.angular.element(window.parent.document.getElementById('save_btn')).scope();
+				$scope.$apply(function() {
+        			$scope.isModified = isMod;
+    			});
+			}
+			
+		}); */
+    </script>

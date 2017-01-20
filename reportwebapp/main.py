@@ -4,7 +4,7 @@ Created on Apr 3, 2016
 @author: riccardo
 '''
 import click
-from reportgen.network.www.webapp import app
+from reportwebapp.webapp import app
 
 
 @click.command()

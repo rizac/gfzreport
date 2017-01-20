@@ -1,0 +1,164 @@
+body, html{
+	margin:0;
+	padding: 0;
+}
+
+div.container{
+	width:100vw;
+	height:100vh;
+	display: flex;
+	flex-direction: column;
+}
+
+div.container > div.header,
+div.container > div.footer{
+	flex: 0 0 auto;
+}
+
+div.container > div.center{
+	flex: 1 1 auto;
+}
+
+
+div.container > div.header,
+div.container > div.center,
+div.container > div.footer{
+	display: flex;
+	flex-direction: row;
+	/*margin:2px 10px;*/  /*topbottom - leftright*/
+}
+
+div.center > div.edit,
+div.center > div.view{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+}
+
+div.center > div.edit > div.center,
+div.center > div.view > div.center{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+}
+
+/* make borders and visually consistent with bootstrap tabs: */
+div.center > div.edit > div.center,
+div.center > div.view > div.center{
+	border: 1px solid #ddd;
+}
+/* bootstrap tabs have already border-bottom, remove top: */
+div.center > div.view > div.center{
+    border-top: 0;
+}
+
+div.center > div.edit > div.center > iframe#edit_iframe,
+div.center > div.edit > div.center > iframe#viewhtml_iframe,
+div.center > div.view > div.center > iframe#viewpdf_iframe{
+	flex: 1 1 auto;
+	border: 0;
+}
+
+div.center > div.edit > div.top,
+div.center > div.view > div.top{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+}
+
+div.center > div.edit > div.top > div.center,
+div.center > div.view > div.top > ul{
+	flex: 1 1 auto;
+}
+
+/* make edit top panel align with bootstrap nav buttons (vertically)*/
+div.center > div.edit > div.top > div.center{
+	padding: 4px 0px;
+}
+
+div.center > div.edit > div.top > div.right{
+	flex: 0 0 auto;
+}
+
+div.center > div.edit > div.top > div.right > button.close{
+	font-size: xx-large;
+    padding-right: 2px;
+    opacity: .33;
+}
+div.center > div.edit > div.top > div.right > button.close:hover{
+	opacity: .66;
+}
+
+div.center > div.view > div.center{
+	position: relative; /* see div.loading_div below */
+}
+
+/* adjusting padding between panels and page padding*/
+div.container{
+	padding: 7px 0px; !important /*override .container in bootstrap*/
+}
+div.center > div.edit, div.center > div.view{
+	padding: 0px 7px;
+}
+/*------------------------------------------------------*/
+
+
+/* loading div and animations: */
+div.center > div.view > div.center > div#loading_div{
+	/* two lines above force children to have the same opacity, so:*/
+	z-index: 100;
+	background-color: rgba(0, 0, 0, .2);
+	position: absolute;
+	top:0;
+	left:0;
+	bottom:0;
+	right: 0;
+	padding:0;
+	margin: 0;
+	text-align:center;
+	display:table-cell;
+    vertical-align:middle;
+}
+
+div#loading_div .msg{
+	top: 50%;
+    position: relative;
+    text-shadow: 0px 0px 4px #FFFFFF;
+}
+
+div#loading_div .waitbar{
+	width: 10%;
+	left: 45%;
+	top: 50%;
+	background-color: rgba(255, 255, 255, .75);
+    height:2em;
+    border: 1px solid #000;
+    overflow:hidden;
+    position: relative;
+    border-radius: 5px;
+}
+
+div#loading_div .waitbar > div {
+	width: 25%;
+    height: 100%;
+    background-color: #337ab7;  /* bootstrap bg-primary*/
+    position: absolute;
+    -webkit-animation-name: waitbar; /* Safari 4.0 - 8.0 */
+    -webkit-animation-duration: 3s; /* Safari 4.0 - 8.0 */
+    -webkit-animation-iteration-count: infinite; /* Safari 4.0 - 8.0 */
+    animation-name: waitbar;
+    animation-duration: 3s;
+    animation-iteration-count: infinite;
+}
+
+/* Safari 4.0 - 8.0 */
+@-webkit-keyframes waitbar {
+    0%   {left:0px}
+    100% {left:100%}
+}
+
+/* Standard syntax */
+@keyframes waitbar {
+    0%   {left:0px}
+    100% {left:100%}
+}

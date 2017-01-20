@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{%- block center %}
+{{ super() }}
+		<ul>
+		{%- for rep in reports %}
+			<li><a href="{{rep}}">{{rep}}</a>
+		{% endfor %}
+		</ul>
+{% endblock %}

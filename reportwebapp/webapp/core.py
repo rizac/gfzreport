@@ -96,20 +96,20 @@ def get_file_ext(build_type):
     return "." + build_type
 
 
-def needs_build(app, network, build='html', est_build_time_in_sec=0):
+def needs_build(app, network, buildtype='html', est_build_time_in_sec=0):
     """
-        Returns True if the source rst file ha been modified AFTER the relative build file
+        Returns True if the source rst file ha been modified AFTER the relative buildtype file
         The source folder (with relative .rst) MUST EXIST, otherwise False is returned
-        (we don't need a build for a non existing file). The build dir needs not to (returns True
+        (we don't need a buildtype for a non existing file). The buildtype dir needs not to (returns True
         in that case)
         :param est_build_time_in_sec: a margin to set when comparing the last modified time
         assuming 30 seconds (the default) the source file has been modified in the 30 seconds
         BEFORE the destination last modified time, True is returned, too
     """
     sourcefile = get_source_path(app, network, app.config['REPORT_FILENAME'] + ".rst")
-    destfile = get_build_path(app, network, 'latex' if build == 'pdf' else build,
+    destfile = get_build_path(app, network, 'latex' if buildtype == 'pdf' else buildtype,
                               app.config['REPORT_FILENAME'] +
-                              get_file_ext(build))
+                              get_file_ext(buildtype))
     if not os.path.isfile(sourcefile):
         return False
     if not os.path.isfile(destfile):
