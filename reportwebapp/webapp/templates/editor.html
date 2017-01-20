@@ -23,6 +23,8 @@
         
         /* ace stuff: */
 	    var editor = ace.edit("ace_editor");
+        // this lets editor.setValue(text, cursorPos) work, at least with v1.2.3:
+	    editor.$blockScrolling = Infinity;
 	    /*editor.setTheme("ace/theme/vibrant_ink");*/
 	    editor.setTheme("ace/theme/clouds");
 	    editor.getSession().setMode("ace/mode/rst");

@@ -53,8 +53,8 @@ div.center > div.view > div.center{
 }
 
 div.center > div.edit > div.center > iframe#edit_iframe,
-div.center > div.edit > div.center > iframe#viewhtml_iframe,
-div.center > div.view > div.center > iframe#viewpdf_iframe{
+div.center > div.view > div.center > iframe#html_iframe,
+div.center > div.view > div.center > iframe#pdf_iframe{
 	flex: 1 1 auto;
 	border: 0;
 }
@@ -161,4 +161,28 @@ div#loading_div .waitbar > div {
 @keyframes waitbar {
     0%   {left:0px}
     100% {left:100%}
+}
+
+div#commits_div{
+	position: relative; /* for commits_div below*/
+	display: inline-block;
+}
+
+div#commits_popup{
+	position:fixed;
+	border: 1px solid #ddd;
+    background-color: white;
+    border-radius: 5px;
+    z-index: 100;
+    overflow: scroll;
+    max-height: 80vh;
+    max-width: 80vw;
+}
+
+div#commits_popup td, div#commits_popup table{
+	border:0px;
+}
+
+div#commits_popup td:not(:first-child){
+	padding-left: 1ex;
 }

@@ -44,6 +44,7 @@ def get_report_static_file(reportdirname, pagetype, static_file_path):
         filepath = os.path.join(get_builddir(reportdirname, pagetype), static_file_path)
         return send_from_directory(os.path.dirname(filepath), os.path.basename(filepath))
 
+
 @app.route('/<reportdirname>/save', methods=['POST'])
 def save_report(reportdirname):
     unicode_text = request.get_json()['source_text']
@@ -53,23 +54,48 @@ def save_report(reportdirname):
         # return Response({"result": last_file_name}, status=200, mimetype='application/json')
 
 
+@app.route('/<reportdirname>/get_commits', methods=['POST'])
+def get_commits_list(reportdirname):
+    commits = get_commits(reportdirname)
+    # note that (editable_page.html) we do not actually make use of the returned response value
+    return jsonify(commits)  # which converts to a Response
+        # return Response({"result": last_file_name}, status=200, mimetype='application/json')
+
+
+@app.route('/<reportdirname>/get_source_rst', methods=['POST'])
+def get_source_rst(reportdirname):
+    commit_hash = request.get_json()['commit_hash']
+    return jsonify(get_source_rst_content(reportdirname, commit_hash, as_js=False))
+
 
 # ============ THIS WILL BE MOVED TO core.py: ================================
 from reportbuild.main import run as reportbuild_run
 import subprocess
 
 
-def get_source_rst_content(reportdirname, as_js=True):
+def get_source_rst_content(reportdirname, commit_hash='HEAD', as_js=True):
     """
         Reads the source rst from the sphinx source file. If the argument is True, returns
         javascript formatted string (e.g., with newlines replaced by "\n" etcetera)
         :return: a UNICODE string denoting the source rst file (decoded with 'utf8')
     """
     filename = get_sourcefile(reportdirname)
+
+    if not commit_hash == 'HEAD':
+        cwd = get_sourcedir(reportdirname)
+        args = dict(cwd=cwd, shell=False)
+        content = subprocess.check_output(['git', 'show',
+                                           '%s:%s' % (commit_hash,
+                                                      os.path.basename(filename))], **args)
+        fpoint = StringIO(content)
+        fpoint.seek(0)
+    else:
+        fpoint = open(filename, "r")
+
     # json dump might do what we want, but it fails with e.g. "===" (rst headers, not javascript
     # equal sign. So this procedure might not be optimal but it works:
     sio = StringIO()
-    with open(filename, "r") as fpoint:
+    try:
         if not as_js:
             return fpoint.read().decode('utf8')
         while True:
@@ -82,8 +108,10 @@ def get_source_rst_content(reportdirname, as_js=True):
             elif c == '\\' or c == '"':
                 sio.write("\\")
             sio.write(c)
-
-    return sio.getvalue().decode('utf8')
+        return sio.getvalue().decode('utf8')
+    finally:
+        if hasattr(fpoint, 'close'):
+            fpoint.close()
 
 
 def _get_reports(basedir):
@@ -211,3 +239,28 @@ def save_rst(reportdirname, unicode_text):
     # but we skip for the moment. Next time we call buildreport git should see that we need
     # a new build
     return True
+
+
+def get_commits(reportdirname):
+    try:
+        commits = []
+        cwd = get_sourcedir(reportdirname)
+        args = dict(cwd=cwd, shell=False)
+
+        # get a separator which is most likely not present in each key:
+        # please no spaces in sep!
+        # Note according to git log, we could provide also %n for newlines in the command
+        # maybe implement later ...
+        sep = "_;<!>;_"
+        pretty_format_arg = "%H{0}%an{0}%ad{0}%s".format(sep)
+        cmts = subprocess.check_output(["git", "log",
+                                        "--pretty=format:%s" % (pretty_format_arg)], **args)
+
+        for commit in cmts.split("\n"):
+            if commit:
+                clist = commit.split(sep)
+                commits.append({'hash': clist[0], 'author': clist[1], 'date':clist[2],
+                                'msg':clist[3]})
+        return commits
+    except OSError:
+        return []
