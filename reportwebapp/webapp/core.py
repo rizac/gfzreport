@@ -4,31 +4,76 @@ Created on Apr 3, 2016
 Core functionalities for the network webapp
 The network web app is a flask app with a config file where we set two variables:
 
+Recall of the file structure:
+Each web app is run
+form a specified 'DATA_PATH' (one for each report type, e.g. 'network',) and a reportdirname
+(a specific report of that type, e.g. 'ZE_2012'). In principle (but this might change),
+reportdirname represents the address after the domain (e.g. www.mydomain/ZE_2012)
+Each view endpoint gets `reportdirname` to identify a specifi file location, as follows:
+
+    FILE STRUCTURE               IN THE CODE REFERRED WITH:
+
+    + <data_path>                app.config['DATA_PATH']
+        |
+        +---- ./source           app.config['SOURCE_PATH']
+        |        |
+        |        + ./<dir1>      reportdirname (if this is the current report)
+        |        | ...
+        |        + ./<dirN>      reportdirname (if this is the current report)
+        |
+        +---- ./build            (app.config['BUILD_PATH'])
+                 |
+                 + ./<dir1>      reportdirname (if this is the current report)
+                 | ...
+                 + ./<dirN>      reportdirname (if this is the current report)
+
+The ./source directory sub-directories identify a specific document/report to be built and hold
+the necessary source files (.rst, images, sphinx config, upload directory ...).
+The report is build in the directory with the same name under ./build
+Note that each build directory is structured as follows:
+
+        +---- ./build            (app.config['BUILD_PATH'])
+                 |
+                 + ./<dir1>      reportdirname (if this is the current report)
+                      |
+                      + ./html   stores the build of html page
+                      + ./latex  stores the build of latex and pdf
+
 
 @author: riccardo
 '''
+import subprocess
 import os
-from flask import render_template
+from cStringIO import StringIO
+from reportwebapp.webapp import app
 from reportbuild.main import run as reportbuild_run
-import shutil
-from StringIO import StringIO
-from flask.helpers import send_from_directory
-from flask import Blueprint
-from flask import request  # , Response
-from flask import jsonify
+from itertools import count
+from werkzeug.utils import secure_filename
 
 
-def get_source_rst_content(app, network, as_js=True):
+def get_sourcefile_content(reportdirname, commit_hash='HEAD', as_js=True):
     """
         Reads the source rst from the sphinx source file. If the argument is True, returns
         javascript formatted string (e.g., with newlines replaced by "\n" etcetera)
         :return: a UNICODE string denoting the source rst file (decoded with 'utf8')
     """
-    filename = get_source_rstfile_path(app, network)
+    filename = get_sourcefile(reportdirname)
+
+    if not commit_hash == 'HEAD':
+        cwd = get_sourcedir(reportdirname)
+        args = dict(cwd=cwd, shell=False)
+        content = subprocess.check_output(['git', 'show',
+                                           '%s:%s' % (commit_hash,
+                                                      os.path.basename(filename))], **args)
+        fpoint = StringIO(content)
+        fpoint.seek(0)
+    else:
+        fpoint = open(filename, "r")
+
     # json dump might do what we want, but it fails with e.g. "===" (rst headers, not javascript
-    # equal sign. So this procedure might not be optimal but it works
+    # equal sign. So this procedure might not be optimal but it works:
     sio = StringIO()
-    with open(filename, "r") as fpoint:
+    try:
         if not as_js:
             return fpoint.read().decode('utf8')
         while True:
@@ -41,277 +86,214 @@ def get_source_rst_content(app, network, as_js=True):
             elif c == '\\' or c == '"':
                 sio.write("\\")
             sio.write(c)
-
-    return sio.getvalue().decode('utf8')
-
-
-def get_root_page(app):
-    """
-        Returns the root page from where to navigate in the network sub-pages.
-        FIXME: this is an old-style server-side way of creating the page, we might exploit
-        angular (ng-repeat command) but for such a simple page it's fine
-    """
-    strio = StringIO()
-    strio.write("""<!DOCTYPE html><html><head>
-    <link rel="stylesheet" href="static/css/bootstrap/css/bootstrap.min.css" />
-    </head><body style='padding:1em'>
-    <div class="panel panel-primary">
-    <div class="panel-heading">
-      <h3 class="panel-title">NETWORK REPORTS</h3>
-    </div>
-    <div class="panel-body"><ul>
-    """)
-    data_root = app.config['SOURCE_PATH']
-    str_ = "No network report currently loaded"
-    if os.path.isdir(data_root):
-        for filename in os.listdir(data_root):
-            if not filename[0] in ("_", ".") and os.path.isdir(os.path.join(data_root, filename)):
-                str_ = ""
-                # path = os.path.join(data_root, dir_)
-                strio.write("\n<li><a href='%s'>%s</a>" % (filename, filename))
-    strio.write(str_)
-    strio.write("""</ul>
-    </div>
-  </div>
-    </body>
-    </html>""")
-    return strio.getvalue()
+        return sio.getvalue().decode('utf8')
+    finally:
+        if hasattr(fpoint, 'close'):
+            fpoint.close()
 
 
-def get_source_rstfile_path(app, network):
-    return get_source_path(app, network, app.config['REPORT_FILENAME'] + ".rst")
+def get_reports(basedir):
+    ret = []
+    for subdir in os.listdir(basedir):
+        if subdir[0] != "_" and os.path.isdir(os.path.join(basedir, subdir)):
+            ret.append('/%s' % subdir)
+    return ret
 
 
-def get_source_path(app, network, *paths):
-    return os.path.join(app.config['SOURCE_PATH'], network, *paths)
+def get_sourcedir(reportdirname):
+    return os.path.join(app.config['SOURCE_PATH'], reportdirname)
 
 
-def get_build_path(app, network, *paths):
-    return os.path.join(app.config['BUILD_PATH'], network, *paths)
+def get_sourcefile(reportdirname):
+    return os.path.join(get_sourcedir(reportdirname), app.config['REPORT_BASENAME'] + ".rst")
 
 
-def get_file_ext(build_type):
-    if build_type == "latex":
-        return ".tex"
-    return "." + build_type
+def get_builddir(reportdirname, buildtype):
+    return os.path.join(app.config['BUILD_PATH'],
+                        reportdirname, 'latex' if buildtype == 'pdf' else buildtype)
 
 
-def needs_build(app, network, buildtype='html', est_build_time_in_sec=0):
-    """
-        Returns True if the source rst file ha been modified AFTER the relative buildtype file
-        The source folder (with relative .rst) MUST EXIST, otherwise False is returned
-        (we don't need a buildtype for a non existing file). The buildtype dir needs not to (returns True
-        in that case)
-        :param est_build_time_in_sec: a margin to set when comparing the last modified time
-        assuming 30 seconds (the default) the source file has been modified in the 30 seconds
-        BEFORE the destination last modified time, True is returned, too
-    """
-    sourcefile = get_source_path(app, network, app.config['REPORT_FILENAME'] + ".rst")
-    destfile = get_build_path(app, network, 'latex' if buildtype == 'pdf' else buildtype,
-                              app.config['REPORT_FILENAME'] +
-                              get_file_ext(buildtype))
-    if not os.path.isfile(sourcefile):
-        return False
-    if not os.path.isfile(destfile):
+def get_buildfile(reportdirname, buildtype):
+    return os.path.join(get_builddir(reportdirname, buildtype), app.config['REPORT_BASENAME'] +
+                        ('.tex' if buildtype == 'latex' else "." + buildtype))
+
+
+def is_build_updated(reportdirname, buildtype):
+    '''Returns True if the current buildtype
+    buildpath = get_builddir(reportdirname, buildtype)
+    '''
+    sourcefile = get_sourcefile(reportdirname)
+    destfile = get_buildfile(reportdirname, buildtype)
+    return os.stat(sourcefile).st_mtime < os.stat(destfile).st_mtime
+
+
+def mark_build_updated(reportdirname, buildtype):
+    # sets the modification time of the build file greater than the current source rst file,
+    # if not already. For safety.
+    if is_build_updated(reportdirname, buildtype):
         return True
-    return os.stat(sourcefile).st_mtime > os.stat(destfile).st_mtime - est_build_time_in_sec
+    destfile = get_buildfile(reportdirname, buildtype)
+    os.utime(destfile, None)  # set to current time, which should be surely greater than
+    # sourcefile mtime. If not, we will run again later the build, too bad but not tragic
+    return is_build_updated(reportdirname, buildtype)
 
 
-def buildreport(app, network, build='html', force=False):
-    """Builds the given report according to the specified network. Returns 0 on success,
-    anything else otherwise. Note that if build_str is 'html', some post-processing is
-    made on the generated file to let jinja2 templating work"""
-    if not force and not needs_build(app, network, build):
-        return 0
-    sourcedir = get_source_path(app, network)
-    builddir = get_build_path(app, network, 'latex' if build == 'pdf' else build)
-    # ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
-    ret = reportbuild_run(sourcedir, builddir, build, "-E")
-    if build == 'html':
-        get_jinja_template(app, network, True)
-    return ret
+def gitcommit(reportdirname):
+    """Issues a git commit and returns True if there where files untracked/modified
+    which where added to the commit. False if the working directory was clean"""
+    cwd = get_sourcedir(reportdirname)
+    args = dict(cwd=cwd, shell=False)
 
+    k = subprocess.call(['git', 'status'], **args)
+    if k == 128:
+        k = subprocess.call(['git', 'init', '.'], **args)
+        if k == 0:
+            k = subprocess.call(['git', 'status'], **args)
 
-def get_jinja_template(app, network, force_rebuild=False):
-    """
-        Returns the template path to be rendered with render_template
-        for a given network.
-        The function first creates a base template (html) from sphinx built html page. The latter
-        has custom hidden commands that are converted to jinja blocks
-        Then we create a report template, based on a pre-defined app template, that will act as
-        child of the base template created above
-        The function returns the report template path, as argument of render_template
-        :param force_rebuild: if False (defaults to True), then the report template path is just
-        returned (relative to
-        withour creating / overwriting any new file (the file must exist of course, and that's not
-        checked for in case)
-    """
+    if k != 0:
+        raise ValueError("Unable to run git on the specified folder '%s'. "
+                         "Please contact the administrator" % cwd)
 
-    report_template_name = "%s.html" % network
-    if not force_rebuild:
-        return report_template_name
-
-    # CREATE THE BASE TEMPLATE FOR THE GIVEN NETWORK:
-    # read the sphinx html page, and replace custom comments with jinja blocks:
-    sphinx_html_path = get_build_path(app, network, "html",
-                                      app.config['REPORT_FILENAME'] + get_file_ext("html"))
-    # replace custom comments with jinja blocks:
-    buf = StringIO()
-    str_start = "<!--EDITABLE_PAGE %"
-    str_end = "% EDITABLE_PAGE-->"
-    with open(sphinx_html_path, 'r') as opn:
-        for line in opn:
-            if str_start in line:
-                # use the in operator, faster, and then "waste" time only if its' true (seldom)
-                line = line.strip()
-                id0, id1 = line.find(str_start), line.rfind(str_end)
-                if id0 == 0 and id1 == len(line) - len(str_end):
-                    line = "{%" + line[len(str_start):id1] + "%}"
-            buf.write(line)
-
-    # write templates to file (create dir if it does not exist):
-    # we will write a
-    # 1) base template
-    # 2) report template, inheriting from base
-    # 1) was just created, 2) is copied with a slight modification from the app template
-    networks_templates_path = app.config['NETWORKS_TEMPLATES_PATH']
-    if not os.path.isdir(networks_templates_path):
-        os.makedirs(networks_templates_path)
-
-    # write buf to the "base" template for the given network
-    base_template_name = "%s.base.html" % network
-    base_template_path = os.path.join(networks_templates_path, base_template_name)
-    with open(base_template_path, 'w') as fd:
-        buf.seek(0)
-        shutil.copyfileobj(buf, fd)
-
-    # now copy the app template path to our report template html.
-    # child template, from this dir (or whatever) to the templates dir
-    report_template_path = os.path.join(networks_templates_path, report_template_name)
-
-    # NOTE: as we assigned a particular templates folder in each blueprint (see
-    # register_blueprint) the first header {% extends [base_template_name] %} in report
-    # template path MUST point to the correct path, i.e. relative to networks_templates_path.
-    # BUT this is simply report_template_name.
-    # So, copy file:
-    app_template_path = app.config["APP_TEMPLATE_PATH"]
-    with open(app_template_path, 'r') as _src:
-        with open(report_template_path, 'w') as _dst:
-            _dst.write("{% extends \"" + base_template_name + "\" %}\n")
-            _dst.write(_src.read())
-
-    return report_template_name
-
-
-def copy_source_rst_to_version_folder(app, network):
-    source_file = get_source_rstfile_path(app, network)
-    if not os.path.isfile(source_file):
+    # check the output:
+    k = subprocess.check_output(['git', 'status'], **args)
+    if 'nothing to commit' in k or ' working directory clean' in k:
+        # we might have nothing to commit BUT outdated build dir
         return False
-    dest_path = os.path.join(app.config['RST_VERSIONS_PATH'], network)
-    if not os.path.isdir(dest_path):
-        os.makedirs(dest_path)
-    dest_file = os.path.join(dest_path, "%s.rst" % str(os.stat(source_file).st_mtime))
-    shutil.copy2(source_file, dest_file)
-    return os.path.basename(dest_file)
+    else:
+        k = subprocess.call(['git', 'add', '-A', '.'], **args)
+        # the dot is to commit only the working tree. We are on the source root, is just for safety
+        if k == 0:
+            k = subprocess.call(['git', 'commit', '-am', '"committed from webapp"'], **args)
+            if k != 0:
+                raise ValueError("Unable to run commit -am . on the specified folder '%s'. "
+                                 "Please contact the administrator" % cwd)
+        else:
+            raise ValueError("Unable to run git -A . on the specified folder '%s'. "
+                             "Please contact the administrator" % cwd)
+    return True
 
 
-def get_network_page(app, network, force_build=False, force_templating=True):
-    sourcedir = get_source_path(app, network)
-    if not os.path.isdir(sourcedir):  # FIXME: better handling!
-        return "Network not found"
-
-    ret = buildreport(app, network, "html", force=force_build)
-    if ret != 0:
-        return "Build failed, please report to the administrator"  # FIXME: better handling!
-
-    # if needsbuild we already updated templates
-    jinja_template_path = get_jinja_template(app, network,
-                                             force_rebuild=force_templating)
-
-    # note that we set the template dir in register blueprint!
-    #     ret = render_template(app.config['REPORT_FILENAME'] + ".html",
-    #                           source_data=get_source_rst(app, network))
-
-    ret = render_template(jinja_template_path, source_data=get_source_rst_content(app, network),
-                          network_name=network)
-    return ret
+def needs_build(reportdirname, buildtype, commit_if_needed=False):
+    """
+        Returns True if the git repo has uncommitted changes or the source rst file last
+        modification time (LMT) is greater or equal than the destination file LMT
+        (see `is_build_updated`).
+        Calls `git` (via the `subprocess` module)
+        :param reportdirname: the report dirrecotory name. Its full path will be retrieved
+        via app config settings
+        :param commit_if_needed: does what it says. If True (False by default) and no error is
+        raised, then needs_build called again with the same arguments returns False.
+        :raise: ValueError if git complains
+    """
+    committed = gitcommit(reportdirname)
+    if committed:  # working directory was not clean
+        return True
+    # nothing to commit but we might have an outdated build dir. Check file last modification time:
+    return not is_build_updated(reportdirname, buildtype)
 
 
-def save_rst(app, network, unicode_text):
-    last_file_name = copy_source_rst_to_version_folder(app, network)
+def build_report(reportdirname, buildtype, force=False):
+    """Builds the given report according to the specified network. Returns
+    the tuple reportfile (string), hasChanged (boolean)"""
+    if not needs_build(reportdirname, buildtype):
+        if not force:
+            return get_buildfile(reportdirname, buildtype), False
+    sourcedir = get_sourcedir(reportdirname)
+    builddir = get_builddir(reportdirname, buildtype)
+    # ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
+    ret = reportbuild_run(sourcedir, builddir, buildtype, "-E")
+#     if ret != 0:
+#         raise ValueError('Error building the report, please contact the administrator')
+    mark_build_updated(reportdirname, buildtype)
+    return get_buildfile(reportdirname, buildtype), True
 
-    with open(get_source_rstfile_path(app, network), 'w') as fopen:
+
+def save_sourcefile(reportdirname, unicode_text):
+    """Save the source rst file and returns `get_commits()`"""
+    filepath = get_sourcefile(reportdirname)
+
+    with open(filepath, 'w') as fopen:
         fopen.write(unicode_text.encode('utf8'))
 
-    return last_file_name
+    gitcommit(reportdirname)
+    # we return the new commits
+    return get_commits(reportdirname)
 
 
-def get_pdf(app, network):
-    ret = buildreport(app, network, "pdf", force=False)
-    # FIXME: ret seems to return 1 if pdf raises exceptions
-    # However, we run pdf with interaction=False, so in most cases we might
-    # want to just know if the pdf is there
-    # This has to be fixed somehow in the future
-    # (e.g., show pdf BUT warn if pdflatex did not return 0)
-    ret = 0  # FIXME: horrible hack (for the moment) in order to proceed
-    if ret == 0:
-        builddir = get_build_path(app, network, "latex")
-        buildfile = os.path.join(builddir, app.config['REPORT_FILENAME'] + ".pdf")
-    if ret != 0 or not os.path.isfile(buildfile):
-        raise ValueError("Unable to locate pdf file. Probably this is due to an "
-                         "internal server error")
-    return buildfile
+def get_commits(reportdirname):
+    try:
+        commits = []
+        cwd = get_sourcedir(reportdirname)
+        args = dict(cwd=cwd, shell=False)
+
+        # get a separator which is most likely not present in each key:
+        # please no spaces in sep!
+        # Note according to git log, we could provide also %n for newlines in the command
+        # maybe implement later ...
+        sep = "_;<!>;_"
+        pretty_format_arg = "%H{0}%an{0}%ad{0}%s".format(sep)
+        cmts = subprocess.check_output(["git", "log",
+                                        "--pretty=format:%s" % (pretty_format_arg)], **args)
+
+        for commit in cmts.split("\n"):
+            if commit:
+                clist = commit.split(sep)
+                commits.append({'hash': clist[0], 'author': clist[1], 'date': clist[2],
+                                'msg': clist[3]})
+        return commits
+    except OSError:
+        return []
 
 
-def register_blueprint(app, network):
-    # from http://flask.pocoo.org/docs/0.11/blueprints/:
-    # If you want the blueprint to expose templates you can do that by providing the
-    # template_folder parameter to the Blueprint constructor:
-
-    # templates_dir = os.path.join(app.config['NETWORK_DATA_DIR'])
-
-    # wait! ... templates_dir is NOT the templates directory! in principle, we could
-    # and then call render_template with just the html name. PROBLEM is, that we have the
-    # same name in the templates_dir within all network folders, so Flask actually will
-    # mess up the rendering cause for render_template('index.html',..) will search the first file
-    # matching index.html, which might be that of network N1 or N2 etcetera.
-    # So we need to put templates_dir as the root of all networks folder
-    # and then call render_template('NETWORK/path/to/index.html')
-    netw_bp = Blueprint(network, __name__, url_prefix='/'+network,
-                        template_folder=app.config['NETWORKS_TEMPLATES_PATH'])
-
-    @netw_bp.route('')
-    @netw_bp.route('/')
-    def index():
-        return get_network_page(app, network)
-    # netw_bp.add_url_rule("/", 'index', index)
-
-    @netw_bp.route('/<path:root>/<path:filepath>')
-    def static(root, filepath):
-        if root == "static":
-            filepath = os.path.join(app.static_folder, filepath)
-            return send_from_directory(os.path.dirname(filepath), os.path.basename(filepath))
-        return send_from_build_directory(app, network, os.path.join(root, filepath))
-
-    @netw_bp.route('/save', methods=['POST'])
-    def save():
-        unicode_text = request.get_json()['text']
-        last_file_name = save_rst(app, network, unicode_text)
-        # note that (editable_page.html) we do not actually make use of the returned response value
-        return jsonify({"last_version_filename": last_file_name})  # which converts to a Response
-        # return Response({"result": last_file_name}, status=200, mimetype='application/json')
-
-    @netw_bp.route('/pdf', methods=['GET'])
-    def return_pdf():
-        buildfile = get_pdf(app, network)
-        return send_from_directory(os.path.dirname(buildfile), os.path.basename(buildfile),
-                                   cache_timeout=0)
-
-    app.register_blueprint(netw_bp)
+def secure_upload_filepath(reportdirname, filename):
+    if filename == '':
+        raise ValueError('No selected file')
+    if allowed_upload_file(filename):
+        s_filename = secure_filename(filename)
+        # create upload dir if it does not exists:
+        upload_dir = os.path.join(app.config['SOURCE_PATH'], reportdirname,
+                                  app.config['UPLOAD_DIR_BASENAME'])
+        if not os.path.isdir(upload_dir):
+            os.makedirs(upload_dir)
+            if not os.path.isdir(upload_dir):
+                raise ValueError(("Unable to create upload directory $SOURCE_PATH/"
+                                  "%s/%s") % (reportdirname, app.config['UPLOAD_DIR_BASENAME']))
+        # assure file does not exist:
+        for cnt in count(start=1):
+            filepath = os.path.join(upload_dir, s_filename)
+            if not os.path.exists(filepath):
+                break
+            f, e = os.path.splitext(s_filename)
+            s_filename = "%s_%d%s" % (f, cnt, e)
+        return filepath
+    raise ValueError("Cannot save '%s': invalid extension" % filename)
 
 
-def send_from_build_directory(app, network, filepath):
-    builddir = get_build_path(app, network, 'html')
-    dirname = os.path.dirname(filepath)
-    filename = os.path.basename(filepath)
-    return send_from_directory(os.path.join(builddir, dirname), filename)
+def allowed_upload_file(filename):
+    return os.path.splitext(filename)[1][1:].lower() in app.config['UPLOAD_ALLOWED_EXTENSIONS']
+
+
+def get_fig_directive(reportdirname, fig_filepath, fig_label=None, fig_caption=None):
+    """Returns the figure directive text from a given report directory name identifying the
+    current report, a figure filepath, optional label and caption
+    :param reportdirname: (string) the basename of the directory identifying the report
+    name.
+    :param fig_filepath: (string) the path of the figure to be displayed. This method does not
+    check for existence of the file. The directive will have a file path relative to the Rst file
+    (whose path is set according to the current Flask app configuration)
+    :param fig_label:  (string or None) an optional label for referncing the figure via
+    sphinx `:numerf:`. None, empty or only space strings will be ignored (no label)
+    :param fig_caption:  (string or None) an optional caption. Indentation will be automatically
+    added to the caption in the directive. None, empty or only space strings will be ignored
+    (no label)
+    """
+    if fig_caption:  # indent:
+        fig_caption = fig_caption.strip()
+        if fig_caption:
+            fig_caption = fig_caption.replace("\n", "\n   ")
+    if fig_label:  # newlines:
+        fig_label = fig_label.strip()
+        if fig_label:
+            fig_label = ".. _%s:\n\n" % fig_label
+    fname = os.path.relpath(fig_filepath, get_sourcedir(reportdirname))
+    return "%s.. figure:: ./%s\n\n   %s" % (fig_label, fname, fig_caption)

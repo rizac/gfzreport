@@ -15,14 +15,14 @@
 	<script src="{{ url_for('static', filename='js/angular.min.js') }}"></script>
 </head>
 <body>
-<div class='container' id='MyApp' ng-app="MyApp" ng-controller="MyController">
-	<div class='header'>
+<div class='container col-container' id='MyApp' ng-app="MyApp" ng-controller="MyController">
+	<div class='pos-top row-container'>
 		{% block header %}{% endblock %}
 	</div>
-	<div class='center'>
+	<div class='pos-center row-container'>
 		{% block center %}{% endblock %}
 	</div>
-	<div class='footer'>
+	<div class='pos-bottom row-container'>
 		{% block footer %}{% endblock %}
 	</div>
 </div>

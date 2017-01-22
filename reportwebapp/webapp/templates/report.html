@@ -6,73 +6,37 @@
 
 {%- block center %}
 {{ super() }}
-<div class=edit  ng-show='editing'>
-	<div class=top>
-		<div class=center>
-			<button class="btn btn-primary"  ng-disabled="!modified" 
-				ng-click="save();" >Save</button>
-			<!-- <span ng-show="commits">Current revision: {{ '{{' }} currentCommit() == null ? 'N/A' : currentCommit().hash {{ '}}' }}</span> -->
-			<div ng-show="commits" id='commits_div'>
-				<button ng-click="showHistory(true)" ng-disabled="modified" 
-					class="btn btn-primary">history</button>
-				<div id='commits_popup' class=alert ng-show="historyIsShowing">
-					<a href="#" ng-click="showHistory(false)" class="close" data-dismiss="alert" aria-label="close">&times;</a>
-					<table>
-					<tr ng-repeat="c in commits" >
-						<td>
-						<pre ng-class="{'bg-success' : currentCommit().hash==c.hash}">
-CC: {{ '{{' }} currentCommit().hash {{ '}}' }}
-hash: {{ '{{' }} c.hash {{ '}}' }}
-date: {{ '{{' }} c.date {{ '}}' }}
-{{ '{{' }} c.msg {{ '}}' }}
-author: {{ '{{' }} c.author {{ '}}' }}</pre></td>
-						<td>
-						<button class="btn-sm btn-primary" ng-show="currentCommit().hash!=c.hash" 
-							ng-click="currentCommit(c.hash)">view</button>
-						<span ng-show="currentCommit().hash==c.hash">(current)</span>
-		  				</td>
-		  			</tr>
-		  			</table>	
-				</div>
-			</div>
+<div class="edit pos-center col-container"  ng-show='editing'>
+	<div class="pos-top row-container">
+		<div class=pos-center>
+			<button class="btn btn-primary"  ng-disabled="!modified" ng-click="save();" >Save</button>
+			<button ng-click="popups.insertFig=true" class="btn btn-primary">add figure</button>
+			<button ng-click="popups.commits=true" ng-disabled="modified" class="btn btn-primary">revisions</button>
 		</div>
-		<div class=right>
+		<div class=pos-right>
 			<button type="button" class="close" aria-label="Close edit panel" ng-click="toggleEdit()">
 		  		<span aria-hidden="true">&times;</span>
 			</button>
 		</div>
 	</div>
-	<div class=center>
-		<iframe id='edit_iframe' class='center'></iframe>
+	<div class="pos-center row-container">
+		<iframe id='edit_iframe' class='pos-center'></iframe>
 	</div>
 </div>
-<div class=view>
-	<div class=top>
-		<ul class="nav nav-tabs">
-	  		<!-- <li ng-class="{'active' : view=='html'}">
-	  			<a href ng-click='setView("html")'>
-	  				{{ '{{' }} 'Html' + (view=='html' && needsRefresh ? ' (Click to refresh)' : '') {{ '}}' }}
-	  			</a>
-	  		</li>
-	  		<li ng-class="{'active' : view=='pdf'}">
-	  			<a href ng-click='setView("pdf")'>
-	  				{{ '{{' }} 'Pdf' + (view=='pdf' && needsRefresh ? ' (Click to refresh)' : '') {{ '}}' }}
-	  			</a>
-	  		</li> -->
-	  		
+<div class="view pos-center col-container">
+	<div class=pos-top>
+		<ul class="nav nav-tabs pos-center">
 	  		<li ng-repeat="v in ['html', 'pdf']" ng-class="{'active' : view==v}" ng-disabled='loading'>
 	  			<a href ng-click='setView(v)' ng-disabled='loading'>
 	  				{{ '{{' }} v + (view==v && needsRefresh[v] ? ' (Click to refresh)' : '') {{ '}}' }}
 	  			</a>
-	  		</li>		
-	  		
-	  		
+	  		</li>
 	  		<li ng-show="!editing">  <!-- ng-class="{'active' : editing}"> -->
 	  			<a href ng-click="toggleEdit()">Edit source</a>
 	  		</li>
 		</ul>	
 	</div>
-	<div class=center>
+	<div class="pos-center row-container">
 		<div ng-show='loading' id='loading_div'>
 			<div class=waitbar>
 				<div></div>
@@ -86,11 +50,70 @@ author: {{ '{{' }} c.author {{ '}}' }}</pre></td>
 		So old school for the moment (too much effort lazily create references to the iframe in
 		the controller):
 		-->
-		<iframe ng-show="view=='pdf'" id='pdf_iframe'></iframe>
-		<iframe ng-show="view=='html'" id='html_iframe'></iframe>
+		<iframe ng-show="view=='pdf'" id='pdf_iframe' class='pos-center'></iframe>
+		<iframe ng-show="view=='html'" id='html_iframe' class='pos-center'></iframe>
 	</div>
 </div>
 
+<!-- ADDING POPUPS DIVS. As they will be set with position fixed they can be enywhere,
+let's put them here for readibility-->
+
+<!-- image upload: -->
+<div id='upload_img_popup' class="alert popup" ng-show="popups.insertFig">
+	<button ng-click="popups.insertFig=false" class="close" data-dismiss="alert"
+		aria-label="close">&times;
+	</button>
+	<div>
+		<form method=post enctype=multipart/form-data id=upload-file>
+			<div class='form-group'>
+  				<label for="flbl_">Label</label> <span> to reference the figure in the document 
+  						<span ng-show="popups.figLabel && popups.figLabel.indexOf(' ')==-1">type  
+  						<code>{{ '{{' }} ':numref:`' + popups.figLabel + '`' {{ '}}' }}</code>
+  						</span>
+  					</span>
+				<input ng-model="popups.figLabel" id="flbl_" type=text name=label class=form-control>
+  			</div>
+  			<div class='form-group'>
+  				<label for="flupld_">Image</label> <span> note: file might be renamed on server</span>
+				<input id="flupld_" type=file name=file class=form-control>
+  			</div>
+  			<div class='form-group'>
+   				<label for="figcapt_">Caption</label>
+ 				<textarea id="figcapt_" type=text name=caption class=form-control></textarea>
+ 			</div>
+     		<div class=form-group style='display:inline-block'>
+				The figure markup block will be added at the end of the document: you can always cut/paste it
+				anywhere <i>including</i> the first and last empty lines <i>which are part of the block</i>.
+				You can also change the caption and label later in the document.
+			</div> 
+			<button style='float:right' ng-disabled="popups.figLabel.indexOf(' ')>=0" class='btn btn-primary' ng-click='addFigure()'>Add</button>
+		</form>
+	</div>	
+</div> 
+
+<!-- commits div: -->
+<div id='commits_popup' class="alert popup" ng-show="popups.commits">
+	<button ng-click="popups.commits=false" class="close" data-dismiss="alert"
+		aria-label="close">&times;
+	</button>
+	<div>
+		<table>
+		<tr ng-repeat="c in commits.data" >
+			<td>
+			<pre ng-class="{'bg-success' : currentCommit().hash==c.hash}">
+hash: {{ '{{' }} c.hash {{ '}}' }}
+date: {{ '{{' }} c.date {{ '}}' }}
+{{ '{{' }} c.msg {{ '}}' }}
+author: {{ '{{' }} c.author {{ '}}' }}</pre></td>
+			<td>
+			<button class="btn-sm btn-primary" ng-show="currentCommit().hash!=c.hash" 
+				ng-click="currentCommit(c.hash)">view</button>
+			<span ng-show="currentCommit().hash==c.hash">(current)</span>
+ 				</td>
+ 			</tr>
+ 		</table>
+	</div>	
+</div>
 
 
 {% endblock %}
