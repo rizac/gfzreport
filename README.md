@@ -1,4 +1,4 @@
-# gfz-reportgen
+# gfzreport
 A sphinx-based report generation for use at gfz
 
 ## Installation
@@ -36,8 +36,15 @@ with this program)
 ### Install this python package
 
 Download the reportgen git repository in a local folder, cd into it and install this package:
-	
-```pip install .``` (with -e option as editable, if needed)
+
+
+```pip install -r ./requirements.txt```
+
+(or if you want to install also test packages `pip install -r ./requirements.dev.txt`)
+
+and then:
+
+```pip install .``` (with -e option as editable, if desired)
 
 Now you should have all python packages installed, *except* [basemap](https://github.com/matplotlib/basemap) (python library to plot on map projections with	coastlines and political boundaries using matplotlib):
 
