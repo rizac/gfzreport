@@ -26,11 +26,9 @@ from collections import defaultdict as defdict, OrderedDict as odict
 from gfzreport.templates.network.core.utils import relpath, read_network, read_stations, todf,\
     get_query
 from itertools import product, cycle, izip
-from gfzreport.build.map import getbounds
 from lxml.etree import XMLSyntaxError
 from collections import defaultdict
-# from obspy.core.inventory.inventory import Inventory
-# Inventory
+from gfzreport.sphinxbuild.map import getbounds
 
 
 def get_network_stations_df(network, start_after_year):

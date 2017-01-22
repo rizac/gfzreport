@@ -1,6 +1,6 @@
 var app = angular.module('MyApp', []);
 app.controller('MyController', function ($scope, $http, $window) {
-
+	$scope._init = true; //basically telling setView to update the commits only the first time
 	$scope._VIEWS = ['html', 'pdf'];
 	$scope.view = null;  // the current view null for the moment
 	
@@ -22,6 +22,11 @@ app.controller('MyController', function ($scope, $http, $window) {
 			$scope.$apply(function() {
 				$scope.needsRefresh[_view] = false;
 				$scope.loading = false;
+				if ($scope._init){  // we need to update commits only the first load, after it 
+					//will be managed by saving the document from within the app
+					$scope._init = false;
+					$scope.getCommits();
+				}
 			});
 		};
 		$scope.frames[_view] = frame;
@@ -113,15 +118,12 @@ app.controller('MyController', function ($scope, $http, $window) {
 	};
 	
 	$scope.commits = {data:[], selIndex: -1, _selIndexRemainder: -1};
-	$scope.getCommits = function(callback){
+	$scope.getCommits = function(){
 		$http.post(
 				'get_commits', JSON.stringify({}), {headers: { 'Content-Type': 'application/json' }}
 			).then(
 	    		function(response){ // success callback
 	    			$scope._setCommits(response.data || []);
-	    			if (callback){
-	    				callback();
-	    			}
 	    		},
 	    		function(response){ // failure callback
 	    			console.log("failed getting commits");  //FIXME: handle failure (weel this should be silently ignored)
@@ -199,22 +201,23 @@ app.controller('MyController', function ($scope, $http, $window) {
 	    		// $scope.aceEditor.setValue(response.data, 1);  // 1: moves cursor to the start
 	    		var text = response.data;
 	    		var editor = $scope.aceEditor;
+	    		var edSession = editor.session;
 	    		// detect position of end:
-	    		var row = editor.session.getLength() - 1
-	    		var column = editor.session.getLine(row).length // or simply Infinity
-	    		// this selects the end of text:
-	    		// editor.gotoLine(row + 1, column)
-	    		// Note that gotoLine scrolls selection into view with an animation,
-	    		// If you do not want that you can use
-	    		//editor.selection.moveTo(row, column)
-	    		var session = $scope.aceEditor.session;
-	    		session.insert({
-	    		   row: session.getLength(),
+	    		var row = edSession.getLength() - 1
+	    		var column = edSession.getLine(row).length // or simply Infinity
+	    		edSession.insert({
+	    		   row: edSession.getLength(),
 	    		   column: 0
 	    		}, "\n\n" + text + "\n\n");
 	    		// select added text:
-	    		editor.selection.moveCursorTo(row+1, 0, false);
-	    		editor.selection.selectFileEnd();
+	    		var edSelection = editor.selection;
+	    		edSelection.setSelectionAnchor(row+1, 0);
+	    		var row = edSession.getLength() - 1
+	    		var column = edSession.getLine(row).length // or simply Infinity
+	    		edSelection.selectTo(row, column);
+	    		
+	    		// editor.selection.moveCursorTo(row+1, 0, false);
+	    		// editor.selection.selectFileEnd();
 	    		editor.renderer.scrollSelectionIntoView();
 	    	},
 	    	function(response){ // failure callback
@@ -223,10 +226,6 @@ app.controller('MyController', function ($scope, $http, $window) {
 	    );
 	}
 	
-	$scope.getCommits(function(){
-		$scope.setView('html');
-	});
-	
-	
-	
+	$scope.setView('html');
+
 });

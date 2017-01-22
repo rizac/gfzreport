@@ -15,8 +15,8 @@ from jinja2 import Environment
 from gfzreport.templates.network.core.utils import makedirs, copyfiles, relpath
 from gfzreport.templates.network.core import get_noise_pdfs_content, gen_title,\
     get_net_desc, get_network_stations_df, get_other_stations_df, get_map_df, get_figdirective_vars
-from gfzreport.build.map import parse_margins
-from gfzreport.build.core.extensions import mapfig
+from gfzreport.sphinxbuild.map import parse_margins
+from gfzreport.sphinxbuild.core.extensions import mapfig
 
 
 def click_path_type(isdir=False):

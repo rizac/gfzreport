@@ -46,7 +46,7 @@ import subprocess
 import os
 from cStringIO import StringIO
 from gfzreport.web.app import app
-from gfzreport.build.main import run as reportbuild_run
+from gfzreport.sphinxbuild.main import run as reportbuild_run
 from itertools import count
 from werkzeug.utils import secure_filename
 from subprocess import CalledProcessError

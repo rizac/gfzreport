@@ -103,7 +103,7 @@ let's put them here for readibility-->
 			<pre ng-class="{'bg-success' : currentCommit().hash==c.hash}">
 hash: {{ '{{' }} c.hash {{ '}}' }}
 date: {{ '{{' }} c.date {{ '}}' }}
-{{ '{{' }} c.msg {{ '}}' }}
+message: {{ '{{' }} c.msg {{ '}}' }}
 author: {{ '{{' }} c.author {{ '}}' }}</pre></td>
 			<td>
 			<button class="btn-sm btn-primary" ng-show="currentCommit().hash!=c.hash" 
