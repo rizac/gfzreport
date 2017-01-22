@@ -12,34 +12,11 @@ import os
 import sys
 import shutil
 from jinja2 import Environment
-from reportgen.network.generator.core.utils import makedirs, copyfiles, relpath
-from reportgen.network.generator.core import get_noise_pdfs_content, gen_title,\
+from gfzreport.templates.network.core.utils import makedirs, copyfiles, relpath
+from gfzreport.templates.network.core import get_noise_pdfs_content, gen_title,\
     get_net_desc, get_network_stations_df, get_other_stations_df, get_map_df, get_figdirective_vars
-from reportbuild.map import parse_margins
-from reportbuild.core.extensions import mapfig
-
-
-# def get_stations_df3(network, start_after, network_station_marker, network_station_color,
-#                     nonnetwork_station_marker, nonnetwork_station_color):
-# 
-#     network_stations = get_network_stations(network, start_after)
-#     all_stations = get_all_stations_within(network_stations, network, start_after)
-# 
-#     # add columns
-#     all_stations['Marker'] = nonnetwork_station_marker
-#     all_stations['Color'] = nonnetwork_station_color
-#     # write markers for network stations:
-#     all_stations.loc[all_stations['#Network'] == network, 'Marker'] = network_station_marker
-#     all_stations.loc[all_stations['#Network'] == network, 'Color'] = network_station_color
-# 
-#     # rename nonnetwork stations to the names provided in network stations:
-#     new_cols = ['Name', 'Lat', 'Lon', 'Marker', 'Color']
-#     all_stations = all_stations.rename(columns={'Station': new_cols[0],
-#                                                 'Latitude': new_cols[1],
-#                                                 'Longitude': new_cols[2],
-#                                                 })[new_cols]
-# 
-#     return network_stations, all_stations
+from gfzreport.build.map import parse_margins
+from gfzreport.build.core.extensions import mapfig
 
 
 def click_path_type(isdir=False):
@@ -57,9 +34,8 @@ def click_get_outdir(ctx, param, value):
         if network is None:
             raise click.BadParameter("optional '%s' missing, but no network specified"
                                      % param.human_readable_name)
-        from reportgen.network.www import config
-        value = config.SOURCE_PATH
-        # value = os.path.abspath(os.path.join(path, network))
+        from gfzreport.web import config
+        value = os.path.join(config.NETWORK.DATA_PATH, 'source')  # FIXME: better handling?!!
 
     return value
 
@@ -245,7 +221,7 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
         # defining paths:
         _this_dir = os.path.dirname(__file__)
         template_src = os.path.abspath(os.path.join(_this_dir, "template.rst"))
-        config_src = os.path.abspath(os.path.join(_this_dir, "config"))
+        config_src = os.path.abspath(os.path.join(_this_dir, "sphinx"))
 
         _data_outdir = os.path.join(out_path, "data")
         noise_pdf_dst = os.path.join(_data_outdir, "noise_pdf")
@@ -337,7 +313,6 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
     except (IOError, OSError, ValueError) as exc:
         cleanup = not out_path_exists and os.path.isdir(out_path)
         print("Aborted: %s" % str(exc))
-        raise
         return 1
     except:
         cleanup = not out_path_exists and os.path.isdir(out_path)

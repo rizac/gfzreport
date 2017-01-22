@@ -36,11 +36,11 @@ import os
 extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
-    'reportbuild.core.extensions.setup',  # this is the custom one. MUST BE FIRST!
-    'reportbuild.core.extensions.mapfig',  # this is the custom one
-    'reportbuild.core.extensions.imggrid',  # this is the custom one
-    'reportbuild.core.extensions.tabularrows',  # this is the custom one
-    'reportbuild.core.extensions.lateximgs',  # this is the custom one
+    'gfzreport.build.core.extensions.setup',  # this is the custom one. MUST BE FIRST!
+    'gfzreport.build.core.extensions.mapfig',  # this is the custom one
+    'gfzreport.build.core.extensions.imggrid',  # this is the custom one
+    'gfzreport.build.core.extensions.tabularrows',  # this is the custom one
+    'gfzreport.build.core.extensions.lateximgs',  # this is the custom one
 ]
 
 # Add any paths that contain templates here, relative to this directory.

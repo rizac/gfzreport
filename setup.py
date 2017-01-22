@@ -23,7 +23,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='reportmanager',
+    name='gfzreport',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
@@ -31,15 +31,15 @@ setup(
     version='0.1.1',
 
     description=('A python project to generate html / latex / pdf (via pdflatex) reports using'
-                ' the sphinx library'),
+                ' the sphinx library to be used internally at GFZ'),
 
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/rizac/reportmanager',
+    url='https://github.com/rizac/gfzreport',
 
     # Author details
-    author='section2.4',
+    author='',
     author_email='',  # FIXME: what to provide?
 
     # Choose your license
@@ -124,10 +124,10 @@ setup(
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # pip to create the appropriate form of executable for the target platform.
-    entry_points={
-        'console_scripts': [
-            'reportbuild=reportbuild.main:main',
-            'network-reportgen=reportgen.network.generator.main:main'
-        ],
-    },
+#     entry_points={
+#         'console_scripts': [
+#             'reportbuild=gfzreport.build.main:main',
+#             'network-reportgen=gfzreport.templates.network.generator.main:main'
+#         ],
+#     },
 )

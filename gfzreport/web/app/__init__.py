@@ -9,7 +9,7 @@ app = Flask(__name__)
 # app.config.from_object('config')
 if 'REPORT' not in os.environ or not os.environ['REPORT']:
     raise ValueError(("You need to set the environment variable REPORT "
-                      "as a valid key of the REPORTS dict defined in config.py"))
+                      "as a valid config class name defined in config.py"))
 else:
     app.config.from_object('config.' + os.environ['REPORT'])
     if not os.path.isdir(app.config['DATA_PATH']):
@@ -20,4 +20,4 @@ app.config['BUILD_PATH'] = os.path.abspath(os.path.join(app.config['DATA_PATH'],
 app.config['SOURCE_PATH'] = os.path.abspath(os.path.join(app.config['DATA_PATH'], "source"))
 
 # this has to come AFTER app ABOVE
-from reportwebapp.webapp import views  # nopep8
+from gfzreport.web.app import views  # nopep8

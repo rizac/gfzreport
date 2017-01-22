@@ -4,7 +4,7 @@ Created on Apr 3, 2016
 @author: riccardo
 '''
 import click
-from reportwebapp.webapp import app
+from gfzreport.web.app import app
 
 
 @click.command()

@@ -4,10 +4,10 @@ Created on Apr 3, 2016
 @author: riccardo
 '''
 import os
-from reportwebapp.webapp import app
 from flask.templating import render_template
 from flask import send_from_directory, request, jsonify  # redirect, url_for
-from reportwebapp.webapp.core import get_reports, build_report, get_sourcefile_content, \
+from gfzreport.web.app import app
+from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
     get_fig_directive
 

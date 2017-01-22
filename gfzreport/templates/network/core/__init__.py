@@ -19,14 +19,14 @@ import pandas as pd
 from lxml import etree
 import urllib2
 from cStringIO import StringIO
-from urllib2 import URLError
+from urllib2 import URLError, HTTPError
 from jinja2 import Environment
 # from lxml.etree import XMLSyntaxError
 from collections import defaultdict as defdict, OrderedDict as odict
-from reportgen.network.generator.core.utils import relpath, read_network, read_stations, todf,\
+from gfzreport.templates.network.core.utils import relpath, read_network, read_stations, todf,\
     get_query
 from itertools import product, cycle, izip
-from reportbuild.map import getbounds
+from gfzreport.build.map import getbounds
 from lxml.etree import XMLSyntaxError
 from collections import defaultdict
 # from obspy.core.inventory.inventory import Inventory
@@ -107,14 +107,18 @@ def get_other_stations_df(network_stations_df, margins_in_deg):
     kwargs_dead_stations.pop('endtime')
 
     invs = []
-    dcs = ['http://service.iris.edu/fdsnws/station/1/query',
-           'http://www.orfeus-eu.org/fdsnws/station/1/query']
+
+    dcs = [d for d in get_datacenters() if not 'geofon' in d]
+#     dcs = ['http://service.iris.edu/fdsnws/station/1/query',
+#            'http://www.orfeus-eu.org/fdsnws/station/1/query']
 
     for dc, kwargs in product(dcs, [kwargs_live_stations, kwargs_dead_stations]):
-        print get_query(dc, **kwargs)
+        querystr = get_query(dc, **kwargs)
         try:
-            invs.append(read_stations(get_query(dc, **kwargs)))
-        except XMLSyntaxError as exc:
+            invs.append(read_stations(querystr))
+            print "%s [OK]" % querystr
+        except (URLError, HTTPError, XMLSyntaxError) as exc:
+            print "%s [%s]" % (querystr, str(exc))
             pass
         # r = read_inventory(StringIO(text), format="STATIONXML")
         # df = pd.read_csv(StringIO(text), delimiter='|', index_col=False)
@@ -190,6 +194,33 @@ def get_other_stations_df(network_stations_df, margins_in_deg):
 
     # return stations active in the relative timespan:
     return pd.concat(dfs, axis=0, ignore_index=True, copy=False)
+
+
+def get_datacenters(**query_args):
+    """Queries all datacenters and returns the local db model rows correctly added
+    Rows already existing (comparing by datacenter station_query_url) are returned as well,
+    but not added again
+    :param query_args: any key value pair for the query. Note that 'service' and 'format' will
+    be overiidden in the code with values of 'station' and 'format', repsecively
+    """
+    empty_result = {}  # Create once an empty result consistent with the excpetced return value
+    query_args['service'] = 'station'
+    query_args['format'] = 'post'
+    query = get_query('http://geofon.gfz-potsdam.de/eidaws/routing/1/query', **query_args)
+
+    urlo = urllib2.urlopen(query)
+    dc_result = urlo.read().decode('utf8')
+    urlo.close()
+
+    if not dc_result:
+        return empty_result
+    # add to db the datacenters read. Two little hacks:
+    # 1) parse dc_result string and assume any new line starting with http:// is a valid station
+    # query url
+    # 2) When adding the datacenter, the table column dataselect_query_url (when not provided, as
+    # in this case) is assumed to be the same as station_query_url by replacing "/station" with
+    # "/dataselect". See https://www.fdsn.org/webservices/FDSN-WS-Specifications-1.1.pdf
+    return [dcen for dcen in dc_result.split("\n") if dcen[:7] == "http://"]
 
 
 def get_map_df(sta_df, all_sta_df):

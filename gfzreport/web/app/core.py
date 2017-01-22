@@ -45,10 +45,11 @@ Note that each build directory is structured as follows:
 import subprocess
 import os
 from cStringIO import StringIO
-from reportwebapp.webapp import app
-from reportbuild.main import run as reportbuild_run
+from gfzreport.web.app import app
+from gfzreport.build.main import run as reportbuild_run
 from itertools import count
 from werkzeug.utils import secure_filename
+from subprocess import CalledProcessError
 
 
 def get_sourcefile_content(reportdirname, commit_hash='HEAD', as_js=True):
@@ -144,9 +145,11 @@ def gitcommit(reportdirname):
     cwd = get_sourcedir(reportdirname)
     args = dict(cwd=cwd, shell=False)
 
+    gitinited = False
     k = subprocess.call(['git', 'status'], **args)
     if k == 128:
         k = subprocess.call(['git', 'init', '.'], **args)
+        gitinited = True
         if k == 0:
             k = subprocess.call(['git', 'status'], **args)
 
@@ -163,7 +166,8 @@ def gitcommit(reportdirname):
         k = subprocess.call(['git', 'add', '-A', '.'], **args)
         # the dot is to commit only the working tree. We are on the source root, is just for safety
         if k == 0:
-            k = subprocess.call(['git', 'commit', '-am', '"committed from webapp"'], **args)
+            commit_msg = '"%scommit from webapp"' % ('git-init and ' if gitinited else '')
+            k = subprocess.call(['git', 'commit', '-am', commit_msg], **args)
             if k != 0:
                 raise ValueError("Unable to run commit -am . on the specified folder '%s'. "
                                  "Please contact the administrator" % cwd)
@@ -241,7 +245,7 @@ def get_commits(reportdirname):
                 commits.append({'hash': clist[0], 'author': clist[1], 'date': clist[2],
                                 'msg': clist[3]})
         return commits
-    except OSError:
+    except (OSError, CalledProcessError):
         return []
 
 
