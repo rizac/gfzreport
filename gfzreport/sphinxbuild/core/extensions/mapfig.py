@@ -16,7 +16,9 @@
          marker, non-network stations via circles
      - Html does not support all legend positions: 'bottom' will be displayed 'bottomright',
       'top' and 'right' will be displayed 'topright', 'left' will be displayed 'topleft'
-     - Html sizes are the circle diameter, in pixels. In latex, in points ^2. This is to render
+     - Html sizes are the circle diameter in pixels^2, in pixels. In latex, in points ^2 (I guess
+         the diameter but there is no mention).
+       This is to render
        approximately the same in latex and html (tested with the default value)
      - You need to override the
         `sphinx templating<http://www.sphinx-doc.org/en/1.5.1/templating.html#script_files>`_
@@ -34,7 +36,6 @@ import inspect
 from itertools import izip
 from gfzreport.sphinxbuild.map import plotmap, torgba
 from gfzreport.sphinxbuild.core.extensions.csvfigure import CsvFigureDirective
-import json
 import math
 
 
