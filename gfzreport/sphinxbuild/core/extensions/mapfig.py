@@ -9,6 +9,18 @@
    And optionally (only for pdf/latex rendering!):
     - sizes ('size' or 'sizes', case insensitive)
     - colors ('color' or 'colors', case insensitive)
+
+    NOTES:
+
+     - Html does not support marker type: network stations will be displayed via leaflet standard
+         marker, non-network stations via circles
+     - Html does not support all legend positions: 'bottom' will be displayed 'bottomright',
+      'top' and 'right' will be displayed 'topright', 'left' will be displayed 'topleft'
+     - Html sizes are the circle diameter, in pixels. In latex, in points ^2. This is to render
+       approximately the same in latex and html (tested with the default value)
+     - You need to override the
+        `sphinx templating<http://www.sphinx-doc.org/en/1.5.1/templating.html#script_files>`_
+        with `these two lines of javascript:<http://esri.github.io/esri-leaflet/examples/>`_
 """
 
 # NOTE: TEMPLATE TO BE USED. DOWNLOADEDFROM THE SPHINX EXTENSIONS HERE:
@@ -20,8 +32,10 @@ import os
 import re
 import inspect
 from itertools import izip
-from gfzreport.sphinxbuild.map import plotmap
+from gfzreport.sphinxbuild.map import plotmap, torgba
 from gfzreport.sphinxbuild.core.extensions.csvfigure import CsvFigureDirective
+import json
+import math
 
 
 _OVERWRITE_IMAGE_ = False  # set to True while debugging / testing to force map image creation
@@ -171,52 +185,80 @@ def visit_map_node_html(self, node):
     http://www.sphinx-doc.org/en/stable/_modules/sphinx/application.html
     """
 
+    def esc(string):
+        """escapes quotes"""
+        return string.replace('"', '\\"')
+
     # FIXME: add class support, add width and height support, add labels, colors and markers support
 
     data = node.attributes['__plotmapargs__']  # FIXME: error!
     _uuid = node._data_hash__
 
+    bordercolor = "#000000"
+    pt_size = math.sqrt(data['sizes'])
     markers = []
-    for lon, lat, labl in zip(data['lons'], data['lats'], data['labels']):
-        markers.append('[' + str(lat) + ',' + str(lon) + ']')
+    for lon, lat, label, color in izip(data['lons'], data['lats'], data['labels'],
+                                       data['colors']):
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            _, _, _, alpha = torgba(color)
+            # for info on options, see:
+            # http://leafletjs.com/reference-1.0.0.html#path
+            markers.append(('L.circleMarker([%f, %f], '
+                            '{radius: %f, fillColor: "%s", fillOpacity: %f, weight: 1, '
+                            'opacity: 0.5, color: "%s"}).'
+                            'bindPopup("%s<br>lat: %f<br>lon: %f")') %
+                           (lat, lon, pt_size, str(color[:7]), alpha, bordercolor,
+                            esc(str(label)), lat, lon))
+        except (TypeError, ValueError):
+            pass
 
-    add_to_map_js = "        \n".join("markersArray.push(L.marker(" + mrk + ").addTo(map));"
-                                      for mrk in markers)
+    add_to_map_js = "    \n".join("markersArray.push(%s.addTo(map));" % mrk for mrk in markers)
+
+    legends_js = []
+    for leg, color in izip(data['legendlabels'], data['colors']):
+        if leg:
+            try:
+                r, g, b, alpha = torgba(color)
+                # pt_size in css is the diameter, multiply times two:
+                # Moreover, we need to set rgba colors to support fill opacity only
+                rgba = "rgba(%d, %d, %d, %f)" % (r * 255, g * 255, b * 255, alpha)
+                legends_js.append(("<i style='display:inline-block; border:1px solid %s;"
+                                   "background:%s;width:%fpx;height:%fpx;"
+                                   "border-radius:%fpx'></i>&nbsp;%s")
+                                  % (bordercolor, rgba, 2*pt_size, 2*pt_size, pt_size, esc(leg)))
+            except (TypeError, ValueError):
+                pass
+
+    legend_js = ""
+    if legends_js:
+        leg_pos = data['legend_pos']
+        # leaflet supports only 'bottomleft' 'bottomright', 'topleft' 'topright', so:
+        leg_pos = 'topright' if leg_pos in ('top', 'right') else 'topleft' \
+            if leg_pos == 'left' else 'bottomright'
+
+        legend_js = """var legend = L.control({position: '%s'});
+    legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'info legend');
+        div.innerHTML = "%s";
+        return div;
+    };
+    legend.addTo(map);""" % (leg_pos, "<br>".join(l for l in legends_js))
 
     html = """
-        <div id='map{0}' class=map></div>
-        <script>
-        /*L.mapbox.accessToken = '{0}';
-        var snapshot = document.getElementById('snapshot');*/
-
-        var map = L.map('map{0}');
-
-        var layer = L.esri.basemapLayer('Topographic').addTo(map);
-
-        var markersArray = [];
-
-        {1}
-
-        // fit bounds according to markers:
-
-        var group = new L.featureGroup(markersArray);
-        map.fitBounds(group.getBounds());
-
-        /*document.getElementById('snap').addEventListener('click', function() {{
-            leafletImage(map, doImage);
-        }});
-
-        function doImage(err, canvas) {{
-            var img = document.createElement('img');
-            var dimensions = map.getSize();
-            img.width = dimensions.x;
-            img.height = dimensions.y;
-            img.src = canvas.toDataURL();
-            snapshot.innerHTML = '';
-            snapshot.appendChild(img);
-        }}*/
-        </script>
-        """.format(str(_uuid), add_to_map_js)
+<div id='map{0}' class=map></div>
+<script>
+    var map = L.map('map{0}');
+    var layer = L.esri.basemapLayer('Topographic').addTo(map);
+    var markersArray = [];
+    {1}
+    // fit bounds according to markers:
+    var group = new L.featureGroup(markersArray);
+    map.fitBounds(group.getBounds());
+    {2}
+</script>
+""".format(str(_uuid), add_to_map_js, legend_js)
 
     self.body.append(html)
 

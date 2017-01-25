@@ -24,8 +24,7 @@ app.controller('MyController', function ($scope, $http, $window) {
 				$scope.loading = false;
 				if ($scope._init){  // we need to update commits only the first load, after it 
 					//will be managed by saving the document from within the app
-					$scope._init = false;
-					$scope.getCommits();
+					$scope.getCommits(); //therein we will set $scope._init = false;
 				}
 			});
 		};
@@ -132,9 +131,14 @@ app.controller('MyController', function ($scope, $http, $window) {
 	}
 	
 	$scope._setCommits = function(commitsArray){
-		// set commits is called at startup and as the response after saving.
+		// set commits is called at startup AFTER setting the view
+		// (cause we might have to git-init or update stuff and we want the commits to be in synchro)
+		// and as the response after saving.
+		// if at startup, do not mark views as dirty (needsRefresh)
 		var cmts = $scope.commits;
-		if (cmts.length != commitsArray.length || (!commitsArray.length) || (cmts[0] != commitsArray[0])){
+		if($scope._init){
+			$scope._init = false;
+		}else if (cmts.length != commitsArray.length || (!commitsArray.length) || (cmts[0] != commitsArray[0])){
 			for (var i=0; i < $scope._VIEWS.length; i++){
 				$scope.needsRefresh[$scope._VIEWS[i]] = true;
 			}

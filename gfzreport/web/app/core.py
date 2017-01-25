@@ -125,7 +125,7 @@ def is_build_updated(reportdirname, buildtype):
     '''
     sourcefile = get_sourcefile(reportdirname)
     destfile = get_buildfile(reportdirname, buildtype)
-    return os.stat(sourcefile).st_mtime < os.stat(destfile).st_mtime
+    return os.path.isfile(destfile) and os.stat(sourcefile).st_mtime < os.stat(destfile).st_mtime
 
 
 def mark_build_updated(reportdirname, buildtype):
