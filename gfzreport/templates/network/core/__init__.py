@@ -106,7 +106,7 @@ def get_other_stations_df(network_stations_df, margins_in_deg):
 
     invs = []
 
-    dcs = [d for d in get_datacenters() if not 'geofon' in d]
+    dcs = [d for d in get_datacenters() if 'geofon' not in d]
 #     dcs = ['http://service.iris.edu/fdsnws/station/1/query',
 #            'http://www.orfeus-eu.org/fdsnws/station/1/query']
 
@@ -171,8 +171,10 @@ def get_other_stations_df(network_stations_df, margins_in_deg):
             yearrng = ""
         caption = "%s%s%s" % (net.code, yearrng, restricted)
 
-        color = '#FFFFFF00' if not net.end_date or not network_stations_df.metadata['end_date'] or \
-            net.end_date > network_stations_df.metadata['end_date'] else '#FFFFFF00'  # transparent
+        nooverlap = net.end_date < network_stations_df.metadata['start_date'] or \
+            net.start_date > network_stations_df.metadata['end_date']
+
+        color = '#FFFFFF00' if nooverlap else '#FFFFFF'
 
         mydic = odict()
         mydic['Label'] = sta.code

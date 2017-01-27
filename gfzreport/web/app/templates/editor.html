@@ -1,3 +1,10 @@
+<!-- IMPORTANT NOTE:
+WE OVERRIDEN mode-rst.js in js/ace-build. With new settings, fields are assigned a class that ace colors
+in a kind of brown. That's fine. Note also that fields inside directive can be highlighted by LINE,
+i.e. in that case fielname and fieldbody will have the same color (too complex to color them differently
+without breaking all the rest).
+The DEFAULT ace style is in js/ace-buil/mode-rst-default.js
+ -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -14,68 +21,38 @@
 		margin:0;
 		padding: 0;
 	  }
+	  /*custom ace stuff:*/
+	  .ace-clouds .ace_markup.ace_heading{ /*headers (sections, chapters) colors (note that it's impossible to color
+	  							also titles, this style applies to decorators only*/
+	  	  color: goldenrod !important;
+	  }
+	  .ace-clouds .ace_markup.ace_keyword{  /*field names or fielnames:fieldbody (inside directive) color*/
+	      color: #AF956F !important;
+	  }
+	  .ace-clouds .ace_keyword.ace_operator{ /*directives type color */ 
+	      color: forestgreen !important;
+	  }
 	 </style>
 </head>
 <body>
-<div id='ace_editor'></div>  <!-- style="display: block; height:100%;" -->
+<div id='ace_editor'></div> 
 
-    <script type="text/javascript">
-        
-        /* ace stuff: */
-	    var editor = ace.edit("ace_editor");
-        // this lets editor.setValue(text, cursorPos) work, at least with v1.2.3:
-	    editor.$blockScrolling = Infinity;
-	    /*editor.setTheme("ace/theme/vibrant_ink");*/
-	    editor.setTheme("ace/theme/clouds");
-	    editor.getSession().setMode("ace/mode/rst");
-	    editor.setValue("{{ source_data | safe }}");
-	    editor.clearSelection();
-	    editor.setOptions({
-  			fontFamily: "'Menlo', 'Ubuntu Mono', 'monospace'",
-  			//fontSize: "10pt",
-  			//showPrintMargin: true,
-			printMarginColumn: 100
-		});
-		
-		/* add listener for the buttons save and save compile.
-		For info see: http://stackoverflow.com/questions/19670178/ace-editor-change-event
-		*/
 
-		/* 
-		   using input event instead of change since it's called with some timeout
-		   Note that the event below IS CALLED ANYWAY AT PAGE LOAD
-		   possibly after setValue above??
-		   In order to know if it's not the first time, we set a global variable:
-		*/
-		/* var _$_editor__UNINIT = true; //the name is weird to avoid conflicts (it's global)
-		//and we will use it below
-		editor.on("input", function() {
-			if (_$_editor__UNINIT){
-        		_$_editor__UNINIT = false; //this is called at page load, just set the flag
-        		//to enter the other if branch (here below) the next time
-        		
-        		 
-        		//   reset the undo manager (for safety, maybe we will use it in future releases)
-        		//   for info, see:
-        		//   http://stackoverflow.com/questions/30986732/reset-the-undo-stack-in-ace-editor
-        		//   the undo manager seems not to be clean at startup
-        		//   probably cause this method is fired with some timeout
-        		//   from editor.setValue
-        		
-        		editor.getSession().setUndoManager(new ace.UndoManager());
-        	}
-			isMod = !editor.session.getUndoManager().isClean();
-			
-			//REMOVE THIS COMMENT
-			//set the angular scope variable and see if it's working
-			//For info on how to access angular scope from within the normal DOM, see:
-			//http://stackoverflow.com/questions/17656244/how-to-change-angularjs-data-outside-the-scope
-			if(window.parent != window && window.parent.angular){
-				var $scope = window.parent.angular.element(window.parent.document.getElementById('save_btn')).scope();
-				$scope.$apply(function() {
-        			$scope.isModified = isMod;
-    			});
-			}
-			
-		}); */
-    </script>
+
+<script type="text/javascript">
+	/* ace stuff: */
+    var editor = ace.edit("ace_editor");
+    // this lets editor.setValue(text, cursorPos) work, at least with v1.2.3:
+    editor.$blockScrolling = Infinity;
+    /*editor.setTheme("ace/theme/vibrant_ink");*/
+    editor.setTheme("ace/theme/clouds");
+    editor.getSession().setMode("ace/mode/rst");
+    editor.setValue("{{ source_data | safe }}");
+    editor.clearSelection();
+    editor.setOptions({
+ 			fontFamily: "'Menlo', 'Ubuntu Mono', 'monospace'",
+ 			fontSize: "10pt",
+ 			//showPrintMargin: true,
+		printMarginColumn: 100
+	});
+</script>

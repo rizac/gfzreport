@@ -177,3 +177,13 @@ div#commits_popup td, div#commits_popup table{
 div#commits_popup td:not(:first-child){
 	padding-left: 1ex;
 }
+
+div.view div.pos-top{
+	position: relative;
+}
+
+div.view div.pos-top button#logs{
+	position: absolute;
+	top:0px;
+	right:0px;
+}

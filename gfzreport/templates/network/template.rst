@@ -1,63 +1,40 @@
 .. Network report template. Please fill your custom text here below.
    This is a RsT (ReStructuredText) file and also a comprehensive tutorial
-   which might help you during editing.
-   RsT is a lightweight markup language designed to be both
-   (1) processable by documentation-processing software to produce html,
-      latex or pdf output, and
-   (2) easily readable and editable by human interaction.
-   As already mentioned, you might just need to simply follow the instructions
-   here. Links are provided below for a more detailed explanation
-   about rst syntax
-   
-   Let alone inline syntax (e.g., section decorators, bold / italic text, urls)
-   the only concept to know is Explicit Markup Blocks (EMB), defined as a text block:
-   (a) whose first line begins with ".." followed by whitespace
-       (the "explicit markup start", hereafter referred as EMS)
-   (b) whose second and subsequent lines (if any) are indented relative to the first, and
-   (c) which ends before an unindented line.
-   EMB's are analogous to bullet list items, with ".." as the bullet. The text on the
-   lines immediately after the EMS determines the indentation of the
-   block body. The maximum common indentation is always removed from the second and
-   subsequent lines of the block body. Therefore if the first construct fits in one
-   line, and the indentation of the first and second constructs should differ,
-   the first construct should not begin on the same line as the explicit markup start.
-   IMPORTANT: Blank lines are required between explicit markup blocks and other elements,
-   but are optional between explicit markup blocks where unambiguous.
-   The explicit markup syntax is used for footnotes, citations, hyperlink targets,
-   directives, substitution definitions, and comments. All discussed below
-   
-   For instance, this portion of text is a comment and will NOT be rendered
-   in any output format (html, latex, pdf). A comment block is an EMB (thus
-   obeying to (a)-(b)-(c) rules above) which does not match any of the other EMB's
-   (discussed below). This definition is quite "fuzzy" because we need to define
-   comment blocks before the other directives
+   which might help you during editing. RsT is a lightweight markup language designed to be both
+   easily readable/editable and processable by documentation-processing software (sphinx) to
+   produce html, latex or pdf output
 
-.. Section titles (like the one below, which is the auto-generated document title) are
-   set by decorating a SINGLE line of text with under- (and optionally over-)
+   This portion of text (".. " followed by INDENTED text) is a comment block and will not
+   be rendered. The comment block ends at the first non-indented line found
+
+
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. TITLE:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. Section titles are set by decorating a SINGLE line of text with under- (and optionally over-)
    line characters WHICH MUST BE AT LEAST AS LONG AS the section title length.
-   There is no rule about decoration characters. Just be consistent (same
-   decoration for sections of the same "level").
+   There is no rule about which decoration characters to use, but equal decorations are interpreted
+   as same "level": thus two chapter titles must have the same decorations, a chapter and a section
+   must not
 
 {{ title }}
 
-.. Here below the so-called "rst bibliographic fields" (authors, revision, etcetera)
-   in the form semicolon + fieldname + semicolon + whitespace + fieldbody
-   The field body may contain multiple body elements. HOWEVER, it is strongly
-   recommended to input text (i.e. no special rst markup) or urls ONLY.
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. FIELDS:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   The first line after the field name marker determines the indentation of the field body.
-   DO NOT REMOVE THE FIELDS BELOW, RATHER SET THEIR FIELDBODY EMPTY. IF EMPTY, 
-   REMEMBER TO LEAVE A WHITESPACE AFTER THE LAST SEMICOLON (:) OF THE FIELD NAME
-   
-   Certain registered field names have a special meaning in rst which are beyond
-   the scope of this program
-   (for details, see http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html#bibliographic-fields)
-   On the other hand, they will be automatically rendered in
-   special portions of the latex layout (which you don't have to care about),
-   You have only to fill the text if you know its value (e.g., the DOI),
-   or leave it empty.
+.. Here below the document "fields" (authors, revision, etcetera): they are used as special
+   variables for latex output and rendered according to templating rules you don't have to care about.
+   They are in the form:
+   :fieldname: fieldbody
+   The ":fieldname: " part (including the trailing whitespace) is called the field marker:
+   Please NEVER MODIFY (or DELETE) field markers. The field body on the other hand can contain:
+   - newlines, indented relative to the field marker
+   - colons, if they are escaped with a backslash: "\:"
+   - multiple body elements, but we strongly recommend to input raw text or urls ONLY.
 
-.. provide the authors as comma separated items:
+.. authors. Provide the authors as comma separated items (affiliation still to be implemented):
 
 :authors: Author1, author2, author3
 
@@ -66,7 +43,7 @@
 
 :subtitle: {{ network_description }}
 
-.. this this is the (optional) sub-sub-subtitle (below the subtitle)
+.. sub-sub-title: this this is the (optional) sub-sub-subtitle (below the subtitle)
 
 :subSubtitle: 
 
@@ -86,7 +63,7 @@
 :doi: 
 
 .. The urn. Fill in if you know it.
-   Example: urn:nbn:de:kobv:b103-xxxxx
+   Example: urn\:nbn:de\:kobv\:b103-xxxxx (remember to escape colons with backslash)
    Just a side-note for developers the sphinx builder will raise a
    warning as rst interprets it urn as URL. Please ignore the warning
 
@@ -126,88 +103,64 @@
    abstract environment (\begin{abstract} ... \end{abstract}):
 
 :abstract: write your abstract here, you can add newlines but remeber:
-  you should indent
-  any new line
-  (as we just did).
+           you should indent
+           any new line
 
-.. From here on, you can start typing "body text" anywhere you want by simply
-   writing NON-INDENTED text which is not a comment
+.. The first section title (provide always an empty line above and below)
 
 Introduction
 ============
 
-This is an example of "normal" body text. It's not in a comment block so that,
-before removing it, you might try to build this document
-(build = generate html, latex or pdf) and see the rendered results.
-Remeber that indentation is a special rst command and that newlines are
-actually not rendered (this is a newline and you shouldn't see any difference
-in html or latex)
+.. For this section only, we provide now some text to show the user, before removing it,
+   how it is rendered in html or latex. The text is also a short introduction about few rst commands.
+
+
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. TEXT FORMATTING:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is an example of "normal" body text. It's not in a comment block.
+Remeber that indentation is a special RsT command and that newlines are actually not rendered
+(this is a newline and you shouldn't see any difference in html or latex)
 
 But you can type a new paragraph by adding an empty line above it (like in
 this case)
 
-
 .. italic can be rendered by wrapping text within two asterix, bold by wrapping
    text within two couples of asterix:
    
-*This is rendered in italic*
+*This is rendered in italic*, **this is rendered in bold**
 
-**This is rendered in bold**
 
-.. Numeric Reference to figures or tables are discussed in the bottom of this
-   document. In general, to define a label pointing to a EMB, e.g. a label named
-   "stations_table" pointing to a figure directive (discussed below), you write a single
-   EMB IMMEDIATELY BEFORE the figure directive that you wanto to reference.
-   Putting even comment blocks between the label and the figure directive will make
-   the label point to the comment block, and thus not working as expected.
-   So, supposing you have somewhere an EMB (e.g. a figure directive), to label it you write
-   IMMEDIATELY BEFORE the explicit markup start EMS (".." followed by whitespace)
-   followed by an underscore and the label name (and a blank line afterwards, as always):
-      
-    .. _stations_table
-      
-    Now you can reference to it with :numref:`stations_table`. Example (you should
-    see the reference now in latex/html): 
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. HYPERLINKS:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-An example of numeric reference: see :numref:`stations_table`
-   
-.. Inline hyperlink. Urls are automatically linked, like: http://www.python.org/
+.. Hyperlink (inline): simply type them: Urls are automatically recognized and linked:
 
-Normal inline hyperlink: http://www.python.org/
+Hyperlink (inline): http://www.python.org/
 
-.. Inline hyperlink with substitution text: write substitution text + space + url,
-   all wrapped within a leading ` and a trailing `_
+.. Hyperlink with substitution text: point to the same url as above but render 'Python' as text:
 
-Inline hyperlink with subsitution text: `Python <http://www.python.org/>`_
+Hyperlink with subsitution text: `Python <http://www.python.org/>`_
 
-.. Hyperlink with substitution text, if it has to be referenced more than once
-   Write the label by providing an EMB as follows:
-   EMS (as always) followed by an underscore and the label name, followed
-   by a semicolon, a space and, finally, the referenced url
-   Example (note that the line below is NOT a comment, but being a label definition
-   it won't be rendered in latex/html):
+.. Hyperlink with substitution text, if it has to be referenced more than once.
+   Define the hyperlink as follows (note that the line below is NOT rendered but is NOT a comment):
    
 .. _Wikipedia: https://www.wikipedia.org/
 
-.. Then, you can reference it anywhere by typing label name + underscore, e.g.:
-   Wikipedia_. Example:
+Hyperlinks with subsitution text referenced more than once: Wikipedia_, and again, Wikipedia_ 
 
-Normal hyperlinks with label definition
-can be referenced more than once: Wikipedia_, and again, Wikipedia_ 
-   
-.. When the replacement text is repeated many times throughout one or more documents,
-   especially if it may need to change later, you can define a 
-   replacement text. Replacement texts are a special case of Substitution
-   definitions, which are EMB: thus they start with EMS (".. ")
-   followed by a vertical bar, the substitution text, another vertical bar, whitespace,
-   and the definition block. The latter contains an embedded inline-compatible directive
-   (without the leading ".. "), such as "image"(not discussed here) or "replace".
-   Example.:
+
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. TEXT SUBSTITUTIONS:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. When the a text is repeated many times throughout one or more documents,
+   especially if it may need to change later
+   (note that the line below is NOT rendered but is NOT a comment):
 
 .. |RsT| replace:: ReStructuredText
-
-.. (Substitution text may not begin or end with whitespace)
-   Now you should see "Text substitution: ReStructuredText" in latex/html/pdf:
 
 Text substitution: |RsT|
 
@@ -216,19 +169,17 @@ Text substitution: |RsT|
 
 |RsT| was obtained by typing \|RsT\|
 
-.. Math formulae: Math can be typed in two ways. Either inline like this:
-   semicolon + math + semicolon + ` wrapping the math expression:
-   
-   :math:`alpha > beta`
-   
-   or, for more complex expressions, the math directive (directives are EMB, more
-   about them at the bottom of the document):
-   
-   .. math::
 
-      n_{\mathrm{offset}} = \sum_{k=0}^{N-1} s_k n_k
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. MATH FORMULAE:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Here a math expression: :math:`alpha > beta`
+.. Inline math formulae, use :math:`...` or latext dollar sign with latex syntax inside
+   (the latter is not standard rst, but is implemented in this report):
+
+Here an inline math expression: :math:`(\alpha > \beta)` = $(\alpha > \beta)$
+
+.. More complex math formulae, use ..math:: then new empty line and INDENTED text:
 
 Here a more complex math expression:
 
@@ -236,61 +187,96 @@ Here a more complex math expression:
 
    n_{\mathrm{offset}} = \sum_{k=0}^{N-1} s_k n_k
 
-.. Note that we implemented for this program also a third variant with dollar
-   sign (as in latex), which will default to the :math: command above. So:
-   
-these expressions should be the same:  :math:`(\alpha > \beta)` = $(\alpha > \beta)$
 
-.. Footnotes are EMBE thus consists of an EMS (".. "), a left square bracket,
-   the footnote label, a right square bracket, and whitespace, followed by indented body elements.
-   A footnote label can be:
-      - a whole decimal number consisting of one or more digits,
-      - a single "#" (denoting auto-numbered footnotes),
-      - a "#" followed by a simple reference name (an autonumber label), or
-      - a single "*" (denoting auto-symbol footnotes).
-  
-.. [#] First footnote, should be numbered as 1
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. FOOTNOTES:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. [#] First footnote, should be numbered as 2
+.. Footnotes with manual numbering:
 
-.. Each footnote reference consists of a square-bracketed label followed by a
-   trailing underscore:
+.. [1] First footnote
+
+.. [2] Second footnote, note that
+   newlines which must be indented
+
+Here a ref to the first footnote [1]_ and here to the second [2]_.
+
+.. Footnotes with auto numbering (newlines must be INDENTED of at least three spaces):
+
+.. [#] First footnote (autonumbered)
+
+.. [#] Second footnote (autonumbered), note that
+   newlines which must be indented
 
 Here a ref to the first footnote [#]_ and here to the second [#]_.
 
-.. NOTE: auto-symbols footnotes are deprecated as they seem not to work properly
-   in latex. Check out yourself:
-  
-.. [*] First footnote, should use the "first" autogenerated symbol. Buggy in Latex
+.. Footnotes with auto numbering, referenced more than once (newlines must be INDENTED of at least three spaces):
 
-.. [*] First footnote, should use the "second" autogenerated symbol. Buggy in Latex
+.. [#firstnote] First footnote (autonumbered, referenced more than once)
 
-Here a ref to the first footnote [*]_ and here to the second [*]_.
+.. [#secondnote] Second footnote (autonumbered, referenced more than once), note that
+   newlines which must be indented
 
-.. Citations are defined by writing two periods + space, followed by
-   a square-bracketed label, a whitespace and then the publication (indenting
-   newlines if needed, as always). For instance (in latex it's automaticallys
-   put in the reference section at the end of the document):
+Here a ref to the first footnote [#firstnote]_, again [#firstnote]_ and here to the second [#secondnote]_.
+
+.. Footnotes with auto symbols. DEPRECATED: seems they are buggy in latex:
+
+.. [*] First footnote (autosymbol)
+
+.. [*] Second footnote (autosymbol), note that
+   newlines which must be indented
+
+Here a ref to the first footnote [*]_, and here to the second [*]_.
+
+
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. CITATIONS:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. Citations are identical to footnotes except that their labels
+   must be case-insensitive single words of alphanumerics plus internal hyphens,
+   underscores, and periods. No whitespace, no numeric only. E.g., CIT2002:
 
 .. [CIT2002] Deep India meets deep Asia: Lithospheric indentation, delamination and break-off under
    Pamir and Hindu Kush (Central Asia). http://doi.org/10.1016/j.epsl.2015.11.046
 
-.. Each citation reference consists of a square-bracketed label followed by a trailing 
-   underscore. Citation labels are simple reference names (case-insensitive single
-   words, consisting of alphanumerics plus internal hyphens, underscores, and periods;
-   no whitespace):
-
 Here a reference to a publication: [CIT2002]_. And here another reference to it ([CIT2002]_)
 
-.. Finally, bullet lists are obtained by starting each list item with the characters
-   "-", "*" or "+"
-   followed by a whitespace. You can span the item text on several lines, but
-   newlines text must be aligned after the bullet and whitespace.
-   Nested levels are permitted. Within items on the same level, a blank line is
-   required before the first item and after the last, but is optional
-   between items. Example:
 
-**If you want to know more**:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. NUMERIC REFERENCES TO FIGURES AND TABLES:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. Providing a label to a specific directive (e.g. figure, table, see below):
+   .. _labelname
+   you can reference it in the text with:
+   :numref:`labelname`
+   
+   For instance, here you can reference the auto-generated figures and tables
+   (more on this below, if you are interested)
+
+Here a reference to :numref:`stations_table`. Here a reference to :numref:`stations_figure`.
+Here a reference to :numref:`inst_uptimes_figure`. Here a reference to :numref:`noise_pdfs_figure`
+   
+
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. LIST ITEMS:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. bullet lists (blank line before and after the list):
+
+- This is a bullet list.
+
+- Bullets can be "*", "+", or "-".
+
+.. enumerated lists (blank line before and after the list):
+
+1. This is an enumerated list.
+
+2. Enumerators may be arabic numbers, letters, or roman
+   numerals.
+   
+.. nested lists (blank lines are optional between items on the same level):
 
 * About RsT syntax:
 
@@ -315,151 +301,115 @@ Here a reference to a publication: [CIT2002]_. And here another reference to it 
 Data Acquisition
 ================
 
-Write your section text here if any, or remove this line
+
 
 Experimental Design and Schedule
 --------------------------------
 
-Write your section text here if any, or remove this line
+
 
 Site Descriptions and Possible Noise Sources
 --------------------------------------------
 
-Write your section text here if any, or remove this line
+
 
 Instrumentation
 ---------------
 
-Write your section text here if any, or remove this line
+
 
 Instrument Properties and Data Processing
 =========================================
 
-Write your section text here if any, or remove this line
+
 
 Data Description
 ================
 
-Write your section text here if any, or remove this line
+
 
 Data Completeness
 -----------------
 
-Write your section text here if any, or remove this line
+
 
 File Format
 -----------
 
-Write your section text here if any, or remove this line
+
 
 Data Content and Structure
 --------------------------
 
-Write your text here if any, or remove this line
+
 
 Data Quality and Timing Accuracy
 ================================
 
-Write your text here if any, or remove this line
+
 
 Noise Estimation
 ----------------
 
-Write your text here if any, or remove this line
+
 
 Timing Accuracy
 ---------------
 
-Write your text here if any, or remove this line
 
    
 Acknowledgments
 ===============
 
-Write your text here if any, or remove this line. To show how references work, have a look at
-the text and how is rendered in latex / html:
 
-Here a reference to :numref:`stations_table`
 
-Here a reference to :numref:`stations_figure`
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. DIRECTIVES:
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Here a reference to :numref:`inst_uptimes_figure`
-
-Here a reference to :numref:`noise_pdfs_figure`
-
-.. ==============
-   Rst Directives
-   ==============
-
-.. We place in the bottom of the document (see below) the so-called rst "directives".
-   Directives are explicit markup blocks (EMB) which are used to render special
-   objects, in particular figures and tables.
-   Directives begin, as always, with an explicit markup start EMS (two periods and a space),
-   followed by the directive type, two colons and a whitespace (collectively, the
-   "directive marker").
-   Example of typical directive marker (.. image:: ) which includes the image
-   mylogo.jpeg:
-
-   .. image:: mylogo.jpeg
+.. Rst "directives" are explicit markup blocks for generating special document objects, like
+   figures and tables. They are in the form ".. directivetype::" and includes all subsequent
+   INDENTED lines (see e.g. the ".. math::" directive above). A typical example to include a figure is:
    
-   Two colons are used after the directive type for several reasons, the first of
-   which is distinguish comment blocks (like e.g., this one) and directives.
-
-   The directive block begins immediately after the directive marker, and includes
-   all subsequent INDENTED lines. The directive block is divided into arguments,
-   options (a field list), and content (in that order), any of which may appear.
-   For instance to include a figure displaying the file ./larch.png with caption
-   "abc" and width equal to 33% of its container (usually, the page width) type:
+   .. _figure-label:
    
    .. figure:: ./larch.png
       :width: 33%
+      :align: center
 
-      abc
-    
-   in the example above, the directive argument is './larch.png', the only directive
-   option is 'width', and the directive content is represented by its caption ('abc').
-   (For a detailed guide on the figure directive, see
-   http://docutils.sourceforge.net/docs/ref/rst/directives.html#figure)
+      caption
+   
+   ".. _figure-label:" is the figure label, used to reference the figure via :numerf:`figure_label`:
+   In the following, with "directive block" (or simply block) we will denote the directive AND its
+   label (if any). NOTE THAT ONLY A BLANK LINE, NOT EVEN COMMENTS, can be input between a label and
+   its directive!
+   "./larch.png" is called the directive argument
+   ":width: 33%" and ":align: center" are directive options, called the directive fields
+   (in the form :fieldname: fieldbody)
+   "caption" is called the directive content
+   (For details, see http://docutils.sourceforge.net/docs/ref/rst/directives.html#figure)
 
-   Important notes:
-   ---------------
+   From within the web application, NEVER EDIT FILE PATHS as they are relative to this
+   document path on the server. Never EDIT field names, as they might break the document build.
+   Everything else (non-file argument, non-file content, field bodies) can be editable
+   
+   You can always delete / move / copy a directive BLOCK anywhere in the text. 
+   The block must be followed and preceeded by an empty line.
 
-   a) all relative paths in the document (like ./larch.png) are relative to this file.
-   Absolute paths are discouraged especially because it seems that sphinx (the python
-   program on top of which we generate thie report) is quite confusing and not consistent
-   in that case
-   
-   b) you can move a directive anywhere in the text by copying and pasting the directive
-   marker and its block (including the last blank line) anywhere in the text.
-   Any object returned by a directive (figures, tables,...) is in principle displayed
-   where it appears here
 
-   c) You can reference directives (e.g., figures, tables) by placing IMMEDIATELY BEFORE
-   the directive the reference label, followed by a blank line. The label begins with an
-   explicit markup start (two periods and a space), followed by an underscore,
-   the label name, and a semicolon. E.g:
-   
-   .. _myreflabel:
-   
-   The directive can thus be referenced anywhere in the text by typing:
-   :numref:`myreflabel`
-   and will be properly rendered in both latex, pdf or html. See examples in the directives
-   implemented below
-   
-.. =======================  
-   Custom figures / tables
-   =======================
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. CUSTOM DIRECTIVES (FIGURES AND TABLES)
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. 1) The first directive is the directive to display the stations information in a
    table. It's the so called 'csv-table' directive
    (http://docutils.sourceforge.net/docs/ref/rst/directives.html#id4):
-   There are several ways to display tables, all of them have several drawbacks
-   (rst + sphinx limitations). We use csv-tables because they have the advantage to
-   be easily editable.
+   There are several ways to display tables in RsT. Curiously, none of them is free from drawbacks
+   and limitations. Csv-tables have the advantage to be easily editable HERE.
 
 .. first of all, we show the "raw" directive, which might comes handy to put
    html or latex specific commands: in this case we decrease the size of the table
-   to avoid page overflow:
+   to avoid page horizontal overflow. Remove the directive or change '\scriptsize' if you need it.
    
 .. raw:: latex
 
@@ -469,21 +419,20 @@ Here a reference to :numref:`noise_pdfs_figure`
    (http://www.sphinx-doc.org/en/latest/markup/misc.html#directive-tabularcolumns):
    this directive gives a “column spec” for the next table occurring in the source file.
    The spec is the second argument to the LaTeX tabulary package’s environment, although,
-   contrarily to what stated in the doc, sphinx might use different tabular environment
-   which are hard coded and impossible to configure (e.g., longtables):
+   sphinx might use different tabular environment:
 
 .. tabularcolumns:: |@{\ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ }|
 
-.. third, the figure label (.. _stations_table:) before the csv-table directive.
-   Remeber: the label must be placed IMMEDIATELY BEFORE the directive and can be
-   referenced via  :numref:`stations_table`. It must start with two dots and a space
-   (as all directives), plus an underscore, the label name (stations_table) and a semicolon
-   DO NOT PUT ANYTHING, NOT EVEN COMMENT BLOCKS, between a label and the EMB that the label
-   should point to!
-
+.. Finally, the table directive (preceeded by its label so you can reference it via
+   :numref:`stations_table`). In principle, you might want to edit the
+   directive content (the table content) or its argument (the table caption) which as you can see can
+   spanning over several lines (providing as always the correct indentation)
+   
 .. _stations_table:
 
-.. csv-table:: Station table. Note that start and end times represent the maximum validity of the corresponding configurations, not the actual data availability or time in the field. Azi: Azimuth of north or '1' component.
+.. csv-table:: Station table. Note that start and end times represent the maximum validity of the
+   corresponding configurations, not the actual data availability or time in the field.
+   Azi: Azimuth of north or '1' component.
    :delim: ,
    :quote: "
    :header-rows: 1
@@ -496,22 +445,27 @@ Here a reference to :numref:`noise_pdfs_figure`
 
    \normalsize
 
+
 .. ==============================================================================   
 
 .. 2) The second directive below is the directive to display the station map figure.
    It is a non-standard directive implemented in this program only, whose syntax is
    similar to the csv-table directive (ses above) BUT produces an image instead.
-   In principle, there is no need to modify the directive argument (the path to the
-   csv file whose data needs to be plotted), but you can edit the csv file in an editor
-   like Excel (c) or LibreOffice
    
-   As described above, first there is the directive label (which you can reference by typing
-   :numref:`stations_figure`
-   anywhere in the text, then its body, and eventually its caption:
+.. And here the directive for the map  (preceeded by its label so you can reference it via
+   :numref:`stations_figure`). You can edit the directive argument (the map caption, keep
+   indentation for newlines), the directive
+   content as any csv text, or the directive fields **values**. You can change their **values**
+   to customize the map: a full documentation of all field names is in preparation, we tried to make
+   them as much self-explanatory as possible:
 
 .. _stations_figure:
 
-.. map-figure:: Station distribution in experiment (red symbols). If present, white-filled symbols show permanent stations and other temporary experiments archived at EIDA or IRIS-DMC, whose activ- ity period overlapped at least partially with the time of the experiment. If present, open symbols show station sites which were no longer active at the time of the experiment, e.g. prior temporary experiments.
+.. map-figure:: Station distribution in experiment (red symbols). If present, white-filled symbols
+   show permanent stations and other temporary experiments archived at EIDA or IRIS-DMC,
+   whose activity period overlapped at least partially with the time of the experiment.
+   If present, open symbols show station sites which were no longer active at the time
+   of the experiment, e.g. prior temporary experiments.
    :header-rows: 1
    :align: center
    :delim: ,
@@ -521,26 +475,34 @@ Here a reference to :numref:`noise_pdfs_figure`
    {% endfor %}
    {{ stations_map.content|indent(3)  }}
 
+
 .. ==============================================================================   
 
-.. 3) The third directive is the directive to display the noise pdfs. You can
-   see the already described directives for raw latex input, for latex tabularcolumns
-   and the relative label
+.. 3) The third directive is the directive to display the noise pdfs.
+   It is also a non-standard directive implemented in this program only, whose syntax is similar
+   to the csv-table directive (ses above) BUT produces a grid of images.
+   Note that in latex this will be rendered with a longtable followed by an
+   empty figure with the caption provided here. This is a workaround to produce something that
+   looks like a figure spanning over several
+   pages (if needed) BUT it might need some arrangment because the figure caption might be
+   "detached" from the table, not being the same latex element. 
+
+.. first issue a raw latex command (You can remove the lines if the layout does not need a clear page):
 
 .. raw:: latex
 
    \clearpage
    
+.. customize latex tabularcolumns:   
+   
 .. tabularcolumns:: @{}m{.33\textwidth}@{}m{.33\textwidth}@{}m{.33\textwidth}@{}
    
-.. The images-grid-directive is a non-standard directive implemented
-   in this program only, whose syntax is similar to the csv-table directive (ses above)
-   BUT produces an grid of images.
-   Note that in latex this will be rendered with a longtable followed by an
-   empty figure (i.e., with no image inside) holding the caption provided here. This
-   is a workaround to produce something that looks like a figure spanning over several
-   pages (if needed) BUT it might need some arrangment here because the figure might be
-   "detached" from the table, not being the same latex element
+.. And finally, the images-grid-directive (preceeded by its label so you can reference it via
+   :numref:`noise_pdfs_figure`). The directive argument is the figure caption, the directive
+   content holds the auto-generated pdfs placed on the server in the :dir: field (**do not change it!!**)
+   Note the custom (non-standard Rst) :latex-includegraphics-opts: field which is the value applied
+   to *all* \includegraphics[...] commands of the grid and whose value can be changed
+   to match your desired layout (in html, it will have no effect)
 
 .. _noise_pdfs_figure:
 
@@ -555,15 +517,17 @@ Here a reference to :numref:`noise_pdfs_figure`
 
 .. ==============================================================================   
 
-.. 4) The fourth directive is the directive to display the instrumental uptimes
-   (depending on the number of files uploaded when generating
-   this template, it's either a 'figure' or 'images-grid' directive, in any
-   case it will be rendered as figure in html and latex).
-   Remember that, contrarily to the csv-table directive, the figure directive
-   argument is the file path of the figure (we suggest to use relative path starting
-   with the dot ".", relative to this file), and the directive content is the figure
-   caption
-   
+.. 4) The fourth directive is the directive to display the instrumental uptimes.
+   Depending on the number of files uploaded when generating this template, it's either a
+   'figure' or 'images-grid' directive, in any case it will be rendered as figure in html and latex).
+
+.. And here the directive (preceeded by its label so you can reference it via
+   :numerf:`inst_uptimes_figure`). Note that the directive type is dynamically auto generated:
+   if it's a 'figure' type, you can change the directive content which is the figure
+   caption. If it's a 'images-grid' type, remember that the directive *argument*
+   is the figure caption. In both cases, you can remove or edit the value of the field
+   ':latex-includegraphics-opts: ' (as explained above)
+
 .. _inst_uptimes_figure:
 
 {% if inst_uptimes.directive == 'images-grid' -%}

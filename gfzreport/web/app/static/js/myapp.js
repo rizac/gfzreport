@@ -14,7 +14,6 @@ app.controller('MyController', function ($scope, $http, $window) {
 	// Note that we avoid closure with forEach
 	// http://stackoverflow.com/questions/750486/javascript-closure-inside-loops-simple-practical-example
 	$scope._VIEWS.forEach(function(_view) {
-		  // ... code code code for this one element
 		$scope.needsRefresh[_view] = true;
 		var frame = document.getElementById(_view + "_iframe");  // e.g. 'html_iframe'
 		// add listener on load complete:
@@ -229,6 +228,32 @@ app.controller('MyController', function ($scope, $http, $window) {
 	    	}
 	    );
 	}
+	
+	$scope.logs = null;
+	$scope.logsLoading = false;
+	$scope.showLogs = function(){
+		$scope.logLoading = true;
+		$scope.logs = {};
+		$http.post('get_logs', 
+	    		   JSON.stringify({'buildtype': $scope.view}),
+	    		   {headers: { 'Content-Type': 'application/json' }}
+	    	).then(
+	    		function(response){ // success callback
+	    		   // response.data is a dict
+	    			$scope.logsLoading = false;
+	    			//stupid workaround to make
+	    			if (response.data){
+	    				for(var i in response.data){
+	    					$scope.logs[response.data[i][0]] = response.data[i][1];
+	    				}
+	    			}
+	    		},
+	    		function(response){ // failure callback
+	    			$scope.logsLoading = false;
+	    		}
+	    	);
+	}
+	
 	
 	$scope.setView('html');
 

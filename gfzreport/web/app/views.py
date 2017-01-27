@@ -9,7 +9,8 @@ from flask import send_from_directory, request, jsonify  # redirect, url_for
 from gfzreport.web.app import app
 from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
-    get_fig_directive
+    get_fig_directive, get_log_files_list
+from itertools import izip
 
 
 @app.route('/')
@@ -66,6 +67,15 @@ def get_commits_list(reportdirname):
 def get_source_rst(reportdirname):
     commit_hash = request.get_json()['commit_hash']
     return jsonify(get_sourcefile_content(reportdirname, commit_hash, as_js=False))
+
+
+@app.route('/<reportdirname>/get_logs', methods=['POST'])
+def get_logs(reportdirname):
+    buildtype = request.get_json()['buildtype']
+    # return a list of tuples to preserve order:
+    lizt = [(k, v) for k, v in izip(['Sphinx log', 'PdfLatex log'],
+                                    get_log_files_list(reportdirname, buildtype))]
+    return jsonify(lizt)
 
 
 @app.route('/<reportdirname>/upload_file', methods=['POST'])

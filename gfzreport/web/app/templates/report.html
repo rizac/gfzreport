@@ -31,17 +31,18 @@
 	  				{{ '{{' }} v + (view==v && needsRefresh[v] ? ' (Click to refresh)' : '') {{ '}}' }}
 	  			</a>
 	  		</li>
-	  		<li ng-show="!editing">  <!-- ng-class="{'active' : editing}"> -->
+	  		<li ng-show="!editing">
 	  			<a href ng-click="toggleEdit()">Edit source</a>
 	  		</li>
-		</ul>	
+		</ul>
+		<button ng-click="showLogs()" ng-show="!loading" id="logs" class='btn btn-xs btn-warning'>Log</button>
 	</div>
 	<div class="pos-center row-container">
 		<div ng-show='loading' id='loading_div'>
 			<div class=waitbar>
 				<div></div>
 			</div>
-			<div class=msg>Building report (it might take few minutes)</div>
+			<div class="msg">Building report (it might take few minutes)</div>
 		</div>
 		
 		<!--  I might do this 
@@ -115,5 +116,19 @@ author: {{ '{{' }} c.author {{ '}}' }}</pre></td>
 	</div>	
 </div>
 
+
+<!-- logs div: -->
+<div id='logs_popup' class="alert popup" ng-show="logs">
+	<button ng-click="logs=null" class="close" data-dismiss="alert"
+		aria-label="close">&times;
+	</button>
+	<div>
+		<div ng-show="logsLoading">Loading logs, please wait...</div>
+		<div ng-repeat="(key, value) in logs">
+	  		<span class="danger">{{ '{{' }} key {{ '}}' }}</span>
+	  		<pre>{{ '{{' }} value {{ '}}' }}</pre>
+		</div>
+	</div>	
+</div>
 
 {% endblock %}

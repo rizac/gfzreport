@@ -50,6 +50,9 @@ from gfzreport.sphinxbuild.main import run as reportbuild_run
 from itertools import count
 from werkzeug.utils import secure_filename
 from subprocess import CalledProcessError
+from contextlib import contextmanager
+import sys
+from collections import OrderedDict
 
 
 def get_sourcefile_content(reportdirname, commit_hash='HEAD', as_js=True):
@@ -117,6 +120,10 @@ def get_builddir(reportdirname, buildtype):
 def get_buildfile(reportdirname, buildtype):
     return os.path.join(get_builddir(reportdirname, buildtype), app.config['REPORT_BASENAME'] +
                         ('.tex' if buildtype == 'latex' else "." + buildtype))
+
+
+def get_sphinxlogfile(reportdirname, buildtype):
+    return os.path.join(get_builddir(reportdirname, buildtype), '_sphinx_stderr.log')
 
 
 def is_build_updated(reportdirname, buildtype):
@@ -196,16 +203,40 @@ def needs_build(reportdirname, buildtype, commit_if_needed=False):
     return not is_build_updated(reportdirname, buildtype)
 
 
+@contextmanager
+def capturestderr(reportdirname, buildtype):
+    '''
+    import os
+
+    with stdout_redirected(to=filename):
+        print("from Python")
+        os.system("echo non-Python applications are also supported")
+    '''
+    stderr = sys.stderr
+    fileout = get_sphinxlogfile(reportdirname, buildtype)
+    with open(fileout, 'w') as new_stderr:
+        sys.stderr = new_stderr
+        try:
+            yield  # allow code to be run with the redirected stdout/stderr
+        finally:
+            # restore stderr. buffering and flags such as CLOEXEC may be different
+            sys.stderr = stderr
+
+
 def build_report(reportdirname, buildtype, force=False):
     """Builds the given report according to the specified network. Returns
     the tuple reportfile (string), hasChanged (boolean)"""
     if not needs_build(reportdirname, buildtype):
         if not force:
             return get_buildfile(reportdirname, buildtype), False
-    sourcedir = get_sourcedir(reportdirname)
-    builddir = get_builddir(reportdirname, buildtype)
-    # ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
-    ret = reportbuild_run(sourcedir, builddir, buildtype, "-E")
+    # sphinx puts warnings/ errors on the stderr
+    # (http://www.sphinx-doc.org/en/stable/config.html#confval-keep_warnings)
+    # capture it:
+    with capturestderr(reportdirname, buildtype):
+        sourcedir = get_sourcedir(reportdirname)
+        builddir = get_builddir(reportdirname, buildtype)
+        # ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
+        ret = reportbuild_run(sourcedir, builddir, buildtype, "-E")
 #     if ret != 0:
 #         raise ValueError('Error building the report, please contact the administrator')
     mark_build_updated(reportdirname, buildtype)
@@ -301,3 +332,19 @@ def get_fig_directive(reportdirname, fig_filepath, fig_label=None, fig_caption=N
             fig_label = ".. _%s:\n\n" % fig_label
     fname = os.path.relpath(fig_filepath, get_sourcedir(reportdirname))
     return "%s.. figure:: ./%s\n\n   %s" % (fig_label, fname, fig_caption)
+
+
+def get_log_files_list(reportdirname, buildtype):
+    sphinxlogfile = get_sphinxlogfile(reportdirname, buildtype)
+    ret = []  # preserve order!
+    if os.path.isfile(sphinxlogfile):
+        with open(sphinxlogfile, 'r') as fopen:
+            ret.append(fopen.read().decode('utf8'))
+    if buildtype == 'pdf':
+        pdflatexlog = get_buildfile(reportdirname, "pdf")
+        fle, _ = os.path.splitext(pdflatexlog)
+        pdflatexlog = fle + ".log"
+        if os.path.isfile(pdflatexlog):
+            with open(pdflatexlog, 'r') as fopen:
+                ret.append(fopen.read().decode('utf8'))
+    return ret
