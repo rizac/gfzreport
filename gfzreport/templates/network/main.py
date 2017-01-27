@@ -17,6 +17,8 @@ from gfzreport.templates.network.core import get_noise_pdfs_content, gen_title,\
     get_net_desc, get_network_stations_df, get_other_stations_df, get_map_df, get_figdirective_vars
 from gfzreport.sphinxbuild.map import parse_margins
 from gfzreport.sphinxbuild.core.extensions import mapfig
+import datetime
+import inspect
 
 
 def click_path_type(isdir=False):
@@ -186,7 +188,7 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
         mv, no_prompt,
         network_station_marker, nonnetwork_station_marker, network_station_color,
         nonnetwork_station_color):
-
+    localz = dict(locals())  # copy values NOW cause locals() will change size!
     # first build the path. out_path is not None (see click_get_outdir function)
     out_path = os.path.abspath(os.path.join(out_path, "%s_%s" % (str(network), str(start_after))))
     out_path_exists = os.path.isdir(out_path)
@@ -297,6 +299,16 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
             print("Writing report rst file in %s" % (template_dst))
             with open(template_dst, 'w') as opn:
                 opn.write(reporttext.encode('UTF8'))
+
+            print("Writing command line arguments to README.txt")
+            with open(os.path.join(out_path, 'README.txt'), 'w') as opn:
+                opn.write(u'Source folder generated automatically on %s\n' %
+                          (datetime.datetime.utcnow()))
+                opn.write(u"from within:\n")
+                opn.write(u"%s:%s\n" % (__file__, inspect.stack()[0][3]))  # current module:function
+                opn.write(u'and the following arguments:\n')
+                for key, val in localz.iteritems():
+                    opn.write(u'%s = %s\n' % (str(key), str(val)))
 
         # printing info stuff:
 
