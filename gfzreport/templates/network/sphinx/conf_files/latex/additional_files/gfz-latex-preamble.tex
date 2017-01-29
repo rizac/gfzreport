@@ -1,6 +1,4 @@
-% usepackage geometry is already used by sphinx. Comment line below:
-% \usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry} % see geometry.pdf on how to lay out the page. There's lots.
-\geometry{a4paper} % or letter or a5paper or ... etc
+% \usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry} %set in config.py
 \usepackage[multidot]{grffile} % handles larger range of file names
 \usepackage{colortbl}
 % do not use natbib has it has conflicts with sphinx:
@@ -13,15 +11,15 @@
 \usepackage{xspace} % for newcommand and trailing spaces
 \usepackage[justification=centering]{caption}
 
-% \usepackage[colorlinks=true,linkcolor=blue,urlcolor=NavyBlue,citecolor=Fuchsia]{hyperref}
-% \urlstyle{same}
-\definecolor{gfzblue}{RGB}{7,90,154} 
+\definecolor{gfzblue}{RGB}{0,88,156} % http://media-intranet.gfz-potsdam.de/gfz/wv/%C3%96A/Corporate%20Design%20-%20de%20PDF.pdf
 
-
+% tablecontinued is used for longtables to show the 'continued on next/previous page'
+% string. Remove sfseries and make it smaller:
+\renewcommand{\tablecontinued}[1]{\rmseries\small #1}
+  
 % setup footers and headers in the "normal" document pages
 % IMPORTANT NOTE: fancyhdr is required if the document class is NOT memoir, (which is set in config.py
 % and is always true for this report)
-% FIXME: maybe move it to the sphinx.sty!!!
 \pagestyle{fancy}
 % define headers and footer globally valid for everything:
 \renewcommand{\headrulewidth}{0pt}
@@ -33,9 +31,6 @@
 \cfoot{} % no center foot
 \rfoot{\footnotesize \thepage} % print the page
 
-% maketitle macro (subdivided in several steps):
-
 % REMINDER:
 % make title is overridden in sphinxhowto.cls (copied from original sphinx sphinxhowto)
-% fancyhdr is loaded in sphinx.sty. There in we define the page style (normal). So we might want
-% to override sphinx.sty pagestyle maybe
+% fancyhdr is loaded in sphinx.sty
