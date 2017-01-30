@@ -257,10 +257,17 @@ def get_map_df(sta_df, all_sta_df):
 
 
 def get_noise_pdfs_content(dst_dir, regex="^(?P<row>.*)_(?P<col>[A-Z][A-Z][A-Z]).*$",
+                           delimiter=" ",
                            columns=["HHZ", "HHN", "HHE"]):
-    from collections import defaultdict as ddict
+
+    # Provide a default value DEF_VAL for non-found files. Do not provide empty strings as DEF_VAL
+    # if the delimiter is the space as this is not rendered properly in the csv content
+    # (for safety, do not provide empty strings as DEF_VAL in any case):
+    DEF_VAL = 'WARNING:_file_not_found'
+    lineterminator = '\n'
+    quotechar = '"'
     reg = re.compile(regex)
-    dct = ddict(lambda: [''] * len(columns))
+    dct = defdict(lambda: [DEF_VAL] * len(columns))
     for fl in os.listdir(dst_dir):
         mat = reg.match(fl)
         if mat and len(mat.groups()) == 2:
@@ -272,7 +279,9 @@ def get_noise_pdfs_content(dst_dir, regex="^(?P<row>.*)_(?P<col>[A-Z][A-Z][A-Z])
     ret = [columns] + [dct[k] for k in sorted(dct)]
 
     sio = StringIO()
-    spamwriter = csv.writer(sio, delimiter=',', quotechar='"')  # , quoting=csv.QUOTE_MINIMAL)
+    spamwriter = csv.writer(sio, delimiter=delimiter, quotechar=quotechar,
+                            lineterminator=lineterminator,
+                            quoting=csv.QUOTE_MINIMAL)
     for line in ret:
         spamwriter.writerow(line)
     ret = sio.getvalue()
@@ -301,7 +310,7 @@ def get_figdirective_vars(src_path, src_rst_path):
         filenames = sorted(filenames)
         dic = {'directive': 'images-grid',
                'content': "\n".join('"%s"' % f if " " in f else f for f in filenames),
-               'options': {'dir': relpath(src_path, src_rst_path)},
+               'options': {'dir': relpath(src_path, src_rst_path), 'delim': 'space'},
                'arg': ''  # not used, but jinja won't complain. Supply a string not None
                }
     return dic

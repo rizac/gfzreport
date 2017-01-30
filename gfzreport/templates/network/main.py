@@ -279,10 +279,10 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
             args = dict(
                         title=gen_title(network, sta_df),
                         network_description=get_net_desc(sta_df),
-                        stations_table={'content': sta_df.to_csv(sep=",", quotechar='"',
+                        stations_table={'content': sta_df.to_csv(sep=" ", quotechar='"',
                                                                  index=False),
                                         },
-                        stations_map={'content': map_df.to_csv(sep=",", quotechar='"', index=False),
+                        stations_map={'content': map_df.to_csv(sep=" ", quotechar='"', index=False),
                                       'options': mapfig.get_defargs(**mymapdefaults)
                                       },
                         noise_pdfs={'dirpath': relpath(noise_pdf_dst, out_path),

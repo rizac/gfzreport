@@ -169,7 +169,7 @@ def visit_imggrid_node_latex(self, node):
                                     table[x] = table[x].replace(r'\tablename\ \thetable{}',
                                                                 r'\figurename\ \thefigure{}')
                                     # we added \thefigure{} (Why curly brakets?
-                                    # why sphinx does that and we don;t have time to investigate)
+                                    # why sphinx does that and we don't have time to investigate)
                                     # but \thefigure needs to point to our NEXT figure. So
                                     # add counter:
                                     table = ["\n\n\\addtocounter{figure}{1}\n\n"] + table + \

@@ -1,13 +1,16 @@
 '''
-Extension to specify which rows to be shown in latex tabular environment
-Works by hacking and parsing the generated LateX, for complex tables with multicolumns
-or rows might not work
+Extension to specify which rows to be shown in the next latex tabular environment (
+like sphinx's `.. tabularcolumns`). The extension assumes that sphinx generates hlines
+**always** for any table. In principle, works also for more complex tables with multicolumns.
+Note: As it has been tested with csv-table's only, and the extension works by hacking and parsing
+the generated LateX (sphinx does not provide any other solution) we cannot guarantee that this
+extension works 100% of the times.
 Example: place before the table you want to customize:
 
 \.\. tabularrows\:\:
      \:hline-hide\: -1 1:2 4 5 6
 
-(replace hide with show if needed, but do not use both options)
+(replace `hide` with `show` if needed, but do not use both options)
 Created on Apr 4, 2016
 
 @author: riccardo
@@ -16,43 +19,26 @@ import re
 import sys
 from docutils import nodes
 from docutils.parsers.rst import Directive
-import numpy as np
+# import numpy as np
 
-TR_ID = "TABULAR_ROWS_ARG"
-
-
-def int_list(arg):
-    """
-    Converts a space-, semicolon- or comma-separated list of values into a Python list
-    of integers.
-    (Directive option conversion function.)
-
-    Raises ValueError for non-positive-integer values.
-    """
-    if not arg.strip():
-        return []
-
-    semicolon_re = re.compile(r"(\-?\d+)\s*\:\s*(\-?\d+)")
-    try:
-        while True:
-            match = semicolon_re.search(arg)
-            if not match:
-                break
-            val1 = int(match.group(1))
-            val2 = int(match.group(2))
-            if not val2 > val1:
-                raise ValueError()
-            newval = " ".join(str(i) for i in xrange(val1, val2))
-            arg = arg[:match.start(1)] + newval + arg[match.end(2):]
-
-        return map(int, map(int, re.split(r"\s*,\s*|\s*;\s*|\s+", arg)))
-
-    except (IndexError, ValueError):
-        raise ValueError("malformed option in tabularrows: %s " % arg)
+_TR_ID = "TABULAR_ROWS_ARG"
+_CHUNKS_RE = re.compile(r"\s*,\s*|\s*;\s*|\s+")
 
 
 class tabularrows_node(nodes.Element):
     pass
+
+
+def _check_arg(arg):
+    """returns the string in chunks and does a preliminary check"""
+    arr_test = range(10)  # @UnusedVariable
+    chunks = _CHUNKS_RE.split(arg.strip())
+    for sss in chunks:
+        try:
+            eval("arr_test[%s]" % sss)
+        except IndexError:
+            pass
+    return chunks
 
 
 class TabularRowsDirective(Directive):
@@ -60,9 +46,12 @@ class TabularRowsDirective(Directive):
     required_arguments = 0
     optional_arguments = 0
     final_argument_whitespace = True
+
     option_spec = {
-                   'hline-show': int_list,
-                   'hline-hide': int_list,
+                    # the lambda function verifies the arg by running
+                    # indexiter and and see if no error is raised:
+                    'hline-show': _check_arg,
+                    'hline-hide':  _check_arg,
                    }
     has_content = False
 
@@ -89,8 +78,16 @@ def depart_tr_node_html(self, node):
 
 
 def visit_tr_node_latex(self, node):
-
-    table_hline_indices = []
+    """Visits this node in latex.
+    Note that this node has already been put AFTER the next table in the document
+    (doctree_read)"""
+    # hline_indices is in principle a list of integers, each integer I denoting
+    # the index of self.body there the I-th "\hline" is (so that we might remove the \hline,
+    # or keep it). *BUT*: in longtable's, the first and last hlines might be set
+    # for all pages, all pages except the first, all pages except the last. Thus, we might have
+    # two indices denoting the first hline, or the last. that's why hline_indices is a list
+    # of iterables, each iterable returning the indices in self.body of the I-th hline
+    hline_indices = []
     parse_was_good = False
     in_table = False
     is_longtable = False
@@ -108,10 +105,11 @@ def visit_tr_node_latex(self, node):
             is_longtable = "\\begin{longtable}" in expected_start
         elif in_table:
             if in_longtable_header:
-                # longtable has, in current sphinx version, some lines inside the begin{longtable}
-                # body which set up the headers when we continue a table either from a previous page
-                # or to the following page. This means that there are TWO lines of self.body which
-                # reference the first table line. That's why each element of table_hline_indices is
+                # See above: longtable has, in current sphinx version (1.5.1), some lines inside
+                # the begin{longtable} body which set up the headers when we continue a table
+                # either from a previous page or to the following page.
+                # This means that there are TWO lines of self.body which
+                # reference the first table line. That's why each element of hline_indices is
                 # in turn a list of indices. Look at the method LAtexTranslator.depart_table
                 # located in [current_python_path]/site-packages/sphinx/writers/latex.py
                 if bodyline.strip() == '\\endfirsthead':
@@ -121,8 +119,8 @@ def visit_tr_node_latex(self, node):
                     if idx0 >= 0 and idx1 >= 0 and \
                         self.body[idx0].strip() == HLINE and \
                             self.body[idx1].strip() == HLINE:
-                        table_hline_indices[-2].append(idx1)
-                        table_hline_indices[-1].append(idx0)
+                        hline_indices[-2].append(idx1)
+                        hline_indices[-1].append(idx0)
                         parse_was_good = True
                         break  # exit, we already parsed all hlines
                     else:
@@ -133,8 +131,8 @@ def visit_tr_node_latex(self, node):
                     if idx0 >= 0 and idx1 >= 0 and \
                         self.body[idx0].strip() == HLINE and \
                             self.body[idx1].strip() == HLINE:
-                        table_hline_indices.append([idx1])
-                        table_hline_indices.append([idx0])
+                        hline_indices.append([idx1])
+                        hline_indices.append([idx0])
                     else:
                         break
             elif is_longtable and bodyline.strip() == '\\endlastfoot':
@@ -145,35 +143,34 @@ def visit_tr_node_latex(self, node):
             elif HLINE == bodyline.strip() or \
                     (bodyline.strip().startswith('\\cline{') and bodyline.strip()[-1] == '}'):
                 # why do we append a list? see comment above for longtable (if in_longtable_header:)
-                table_hline_indices.append([i])
+                hline_indices.append([i])
 
     if not parse_was_good:
         sys.stderr.write("ERROR: tabularrows skipped : encountered a problem in parsing next table")
         return
 
-    table_hline_indices.reverse()
+    # restore correct order as hline_indices is built "reversed" (see loop above)
+    hline_indices.reverse()
 
-    indices = get_indices(node.attributes['indices'], len(table_hline_indices))
+    chunks = node.attributes['indices']
+    rng = range(len(hline_indices))  # @UnusedVariable
+    indices = []
+    for chunk in chunks:
+        try:
+            ind = eval("rng[%s]" % chunk)
+            if not hasattr(ind, '__iter__'):
+                ind = [ind]
+            indices.extend(int(_) for _ in ind)
+        except IndexError:
+            pass
+    indices.sort()
+    indices = set(indices)
     if node.attributes['what'] == 'show':
-        vals = np.zeros(len(table_hline_indices), dtype=np.bool)
-        vals[indices] = True
-        indices_to_hide = np.where(~vals)[0]  # np where returns tuple of a single element
-        # with the arguments given
-    else:
-        indices_to_hide = indices
+        indices = set(rng) - indices
 
-    for index in indices_to_hide:
-        for i in table_hline_indices[index]:
+    for index in indices:  # sets do not preserve order, like dicts iterations. But should be fine
+        for i in hline_indices[index]:  # remember, we might have more indices mapped to a hline...
             self.body[i] = ""
-
-
-def get_indices(indices, hlines_count):
-    indices_normalized = []
-    for i in indices:
-        i_normalized = hlines_count + i if i < 0 else i
-        if i_normalized >= 0 and i_normalized < hlines_count:
-            indices_normalized.append(i_normalized)
-    return np.unique(indices_normalized)
 
 
 def depart_tr_node_latex(self, node):

@@ -423,6 +423,21 @@ Acknowledgments
 
 .. tabularcolumns:: |@{\ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ }|
 
+
+.. third, we use a non-standard rst command: tabularrows. It hides or shows specific horizontal
+   lines (hlines) to the next generated table in the document. You can remove the whole block
+   to show all hlines (default in sphinx).
+   The directive can have two fields 'hline-show' or 'hline-hide' (either one or the other) specifying
+   the indices of the hlines to show/hide. The indices are a space-separated list of numbers (first index 0)
+   or python slice notations start:end:step (http://stackoverflow.com/questions/509211/explain-pythons-slice-notation).
+   The command is not perfect as it is a hack around a poor sphinx implementation, so you might need
+   to fix the indices if it does not render as you want (especially for tables spanning over multiple
+   pages). As an example, we show the first (0) and the last (-1)
+   hlines, and each fourth hline starting from the second one (1::4 which means indices 1,5,9,...)
+   
+.. tabularrows::
+   :hline-show: 0 1::4 -1
+
 .. Finally, the table directive (preceeded by its label so you can reference it via
    :numref:`stations_table`). In principle, you might want to edit the
    directive content (the table content) or its argument (the table caption) which as you can see can
@@ -433,7 +448,7 @@ Acknowledgments
 .. csv-table:: Station table. Note that start and end times represent the maximum validity of the
    corresponding configurations, not the actual data availability or time in the field.
    Azi: Azimuth of north or '1' component.
-   :delim: ,
+   :delim: space
    :quote: "
    :header-rows: 1
    
@@ -468,7 +483,7 @@ Acknowledgments
    of the experiment, e.g. prior temporary experiments.
    :header-rows: 1
    :align: center
-   :delim: ,
+   :delim: space
    :quote: "
    {% for opt_name in stations_map.options -%}
    :{{ opt_name }}: {{ stations_map.options[opt_name] | safe }}
@@ -508,6 +523,7 @@ Acknowledgments
 
 .. images-grid:: Noise probability density functions for all stations for database holdings
    :dir: {{ noise_pdfs.dirpath | safe  }}
+   :delim: space
    :align: center
    :header-rows: 1
    :latex-includegraphics-opts: trim=8 30 76 0,width=0.33\textwidth,clip

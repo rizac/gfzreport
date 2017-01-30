@@ -17,6 +17,9 @@
 % string. Remove sfseries and make it smaller:
 \renewcommand{\tablecontinued}[1]{\rmseries\small #1}
   
+% make table headers ``normal'' (by default is \textsf in sphinx.sty)
+\renewcommand{\sphinxstylethead}{\textrm}
+
 % setup footers and headers in the "normal" document pages
 % IMPORTANT NOTE: fancyhdr is required if the document class is NOT memoir, (which is set in config.py
 % and is always true for this report)
