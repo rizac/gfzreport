@@ -254,9 +254,9 @@ latex_elements = {
     # (NOTE THAT Title Color applies to ALL section/chapter titles in sphinx 1.5.1):
     'sphinxsetup': "HeaderFamily=\\bfseries,TitleColor={rgb}{0,0,0}",
     # sphinx preamble (http://www.sphinx-doc.org/en/stable/config.html#confval-latex_elements):
-    'preamble': r'\makeatletter\input{gfz-latex-preamble.tex}\makeatother',
+    'preamble': r'\makeatletter\input{latex.preamble.dontcompile.tex}\makeatother',
     # latex epilog (http://www.sphinx-doc.org/en/stable/config.html#confval-latex_elements):
-    'atendofbody': r'\makeatletter\input{gfz-latex-atendofbody.tex}\makeatother',
+    'atendofbody': r'\makeatletter\input{latex.atendofbody.dontcompile.tex}\makeatother',
 }
 
 # The name of an image file (relative to this directory) to place at the top of the title page:

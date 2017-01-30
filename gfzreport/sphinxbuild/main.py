@@ -65,6 +65,8 @@ def get_tex_files(path):
     ret = {}
     if os.path.isdir(path):
         for file_ in os.listdir(path):
+            if ".dontcompile." in file_:
+                continue
             absfile = os.path.abspath(os.path.join(path, file_))
             if os.path.splitext(file_)[1].lower() == '.tex':
                 ret[absfile] = os.stat(absfile)[8]
@@ -142,7 +144,12 @@ def check_dirs(ctx, param, value):
               'to know which options (except -b, --build) or arguments (except sourcedir, outdir) '
               'can be passed in [other_sphinxbuild_options]')
 def main(sourcedir, outdir, build, other_sphinxbuild_options, sphinxhelp):
-    """A wrapper around sphinx-build"""
+    """A wrapper around sphinx-build. Note: if build is 'pdf', all tex files in `outdir`
+    with ".tex" extension will be checked before execution, and later compiled with `pdflatex`
+    if they are new or modified in between the execution. This usually works fine but might compile
+    separately latex additional files provided in conf.py (at least the first build, as they will be
+    seen as new). To avoid this, put the string ".dontcompile." in the file name
+    """
     if sphinxhelp:
         sphinx_build_main(["", "--help"])
         sys.exit(0)

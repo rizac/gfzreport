@@ -1,4 +1,8 @@
 '''
+Latex translator overriding default sphinx one:
+It provides latex commands for any bibliographic fields input at the start of the document
+in the form '\newcommand{rst<FIELDNAME>}{<FIELDVALUE>}',
+And it removes the hlines in longtable headers which sphinx 1.5.1 appends BY DEFAULT (!!!)
 Created on Apr 4, 2016
 
 @author: riccardo
