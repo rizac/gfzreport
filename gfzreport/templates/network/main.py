@@ -16,7 +16,7 @@ from gfzreport.templates.network.core.utils import makedirs, copyfiles, relpath
 from gfzreport.templates.network.core import get_noise_pdfs_content, gen_title,\
     get_net_desc, get_network_stations_df, get_other_stations_df, get_map_df, get_figdirective_vars
 from gfzreport.sphinxbuild.map import parse_margins
-from gfzreport.sphinxbuild.core.extensions import mapfig
+from gfzreport.sphinxbuild.core.extensions import mapfigure
 import datetime
 import inspect
 
@@ -283,7 +283,7 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
                                                                  index=False),
                                         },
                         stations_map={'content': map_df.to_csv(sep=" ", quotechar='"', index=False),
-                                      'options': mapfig.get_defargs(**mymapdefaults)
+                                      'options': mapfigure.get_defargs(**mymapdefaults)
                                       },
                         noise_pdfs={'dirpath': relpath(noise_pdf_dst, out_path),
                                     'content': get_noise_pdfs_content(noise_pdf_dst)

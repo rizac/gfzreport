@@ -294,7 +294,7 @@ def get_figdirective_vars(src_path, src_rst_path):
     Returns a dict D with keys
     'directive', 'arg', 'options', 'content'
     to be used in a jinja template:
-    The returned dict directive will be 'figure' or 'images-grid' if only one
+    The returned dict directive will be 'figure' or 'gridfigure' if only one
     file is found in `src_rst` or more, repsectively (if no file, ValueError is raised).
     """
     filenames = [f for f in os.listdir(src_path)]
@@ -308,7 +308,7 @@ def get_figdirective_vars(src_path, src_rst_path):
                }
     elif len(filenames) > 1:
         filenames = sorted(filenames)
-        dic = {'directive': 'images-grid',
+        dic = {'directive': 'gridfigure',
                'content': "\n".join('"%s"' % f if " " in f else f for f in filenames),
                'options': {'dir': relpath(src_path, src_rst_path), 'delim': 'space'},
                'arg': ''  # not used, but jinja won't complain. Supply a string not None

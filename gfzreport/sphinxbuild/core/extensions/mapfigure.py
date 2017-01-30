@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-   Implements the map-figure directive which behaves like an image. The directive acts as acsv
-   table (although it produces a figure). The csv content must have AT LEST the columns denoting:
+   Implements a directive which behaves like a figure with a geomap background.
+   The directive acts as a csv table (although it produces a figure).
+   The csv content must have AT LEST the columns denoting:
     - latitudes (either denoted by the string 'lats', 'latitudes', 'lat' or 'latitude',
     case insensitive)
     - longitudes ('lons', 'longitudes', 'lon' or 'longitude', case insensitive)
@@ -42,7 +43,7 @@ import math
 _OVERWRITE_IMAGE_ = False  # set to True while debugging / testing to force map image creation
 # (otherwise, it check if the image is already present according to the arguments given)
 
-_DIRECTIVE_NAME = "map-figure"
+_DIRECTIVE_NAME = "mapfigure"
 
 csv_headers = {
                "lats": re.compile("lat(?:itude)?s?", re.IGNORECASE),

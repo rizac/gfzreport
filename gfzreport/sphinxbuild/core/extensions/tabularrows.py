@@ -21,7 +21,7 @@ from docutils import nodes
 from docutils.parsers.rst import Directive
 # import numpy as np
 
-_TR_ID = "TABULAR_ROWS_ARG"
+_DIRECTIVE_NAME = "tabularrows"
 _CHUNKS_RE = re.compile(r"\s*,\s*|\s*;\s*|\s+")
 
 
@@ -61,7 +61,8 @@ class TabularRowsDirective(Directive):
         if not show and not hide:
             return []
         elif show and hide:
-            raise ValueError("You can't specify both :show: and :hide: in tabularrows options")
+            raise ValueError("You can't specify both :show: and :hide: in '%s' options" %
+                             _DIRECTIVE_NAME)
         elif hide:
             node = tabularrows_node(indices=hide, what="hide")
         else:
@@ -146,7 +147,8 @@ def visit_tr_node_latex(self, node):
                 hline_indices.append([i])
 
     if not parse_was_good:
-        sys.stderr.write("ERROR: tabularrows skipped : encountered a problem in parsing next table")
+        sys.stderr.write(("ERROR: directive '%s' skipped : encountered a problem "
+                          "in parsing next table") % _DIRECTIVE_NAME)
         return
 
     # restore correct order as hline_indices is built "reversed" (see loop above)
@@ -189,19 +191,19 @@ def doctree_read(app, doctree):
     def condition(node):
         return isinstance(node, nodes.table) or isinstance(node, tabularrows_node)
 
-    last_known_tr_node = None
+    pending_tabularrows_node = None
     for obj in doctree.traverse(condition):
         if isinstance(obj, tabularrows_node):
             obj.parent.children.remove(obj)
-            last_known_tr_node = obj
-        elif last_known_tr_node is not None:
-            obj.parent.children.insert(obj.parent.children.index(obj) + 1, last_known_tr_node)
-            last_known_tr_node = None
+            pending_tabularrows_node = obj
+        elif pending_tabularrows_node is not None:
+            obj.parent.children.insert(obj.parent.children.index(obj) + 1, pending_tabularrows_node)
+            pending_tabularrows_node = None
 
 
 def setup(app):
     app.add_node(tabularrows_node,
                  html=(visit_tr_node_html, depart_tr_node_html),
                  latex=(visit_tr_node_latex, depart_tr_node_latex))
-    app.add_directive('tabularrows', TabularRowsDirective)
+    app.add_directive(_DIRECTIVE_NAME, TabularRowsDirective)
     app.connect('doctree-read', doctree_read)

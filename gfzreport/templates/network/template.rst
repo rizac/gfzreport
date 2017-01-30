@@ -383,18 +383,20 @@ Acknowledgments
    In the following, with "directive block" (or simply block) we will denote the directive AND its
    label (if any). NOTE THAT ONLY A BLANK LINE, NOT EVEN COMMENTS, can be input between a label and
    its directive!
-   "./larch.png" is called the directive argument
-   ":width: 33%" and ":align: center" are directive options, called the directive fields
-   (in the form :fieldname: fieldbody)
-   "caption" is called the directive content
+   - "./larch.png" is called the directive argument
+   - ":width: 33%" and ":align: center" are directive options in the form :name: value
+   - "caption" is called the directive content
    (For details, see http://docutils.sourceforge.net/docs/ref/rst/directives.html#figure)
 
    From within the web application, NEVER EDIT FILE PATHS as they are relative to this
-   document path on the server. Never EDIT field names, as they might break the document build.
-   Everything else (non-file argument, non-file content, field bodies) can be editable
+   document path on the server. Never EDIT option names, as they might break the document build.
+   Everything else (non-file argument, non-file content, option values) can be editable
    
    You can always delete / move / copy a directive BLOCK anywhere in the text. 
    The block must be followed and preceeded by an empty line.
+   
+   Non-standard Rst directives (i.e., implemented and working in this program only) are marked as
+   (NonStandard) below
 
 
 .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -415,7 +417,7 @@ Acknowledgments
 
    \scriptsize
    
-.. Second, we use the tabularcolumns directive
+.. we use the tabularcolumns directive
    (http://www.sphinx-doc.org/en/latest/markup/misc.html#directive-tabularcolumns):
    this directive gives a “column spec” for the next table occurring in the source file.
    The spec is the second argument to the LaTeX tabulary package’s environment, although,
@@ -424,24 +426,24 @@ Acknowledgments
 .. tabularcolumns:: |@{\ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ }|
 
 
-.. third, we use a non-standard rst command: tabularrows. It hides or shows specific horizontal
-   lines (hlines) to the next generated table in the document. You can remove the whole block
-   to show all hlines (default in sphinx).
-   The directive can have two fields 'hline-show' or 'hline-hide' (either one or the other) specifying
-   the indices of the hlines to show/hide. The indices are a space-separated list of numbers (first index 0)
-   or python slice notations start:end:step (http://stackoverflow.com/questions/509211/explain-pythons-slice-notation).
+.. customize the table horizontal lines via the (NonStandard) tabularrows directive which applies to the next
+   generated table (latex output only). You can remove the whole block to show all hlines (default in sphinx).
+   The directive can have two options, 'hline-show' or 'hline-hide' (*either* one *or* the other) specifying
+   the indices of the hlines to show/hide, separeted by spaces (first index is 0). You can also
+   provide python slice notations in the format 'start:end:step' (http://stackoverflow.com/questions/509211/explain-pythons-slice-notation).
    The command is not perfect as it is a hack around a poor sphinx implementation, so you might need
    to fix the indices if it does not render as you want (especially for tables spanning over multiple
-   pages). As an example, we show the first (0) and the last (-1)
+   pages). As an example, we want to show the first (0) and the last (-1)
    hlines, and each fourth hline starting from the second one (1::4 which means indices 1,5,9,...)
    
 .. tabularrows::
    :hline-show: 0 1::4 -1
 
-.. Finally, the table directive (preceeded by its label so you can reference it via
+.. finally, the table directive (preceeded by its label so you can reference it via
    :numref:`stations_table`). In principle, you might want to edit the
-   directive content (the table content) or its argument (the table caption) which as you can see can
-   spanning over several lines (providing as always the correct indentation)
+   directive content as any csv file (the table content. To provide empty strings, quote them like this: "")
+   or its argument (the table caption) which as you can see can spanning over several lines
+   (providing as always the correct indentation)
    
 .. _stations_table:
 
@@ -463,20 +465,17 @@ Acknowledgments
 
 .. ==============================================================================   
 
-.. 2) The second directive below is the directive to display the station map figure.
-   It is a non-standard directive implemented in this program only, whose syntax is
-   similar to the csv-table directive (ses above) BUT produces an image instead.
-   
-.. And here the directive for the map  (preceeded by its label so you can reference it via
-   :numref:`stations_figure`). You can edit the directive argument (the map caption, keep
-   indentation for newlines), the directive
-   content as any csv text, or the directive fields **values**. You can change their **values**
-   to customize the map: a full documentation of all field names is in preparation, we tried to make
-   them as much self-explanatory as possible:
+.. 2) The second directive below is the (NonStandard) directive to display the station map figure.
+   The syntax is similar to the csv-table directive (ses above) BUT produces an image instead.
+   After the label definition (so you can reference the map figure via
+   :numref:`stations_figure`), in the directive you can edit the argument (the map caption, keep
+   indentation for newlines), the content as any csv file, or the directive option **values** 
+   to customize the map: a full documentation of all option names is in preparation, we tried to make
+   them as much self-explanatory as possible
 
 .. _stations_figure:
 
-.. map-figure:: Station distribution in experiment (red symbols). If present, white-filled symbols
+.. mapfigure:: Station distribution in experiment (red symbols). If present, white-filled symbols
    show permanent stations and other temporary experiments archived at EIDA or IRIS-DMC,
    whose activity period overlapped at least partially with the time of the experiment.
    If present, open symbols show station sites which were no longer active at the time
@@ -493,14 +492,13 @@ Acknowledgments
 
 .. ==============================================================================   
 
-.. 3) The third directive is the directive to display the noise pdfs.
-   It is also a non-standard directive implemented in this program only, whose syntax is similar
-   to the csv-table directive (ses above) BUT produces a grid of images.
+.. 3) The third directive is the (NonStandard) directive to display the noise pdfs.
+   The syntax is similar to the csv-table directive (ses above) BUT produces a grid of images.
    Note that in latex this will be rendered with a longtable followed by an
-   empty figure with the caption provided here. This is a workaround to produce something that
+   empty figure with only the caption inside. This is a workaround to produce something that
    looks like a figure spanning over several
-   pages (if needed) BUT it might need some arrangment because the figure caption might be
-   "detached" from the table, not being the same latex element. 
+   pages (if needed) BUT it might need some arrangment as the figure caption might be placed on a different
+   page 
 
 .. first issue a raw latex command (You can remove the lines if the layout does not need a clear page):
 
@@ -511,22 +509,23 @@ Acknowledgments
 .. customize latex tabularcolumns:   
    
 .. tabularcolumns:: @{}m{.33\textwidth}@{}m{.33\textwidth}@{}m{.33\textwidth}@{}
+
+.. customize the includegraphics options (only for latex output) for the next figure or image
+   found (in the former case, applies the includegraphics options to all images of the figure):
    
-.. And finally, the images-grid-directive (preceeded by its label so you can reference it via
+.. includegraphics:: trim=8 30 76 0,width=0.33\textwidth,clip
+   
+.. finally, the gridfigure directive (preceeded by its label so you can reference it via
    :numref:`noise_pdfs_figure`). The directive argument is the figure caption, the directive
-   content holds the auto-generated pdfs placed on the server in the :dir: field (**do not change it!!**)
-   Note the custom (non-standard Rst) :latex-includegraphics-opts: field which is the value applied
-   to *all* \includegraphics[...] commands of the grid and whose value can be changed
-   to match your desired layout (in html, it will have no effect)
+   content holds the auto-generated pdfs placed on the server in the :dir: option (**do not change it!!**)
 
 .. _noise_pdfs_figure:
 
-.. images-grid:: Noise probability density functions for all stations for database holdings
+.. gridfigure:: Noise probability density functions for all stations for database holdings
    :dir: {{ noise_pdfs.dirpath | safe  }}
    :delim: space
    :align: center
    :header-rows: 1
-   :latex-includegraphics-opts: trim=8 30 76 0,width=0.33\textwidth,clip
 
    {{ noise_pdfs.content|indent(3) }}
    
@@ -535,23 +534,31 @@ Acknowledgments
 
 .. 4) The fourth directive is the directive to display the instrumental uptimes.
    Depending on the number of files uploaded when generating this template, it's either a
-   'figure' or 'images-grid' directive, in any case it will be rendered as figure in html and latex).
+   'figure' or a (NonStandard) 'gridfigure' directive, in any case it will be rendered as figure in
+   html and latex).
 
-.. And here the directive (preceeded by its label so you can reference it via
+.. customize the includegraphics options (only for latex output) for the next figure or image
+   found (in the former case, applies the includegraphics options to all images of the figure):
+
+{% if inst_uptimes.directive == 'gridfigure' -%}
+.. includegraphics:: width=\textwidth
+{% else -%}
+.. includegraphics:: angle=-90,width=\textwidth
+{% endif -%}
+
+.. here the directive (preceeded by its label so you can reference it via
    :numerf:`inst_uptimes_figure`). Note that the directive type is dynamically auto generated:
    if it's a 'figure' type, you can change the directive content which is the figure
-   caption. If it's a 'images-grid' type, remember that the directive *argument*
-   is the figure caption. In both cases, you can remove or edit the value of the field
-   ':latex-includegraphics-opts: ' (as explained above)
+   caption. If it's a 'gridfigure' type, remember that the directive *argument*
+   is the figure caption
 
 .. _inst_uptimes_figure:
 
-{% if inst_uptimes.directive == 'images-grid' -%}
-.. images-grid:: Overview of uptimes of all stations generated with `obspy-scan`
+{% if inst_uptimes.directive == 'gridfigure' -%}
+.. gridfigure:: Overview of uptimes of all stations generated with `obspy-scan`
    {% for opt_name in inst_uptimes.options -%}
    :{{ opt_name }}: {{ inst_uptimes.options[opt_name] | safe }}
    {% endfor -%}
-   :latex-includegraphics-opts: width=\textwidth
    :align: center
    
    {{ inst_uptimes.content|indent(3)  }}
@@ -560,7 +567,6 @@ Acknowledgments
    {% for opt_name in inst_uptimes.options -%}
    :{{ opt_name }}: {{ inst_uptimes.options[opt_name] | safe }}
    {% endfor -%}
-   :latex-includegraphics-opts: angle=-90,width=\textwidth
    :width: 100%
    :align: center
    

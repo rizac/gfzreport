@@ -32,10 +32,10 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
     'gfzreport.sphinxbuild.core.extensions.setup',  # this is the custom one. MUST BE FIRST!
-    'gfzreport.sphinxbuild.core.extensions.mapfig',  # this is the custom one
-    'gfzreport.sphinxbuild.core.extensions.imggrid',  # this is the custom one
+    'gfzreport.sphinxbuild.core.extensions.mapfigure',  # this is the custom one
+    'gfzreport.sphinxbuild.core.extensions.gridfigure',  # this is the custom one
     'gfzreport.sphinxbuild.core.extensions.tabularrows',  # this is the custom one
-    'gfzreport.sphinxbuild.core.extensions.lateximgs',  # this is the custom one
+    'gfzreport.sphinxbuild.core.extensions.includegraphics',  # this is the custom one
 ]
 
 # The document name of the “master” document, that is, the document that contains the root
