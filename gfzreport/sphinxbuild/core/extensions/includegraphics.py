@@ -13,6 +13,8 @@ import re
 from docutils import nodes
 from docutils.parsers.rst import Directive
 
+_DIRECTIVE_NAME = "includegraphics"
+
 
 class includegraphics_node(nodes.Element):
     pass
@@ -109,5 +111,5 @@ def setup(app):
     app.add_node(includegraphics_node,
                  html=(visit_ig_node_html, depart_ig_node_html),
                  latex=(visit_ig_node_latex, depart_ig_node_latex))
-    app.add_directive('includegraphics', IncludeGraphicsDirective)
+    app.add_directive(_DIRECTIVE_NAME, IncludeGraphicsDirective)
     app.connect('doctree-read', doctree_read)

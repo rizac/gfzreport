@@ -1,5 +1,6 @@
 '''
-Simple sphinx extension which sets up all necessary extensions
+Simple sphinx extension which sets up the necessary translators (html, latex) and other stuff
+It is also a collection of trial and errors mostly commented and left here as a reminder in order
 Created on Apr 4, 2016
 
 @author: riccardo
@@ -36,7 +37,7 @@ bibfieldreplkwd = "___bfrt___"
 
 
 def relfn2path(filename):
-    """Returns a relative path normalized and relative to the app srcdir, unless 
+    """Returns a relative path normalized and relative to the app srcdir, unless
     the path is already absolute (in the sense of os.path.isabspath) in that case returns
     the argument as it is.
     Sphinx is quite confusing about paths, first
