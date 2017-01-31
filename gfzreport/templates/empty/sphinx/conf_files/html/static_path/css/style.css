@@ -1,0 +1,109 @@
+iframe{
+	border: 0px;
+}
+
+body {
+    background-image: url("../img/GFZ_Poster_Muster_pur_en_pdf.png");
+    background-repeat: no-repeat;
+    background-position: center top;
+    background-attachment: fixed;
+}
+
+div.body, div.sphinxsidebar{
+	background-color: rgba(255,255,255,0.7);
+	-moz-box-shadow: 2px 2px 4px #eee;
+    -webkit-box-shadow: 2px 2px 4px #eee;
+    box-shadow: 2px 2px 4px #eee;
+    border-radius: 10px;
+}
+
+div.map{
+	min-height: 30em;
+}
+
+/* override custom sidebar to place it always visible when scrolling: */
+div.sphinxsidebar{
+	float: none; /* !important;*/
+	position: fixed;
+	margin-left: 0px;
+}
+
+/* control overflow in width of tables:*/
+table.docutils {
+    display: block;
+    overflow: auto;
+    border: 0;
+    box-shadow: none;
+    border-radius:5px;
+}
+
+
+p{
+	text-align: justify;
+}
+
+/* the logo. Simply say p.logo makes super stylesheet have priority because it's more "precise", thus:*/
+div.sphinxsidebarwrapper p.logo {
+	margin: 0;
+	margin-bottom: 2em;
+}
+
+table.source_imggrid_directive, table.source_imggrid_directive td{
+	border: 0px !important;
+	box-shadow: none !important;
+}
+
+div.leaflet-container {
+    border: 1px solid #888;
+    -moz-box-shadow: 2px 2px 4px #eee;
+    -webkit-box-shadow: 2px 2px 4px #eee;
+    box-shadow: 2px 2px 4px #eee;
+}
+
+/* override alabaster stuff otherwise overridden by this style (for mobile devices) */
+@media screen and (max-width: 875px){
+	div.sphinxsidebar {
+		position: static;
+		border: 0px;
+	    display: block;
+	    /* float: none; */
+	    width: 102.5%;
+	    margin: 50px -30px -20px -30px;
+	    padding: 10px 20px;
+	    background: #333;
+	    color: #FFF;
+	}
+}
+
+/*adjust the footer margin cause when editing it overflows the page*/
+div.footer {
+    margin: 20px auto 10px auto !important;
+}
+/* override alabaster table footnote bg color */
+table.footnote {
+    background: transparent;
+}
+
+
+/*
+===================================
+UNUSED STUFF (might be removed in the future):
+==================================
+*/
+
+/*change page width and sidebar width. Remove the three trailing underscores to make it
+effective (the underscores prevents these two to be effective
+as we do not show sidebar anymore and the width is ok as it is) */
+
+/* page widths:*/
+div.document___{
+	width:970px !important; /* 940 is the default */
+}
+
+/* control the space between sidebar and body content:*/
+/*copied from superclass*/
+div.sphinxsidebar___ {
+    width: 220px;
+}
+
+
