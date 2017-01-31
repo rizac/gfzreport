@@ -100,7 +100,7 @@ def get_reports(basedir):
     ret = []
     for subdir in os.listdir(basedir):
         if subdir[0] != "_" and os.path.isdir(os.path.join(basedir, subdir)):
-            ret.append('/%s' % subdir)
+            ret.append('%s' % subdir)
     return ret
 
 

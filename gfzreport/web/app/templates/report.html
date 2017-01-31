@@ -110,13 +110,15 @@ let's put them here for readibility-->
 			<pre ng-class="{'bg-success' : currentCommit().hash==c.hash}">
 hash: {{ '{{' }} c.hash {{ '}}' }}
 date: {{ '{{' }} c.date {{ '}}' }}
-message: {{ '{{' }} c.msg {{ '}}' }}
-author: {{ '{{' }} c.author {{ '}}' }}</pre></td>
+message: {{ '{{' }} c.msg {{ '}}' }}</pre>
+<!-- Do not add author, as it is nonsense from webapp. However, if we will restore it, that's the line:
+author: {{ '{{' }} c.author {{ '}}' }}</pre> -->
+			</td>
 			<td>
-			<button class="btn-sm btn-primary" ng-show="currentCommit().hash!=c.hash" 
-				ng-click="currentCommit(c.hash)">view</button>
-			<span ng-show="currentCommit().hash==c.hash">(current)</span>
- 				</td>
+				<button class="btn-sm btn-primary" ng-show="currentCommit().hash!=c.hash" 
+					ng-click="currentCommit(c.hash)">view</button>
+				<span ng-show="currentCommit().hash==c.hash">(current)</span>
+ 			</td>
  			</tr>
  		</table>
 	</div>	
