@@ -3,6 +3,7 @@
 test-data/
 data/
 tmp/
+gfzreport/web/config.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

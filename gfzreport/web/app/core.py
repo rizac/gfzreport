@@ -204,23 +204,30 @@ def needs_build(reportdirname, buildtype, commit_if_needed=False):
 
 
 @contextmanager
-def capturestderr(reportdirname, buildtype):
+def capture_sphinx_stderr(reportdirname, buildtype):
     '''
-    import os
-
-    with stdout_redirected(to=filename):
-        print("from Python")
-        os.system("echo non-Python applications are also supported")
+    Captures the sphinx warnings / errors (written to stderr)
+    ```
+        with capture_sphinx_stderr(reportdirname, buildtype):
+            ... execute sphinx build ...
+    ```
     '''
     stderr = sys.stderr
-    fileout = get_sphinxlogfile(reportdirname, buildtype)
-    with open(fileout, 'w') as new_stderr:
-        sys.stderr = new_stderr
-        try:
-            yield  # allow code to be run with the redirected stdout/stderr
-        finally:
-            # restore stderr. buffering and flags such as CLOEXEC may be different
-            sys.stderr = stderr
+    sys.stderr = mystderr = StringIO()
+    try:
+        yield  # allow code to be run with the redirected stdout/stderr
+    finally:
+        # restore stderr
+        sys.stderr = stderr
+        # NOW we can try to write to file, cause the build directory might have been created
+        # meanwhile ...
+        fileout = get_sphinxlogfile(reportdirname, buildtype)
+        if os.path.isdir(os.path.dirname(fileout)):
+            try:
+                with open(fileout, 'w') as fopen:
+                    fopen.write(mystderr.getvalue())
+            except IOError:
+                pass
 
 
 def build_report(reportdirname, buildtype, force=False):
@@ -232,7 +239,7 @@ def build_report(reportdirname, buildtype, force=False):
     # sphinx puts warnings/ errors on the stderr
     # (http://www.sphinx-doc.org/en/stable/config.html#confval-keep_warnings)
     # capture it:
-    with capturestderr(reportdirname, buildtype):
+    with capture_sphinx_stderr(reportdirname, buildtype):
         sourcedir = get_sourcedir(reportdirname)
         builddir = get_builddir(reportdirname, buildtype)
         # ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
