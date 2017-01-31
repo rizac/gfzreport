@@ -32,7 +32,7 @@
    Please NEVER MODIFY (or DELETE) field markers. The field body on the other hand can contain:
    - newlines, indented relative to the field marker
    - colons, if they are escaped with a backslash: "\:"
-   - multiple body elements, but we strongly recommend to input raw text or urls ONLY.
+   - multiple body elements, but note that raw text and raw urls only have been tested succesfully.
 
 .. authors. Provide the authors as comma separated items (affiliation still to be implemented):
 
@@ -379,22 +379,24 @@ Acknowledgments
 
       caption
    
-   ".. _figure-label:" is the figure label, used to reference the figure via :numerf:`figure_label`:
-   In the following, with "directive block" (or simply block) we will denote the directive AND its
-   label (if any). NOTE THAT ONLY A BLANK LINE, NOT EVEN COMMENTS, can be input between a label and
-   its directive!
+   ".. _figure-label:" is the figure label, used to reference the figure via :numerf:`figure_label`
    - "./larch.png" is called the directive argument
    - ":width: 33%" and ":align: center" are directive options in the form :name: value
    - "caption" is called the directive content
    (For details, see http://docutils.sourceforge.net/docs/ref/rst/directives.html#figure)
 
-   From within the web application, NEVER EDIT FILE PATHS as they are relative to this
-   document path on the server. Never EDIT option names, as they might break the document build.
-   Everything else (non-file argument, non-file content, option values) can be editable
+   **IMPORTANT**:
+   1. In the following, with "directive block" (or simply block) we will denote the directive AND its
+   label (if any).
+   2. A directive block must be always preceeded and followed by a blank line. Always.
+   3. Only a blank line, not even comments, can be input between a label and
+   its directive
+   4. From within the web application only, NEVER edit:
+      - file paths as they are relative to this document path on the server.
+      - option names, as they might break the document build.
+      Everything else (non-file argument, non-file content, option values) can be editable
    
-   You can always delete / move / copy a directive BLOCK anywhere in the text. 
-   The block must be followed and preceeded by an empty line.
-   
+   You can always delete / move / copy a directive BLOCK anywhere in the text.
    Non-standard Rst directives (i.e., implemented and working in this program only) are marked as
    (NonStandard) below
 
@@ -407,7 +409,7 @@ Acknowledgments
    table. It's the so called 'csv-table' directive
    (http://docutils.sourceforge.net/docs/ref/rst/directives.html#id4):
    There are several ways to display tables in RsT. Curiously, none of them is free from drawbacks
-   and limitations. Csv-tables have the advantage to be easily editable HERE.
+   and limitations. Csv-tables have the advantage to be easily editable here.
 
 .. first of all, we show the "raw" directive, which might comes handy to put
    html or latex specific commands: in this case we decrease the size of the table
@@ -430,11 +432,12 @@ Acknowledgments
    generated table (latex output only). You can remove the whole block to show all hlines (default in sphinx).
    The directive can have two options, 'hline-show' or 'hline-hide' (*either* one *or* the other) specifying
    the indices of the hlines to show/hide, separeted by spaces (first index is 0). You can also
-   provide python slice notations in the format 'start:end:step' (http://stackoverflow.com/questions/509211/explain-pythons-slice-notation).
-   The command is not perfect as it is a hack around a poor sphinx implementation, so you might need
-   to fix the indices if it does not render as you want (especially for tables spanning over multiple
-   pages). As an example, we want to show the first (0) and the last (-1)
-   hlines, and each fourth hline starting from the second one (1::4 which means indices 1,5,9,...)
+   provide python slice notations in the format 'start:end' or 'start:end:step'
+   (http://stackoverflow.com/questions/509211/explain-pythons-slice-notation).
+   The command might not perfect as it is a hack around a poor sphinx implementation, and might
+   need some trial-and-errors for for tables spanning over multiple pages. As an example, we want
+   to show the first (0) and the last (-1) hlines, and each fourth hline starting from the second
+   one (1::4 which means indices 1,5,9,...)
    
 .. tabularrows::
    :hline-show: 0 1::4 -1
@@ -492,13 +495,14 @@ Acknowledgments
 
 .. ==============================================================================   
 
-.. 3) The third directive is the (NonStandard) directive to display the noise pdfs.
-   The syntax is similar to the csv-table directive (ses above) BUT produces a grid of images.
+.. 3) The third directive is the (NonStandard) directive 'gridfigure' to display the noise pdfs.
+   The syntax is similar to the csv-table directive (see above) BUT produces a grid of images.
    Note that in latex this will be rendered with a longtable followed by an
    empty figure with only the caption inside. This is a workaround to produce something that
-   looks like a figure spanning over several
-   pages (if needed) BUT it might need some arrangment as the figure caption might be placed on a different
-   page 
+   looks like a figure spanning over several pages (if needed) BUT it might need some arrangment
+   as the figure caption might be placed on a different page. Being a table and a figure, all figure
+   + table options, as well as all figure + table latex pre-customization (e.g. 'tabularcolumns',
+   'includegraphics') apply also to a 'gridfigure'
 
 .. first issue a raw latex command (You can remove the lines if the layout does not need a clear page):
 
@@ -506,15 +510,24 @@ Acknowledgments
 
    \clearpage
    
-.. customize latex tabularcolumns:   
+.. customize latex tabularcolumns:
    
-.. tabularcolumns:: @{}m{.33\textwidth}@{}m{.33\textwidth}@{}m{.33\textwidth}@{}
+.. tabularcolumns::  @{}c@{}c@{}c@{}
 
 .. customize the includegraphics options (only for latex output) for the next figure or image
    found (in the former case, applies the includegraphics options to all images of the figure):
    
 .. includegraphics:: trim=8 30 76 0,width=0.33\textwidth,clip
-   
+
+.. customize also horizontal lines when rendering to latex. As usual, remove the block below to
+   show all hlines. The block is mainly used as another example of the use of python slice
+   notations: "a:b" means "from a until b-1". If a is missing it default to zero, if b is missing
+   it defaults to the index after the last element. Thus ":" means all elements and the directive
+   below hides all hlines:
+
+.. tabularrows::
+   :hline-hide: :
+
 .. finally, the gridfigure directive (preceeded by its label so you can reference it via
    :numref:`noise_pdfs_figure`). The directive argument is the figure caption, the directive
    content holds the auto-generated pdfs placed on the server in the :dir: option (**do not change it!!**)

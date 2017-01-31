@@ -22,7 +22,7 @@ body, html{
 
 .col-container .pos-center,
 .row-container .pos-center{
-	flex: 1 1 auto;
+	flex: 1 1 50%;
 }
 
 div.container{
@@ -186,4 +186,10 @@ div.view div.pos-top button#logs{
 	position: absolute;
 	top:0px;
 	right:0px;
+}
+
+div#editor_keys_info{
+	display:inline-block;
+	margin-right:2em;
+	font-size: smaller;
 }

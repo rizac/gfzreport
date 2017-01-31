@@ -44,6 +44,18 @@ app.controller('MyController', function ($scope, $http, $window) {
 			iframe.onload= function() {
 		        //$scope.loading = false;
 		        $scope.aceEditor = iframe.contentWindow.editor;
+		        
+		        // add command to save via keybinding
+		        $scope.aceEditor.commands.addCommand({
+		            name: "saveContent",
+		            bindKey: {win: "Ctrl-s", mac: "Command-s"},
+		            exec: function(editor) {
+		            	if ($scope.editing && $scope.modified){
+		            		$scope.save();
+		            	}
+		            }
+		        });
+		        
 	    		//add listener WHEN LOADED:
 	    		$scope.aceEditor.on("input", function() {
 	    			$scope.$apply(function() {
@@ -253,6 +265,17 @@ app.controller('MyController', function ($scope, $http, $window) {
 	    		}
 	    	);
 	}
+
+	// EXPERIMENTAL (not workong): show keyboard shortcuts:
+//	$scope.toggleKeyboardShortcuts = function(){
+//		var editor = $scope.aceEditor;
+//		if(editor && $scope.editing){
+//			ace.config.loadModule("ace/ext/keybinding_menu", function(module) {
+//                module.init(editor);
+//                editor.showKeyboardShortcuts()
+//            });
+//		}
+//	}
 	
 	
 	$scope.setView('html');

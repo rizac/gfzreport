@@ -333,6 +333,6 @@ def gen_title(networkname, network_stations_df):
 
 
 def get_net_desc(stations_df):
-    """Returns the network description for the .rst file from a pandas DataFrame returned by 
+    """Returns the network description for the .rst file from a pandas DataFrame returned by
     get_network_stations"""
     return stations_df.metadata['desc']

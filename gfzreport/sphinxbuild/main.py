@@ -129,14 +129,16 @@ def check_dirs(ctx, param, value):
                 metavar='sourcedir')  # @IgnorePep8
 @click.argument('outdir', nargs=1, required=False, callback=check_dirs, metavar='outdir')
 @click.option('-b', '--build',
-              help=('builder to use. Default is ' + _DEFAULT_BUILD_TYPE + ' (in ' +
-                    'sphinx-build is html). You can also type pdf: if this program is correctly ' +
-                    'installed (with all latex libs) then `sphinx-build -b latex ...` is first ' +
+              help=('builder to use. Default is ' + _DEFAULT_BUILD_TYPE + ' (in '
+                    'sphinx-build is html). You can also type pdf: if this program is correctly '
+                    'installed (with all latex libs) then `sphinx-build -b latex ...` is first '
                     'executed and then pdflatex is run on all .tex files in outdir which '
-                    'were modified by sphinx-build (by checking their last modified time prior '
-                    'and after sphinx-build execution). Note that this program has been '
-                    'currently tested only for sphinx builds generating a single .tex file '
-                    'in outdir'),
+                    'did not exist before (or whose last-modified time changed during) this '
+                    'program execution. This usually works fine but might compile also latex '
+                    'additional files provided in conf.py, at least after the first build, as they '
+                    'will be seen as new: to avoid this, put the string ".dontcompile." in the '
+                    '.tex file names. Note that this program has been currently tested '
+                    'only for sphinx builds generating a single .tex file in outdir'),
               default=_DEFAULT_BUILD_TYPE, type=click.Choice(['html', 'pdf', _DEFAULT_BUILD_TYPE]))
 @click.argument('other_sphinxbuild_options', nargs=-1, type=click.UNPROCESSED,
                 metavar='[other_sphinxbuild_options]')
@@ -144,12 +146,7 @@ def check_dirs(ctx, param, value):
               'to know which options (except -b, --build) or arguments (except sourcedir, outdir) '
               'can be passed in [other_sphinxbuild_options]')
 def main(sourcedir, outdir, build, other_sphinxbuild_options, sphinxhelp):
-    """A wrapper around sphinx-build. Note: if build is 'pdf', all tex files in `outdir`
-    with ".tex" extension will be checked before execution, and later compiled with `pdflatex`
-    if they are new or modified in between the execution. This usually works fine but might compile
-    separately latex additional files provided in conf.py (at least the first build, as they will be
-    seen as new). To avoid this, put the string ".dontcompile." in the file name
-    """
+    """A wrapper around sphinx-build"""
     if sphinxhelp:
         sphinx_build_main(["", "--help"])
         sys.exit(0)
