@@ -1,0 +1,63 @@
+<!-- IMPORTANT NOTE:
+WE OVERRIDEN mode-rst.js in js/ace-build. With new settings, fields are assigned a class that ace colors
+in a kind of brown. That's fine. Note also that fields inside directive can be highlighted by LINE,
+i.e. in that case fielname and fieldbody will have the same color (too complex to color them differently
+without breaking all the rest).
+The DEFAULT ace style is in js/ace-buil/mode-rst-default.js
+ -->
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Editor</title>
+	<!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap/css/bootstrap.min.css') }}">
+	 -->
+	 <script src="{{url_for('static', filename='js/ace-build/ace.js')}}"></script>
+	<style>
+	html, body, div.ace_editor{
+		height:100%;
+	}
+	body, html{
+		margin:0;
+		padding: 0;
+	}
+	/*custom ace stuff:*/
+	.ace-clouds .ace_markup.ace_heading{ /*headers (sections, chapters) colors (note that it's impossible to color
+	  							also titles, this style applies to decorators only*/
+		color: goldenrod !important;
+	}
+	.ace-clouds .ace_markup.ace_keyword{  /*field names or fielnames:fieldbody (inside directive) color*/
+		color: #AF956F !important;
+	}
+	.ace-clouds .ace_keyword.ace_operator{ /*directives type color */ 
+		color: forestgreen !important;
+	}
+	.ace_underline { /*underlines hide underscore. With text-decoration:underline, underscores are
+						hidden. Use border-bottom to let underlines be visible*/
+    	border-bottom: 1px solid #5D90CD; /*note: the color is the same as acr-string*/
+    	/*background-color: rgba(250,250,50,0.25); */ /*old attempt: a non-opaque bg color to selection show through*/
+	}
+	</style>
+</head>
+<body>
+<div id='ace_editor'></div> 
+
+
+
+<script type="text/javascript">
+	/* ace stuff: */
+    var editor = ace.edit("ace_editor");
+    // this lets editor.setValue(text, cursorPos) work, at least with v1.2.3:
+    editor.$blockScrolling = Infinity;
+    /*editor.setTheme("ace/theme/vibrant_ink");*/
+    editor.setTheme("ace/theme/clouds");
+    editor.getSession().setMode("ace/mode/rst");
+    editor.setValue("{{ source_data | safe }}");
+    editor.clearSelection();
+    editor.setOptions({
+ 			fontFamily: "'Menlo', 'Ubuntu Mono', 'monospace'",
+ 			fontSize: "10pt",
+ 			//showPrintMargin: true,
+		printMarginColumn: 100
+	});
+</script>

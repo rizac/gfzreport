@@ -1,0 +1,195 @@
+body, html{
+	margin:0;
+	padding: 0;
+}
+
+.col-container{
+	display: flex;
+	flex-direction: column;
+}
+
+.row-container{
+	display: flex;
+	flex-direction: row;
+}
+
+.col-container .pos-top,
+.col-container .pos-bottom,
+.row-container .pos-left,
+.row-container .pos-right{
+	flex: 0 0 auto;
+}
+
+.col-container .pos-center,
+.row-container .pos-center{
+	flex: 1 1 50%;
+}
+
+div.container{
+	width:100vw;
+	height:100vh;
+}
+
+/*
+DECORATION STUFF:-----------------------------------------------------------------
+*/
+
+/* make borders and visually consistent with bootstrap tabs: */
+
+iframe{
+	border: 0;
+}
+
+div.edit > div.pos-center,
+div.view > div.pos-center{
+	border: 1px solid #ddd;
+}
+/* bootstrap tabs have already border-bottom, remove top: */
+div.view > div.pos-center{
+    border-top: 0;
+}
+
+/* make edit top panel align with bootstrap nav buttons (vertically)*/
+div.edit > div.pos-top > div.pos-center{
+	padding: 4px 0px;
+}
+
+div.edit > div.pos-top > div.pos-right > button.close{
+	font-size: xx-large;
+    padding-right: 2px;
+    opacity: .33;
+}
+
+div.edit > div.pos-top > div.pos-right > button.close:hover{
+	opacity: .66;
+}
+
+/* adjusting padding between panels and page padding*/
+div.container{
+	padding: 7px 0px; !important /*override .container in bootstrap*/
+}
+div.edit, div.view{
+	padding: 0px 7px;
+}
+/*
+DECORATION STUFF------------------------------------------------------------------
+*/
+
+div.view > div.pos-center{
+	position: relative;
+}
+/* loading div and animations: */
+div#loading_div{
+	/* two lines above force children to have the same opacity, so:*/
+	z-index: 100;
+	background-color: rgba(255, 255, 255, .5);
+	position: absolute;
+	top:0;
+	left:0;
+	bottom:0;
+	right: 0;
+	padding:0;
+	margin: 0;
+	text-align:center;
+	display:table-cell;
+    vertical-align:middle;
+}
+
+div#loading_div .msg{
+	top: 50%;
+    position: relative;
+    text-shadow: 0px 0px 4px #FFFFFF;
+}
+
+div#loading_div .waitbar{
+	width: 10%;
+	left: 45%;
+	top: 50%;
+	background-color: rgba(255, 255, 255, .75);
+    height:2em;
+    border: 1px solid #000;
+    overflow:hidden;
+    position: relative;
+    border-radius: 5px;
+}
+
+div#loading_div .waitbar > div {
+	width: 25%;
+    height: 100%;
+    background-color: #337ab7;  /* bootstrap bg-primary*/
+    position: absolute;
+    -webkit-animation-name: waitbar; /* Safari 4.0 - 8.0 */
+    -webkit-animation-duration: 3s; /* Safari 4.0 - 8.0 */
+    -webkit-animation-iteration-count: infinite; /* Safari 4.0 - 8.0 */
+    animation-name: waitbar;
+    animation-duration: 3s;
+    animation-iteration-count: infinite;
+}
+
+/* Safari 4.0 - 8.0 */
+@-webkit-keyframes waitbar {
+    0%   {left:0px}
+    100% {left:100%}
+}
+
+/* Standard syntax */
+@keyframes waitbar {
+    0%   {left:0px}
+    100% {left:100%}
+}
+
+div.popup{
+	position: fixed;
+    /* this sets up the horiz. centering doesnt work for ie6-7 so who cares */
+	margin: 7vh auto;
+    left: 0;
+    right: 0;
+	/* to let it work we must set also max-width HERE (max-height in the child div): */
+	max-width: 50vw;
+    /* other stuff: */
+	border: 1px solid #ddd;
+	box-shadow: 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    background-color: white;
+    border-radius: 5px;
+    z-index: 100;
+}
+
+div.popup > div{
+	overflow: auto;
+	max-height: 75vh;
+    /* max-width set on the parent */
+}
+
+div.popup > .close{
+	font-size: xx-large;
+    margin-left: 10px;
+	/* margin-left: 5px;
+    font-size: xx-large;
+    position: relative;
+    top: -10px;
+    margin-right: -7px; */
+}
+
+div#commits_popup td, div#commits_popup table{
+	border:0px;
+}
+
+div#commits_popup td:not(:first-child){
+	padding-left: 1ex;
+}
+
+div.view div.pos-top{
+	position: relative;
+}
+
+div.view div.pos-top button#logs{
+	position: absolute;
+	top:0px;
+	right:0px;
+}
+
+div#editor_keys_info{
+	display:inline-block;
+	margin-right:2em;
+	font-size: smaller;
+}
