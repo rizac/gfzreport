@@ -13,26 +13,6 @@ See notes here
 	
 Activate the virtual environment (see notes above). 
 
-#### Note: on Mac, you might have the following error while executing the web app:
-
-```
-RuntimeError: Python is not installed as a framework. The Mac OS X backend will not be able to function correctly if Python is not installed as a framework. See the Python documentation for more information on installing Python as a framework on Mac OS X. Please either reinstall Python as a framework, or try one of the other backends. If you are Working with Matplotlib in a virtual enviroment see 'Working with Matplotlib in Virtual environments' in the Matplotlib FAQ
-```
-
-You can edit the [matplotlibrc file](http://matplotlib.org/users/customizing.html#the-matplotlibrc-file)
-in your virtual environment, which you can also locate by typing 
-```
-python -c "import matplotlib;print matplotlib.matplotlib_fname()"
-```
-in the terminal. Then open it, locate the line `backend: ...`. Replace it with (or add the following if no such line was found):
-
-```
-backend: Agg
-```
-
-(To avoid coupling between code and configuration, we removed the matplotlibrc that was previously shipped
-with this program)
-
 ### Install this python package
 
 Download the reportgen git repository in a local folder, cd into it and install this package:
@@ -48,8 +28,13 @@ and then:
 
 Now you should have all python packages installed, *except* [basemap](https://github.com/matplotlib/basemap) (python library to plot on map projections with	coastlines and political boundaries using matplotlib):
 
-(Note, for problems installing the required python package `lxml`, `libxml2-dev libxslt-dev` are
-required (see here: http://lxml.de/installation.html)
+Possible problems:
+- for problems installing the required python package `lxml`, `libxml2-dev libxslt-dev` are required (see here: http://lxml.de/installation.html)
+- for problems installing scipy, you might want to execute first (this worked in ubuntu 14.04):
+  ```
+  sudo apt-get install libblas-dev liblapack-dev libatlas-base-dev gfortran
+  pip install scipy
+  ```
 
 ### Install basemap and dependencies
 
@@ -82,7 +67,38 @@ According to [basemap requirements](https://github.com/matplotlib/basemap#requir
   3. cd back to the top level basemap directory (basemap-X.Y.Z) and run the usual 'python setup.py install'.  Check your installation by running "from mpl_toolkits.basemap import Basemap" at the python prompt.
 	
   4. To test, cd to the examples directory and run 'python simpletest.py'. To run all the examples (except those that have extra dependencies or require an internet connection), execute 'python run_all.py'.
-   
+
+
+#### Note on matplotlib backend:
+
+On Mac, you could have the following issue:
+```
+RuntimeError: Python is not installed as a framework. The Mac OS X backend will not be able to function correctly if Python is not installed as a framework. See the Python documentation for more information on installing Python as a framework on Mac OS X. Please either reinstall Python as a framework, or try one of the other backends. If you are Working with Matplotlib in a virtual enviroment see 'Working with Matplotlib in Virtual environments' in the Matplotlib FAQ
+```
+On Ubuntu, we had another type of issue:
+```
+Exception occurred:
+  File "/usr/lib/python2.7/lib-tk/Tkinter.py", line 1767, in __init__
+    self.tk = _tkinter.create(screenName, baseName, className, interactive, wantobjects, useTk, sync, use)
+TclError: no display name and no $DISPLAY environment variable
+```
+
+Fortunately, it seems that for both problems the solution is to set 'Agg' as matplotlib backend.
+You can edit the [matplotlibrc file](http://matplotlib.org/users/customizing.html#the-matplotlibrc-file)
+in your virtual environment, which you can also locate by typing 
+```
+python -c "import matplotlib;print matplotlib.matplotlib_fname()"
+```
+in the terminal. Then open it, locate the line `backend: ...`. Replace it with (or add the following if no such line was found):
+
+```
+backend: Agg
+```
+
+(To avoid coupling between code and configuration, we removed the matplotlibrc that was previously shipped
+with this program)
+
+
 ### Install tex packages
 
 #### Ubuntu
