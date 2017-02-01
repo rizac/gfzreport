@@ -12,13 +12,15 @@ import os
 import sys
 import shutil
 from jinja2 import Environment
-from gfzreport.templates.network.core.utils import makedirs, copyfiles, relpath
+from gfzreport.templates.network.core.utils import relpath
 from gfzreport.templates.network.core import get_noise_pdfs_content, gen_title,\
     get_net_desc, get_network_stations_df, get_other_stations_df, get_map_df, get_figdirective_vars
 from gfzreport.sphinxbuild.map import parse_margins
 from gfzreport.sphinxbuild.core.extensions import mapfigure
 import datetime
 import inspect
+from gfzreport.templates.main import cp_template_tree, makedirs, copyfiles
+from jinja2.loaders import FileSystemLoader
 
 
 def click_path_type(isdir=False):
@@ -180,70 +182,24 @@ def main(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes, 
     # just write in the map figure rst option:
     # ", ".join(str(m) for m in area_margins)
     sys.exit(run(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes, update, mv,
-                 no_prompt, network_station_marker, nonnetwork_station_marker,
+                 not no_prompt, network_station_marker, nonnetwork_station_marker,
                  network_station_color, nonnetwork_station_color))
 
 
-def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_uptimes, update,
-        mv, no_prompt,
+def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_uptimes, dataonly,
+        mv, prompt,
         network_station_marker, nonnetwork_station_marker, network_station_color,
         nonnetwork_station_color):
-    localz = dict(locals())  # copy values NOW cause locals() will change size!
-    # first build the path. out_path is not None (see click_get_outdir function)
+    in_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sphinx")
     out_path = os.path.abspath(os.path.join(out_path, "%s_%s" % (str(network), str(start_after))))
-    out_path_exists = os.path.isdir(out_path)
-    cleanup = False  # used if we got exceptions and the dir did not exist (so clean it up)
-    try:
+    with cp_template_tree(in_path, out_path, prompt, dataonly) as _data_outdir:
 
-        if out_path_exists and not update:
-            # Putting content in an already existing non-empty directory is
-            # unmaintainable as we might have conflicts when building the report:
-            raise ValueError(("'%s' already exists.\nPlease provide a non-existing directory path "
-                              "or supply the '--update' argument to copy data files only "
-                              "(no sphinx config and rst files)") % out_path)
+        if isinstance(_data_outdir, Exception):
+            return 1
 
-        if not no_prompt:  # FIXME: click has a prompt function but how to deal with the case update
-            # or not? (see http://click.pocoo.org/5/options/#prompting)
-            print("Data %s will be written to:" %
-                  ("only (no config files) " if update else "and config files "))
-            print("%s" % out_path)
-            if not out_path_exists:
-                print("The directory path will be created (mkdir -p)")
-            print("Continue? (y for yes, anything else for abort)")
-            l = sys.stdin.readline()
-            if l.strip() != 'y':
-                raise ValueError("aborted by user")
-
-        # Ok. No need to call makedirs(out_path), because either
-        # 1) update is False: then out_path does not exist (see above). We will create the dir
-        # when copying the config file, or
-        # 2) update is True: then we will make out_path when copying the data files (we will skip
-        # config dir and rst files, not copied)
-
-        # defining paths:
-        _this_dir = os.path.dirname(__file__)
-        template_src = os.path.abspath(os.path.join(_this_dir, "template.rst"))
-        config_src = os.path.abspath(os.path.join(_this_dir, "sphinx"))
-
-        _data_outdir = os.path.join(out_path, "data")
         noise_pdf_dst = os.path.join(_data_outdir, "noise_pdf")
-        # noise_pdf is an object with dirname prop
         inst_uptimes_dst = os.path.join(_data_outdir, "inst_uptimes")
-        template_dst = os.path.join(out_path, "report.rst")
-        config_dst = out_path  # os.path.abspath(os.path.join(os.path.join(out_path, "config")))
-
-        create_rst_and_config = not update
-        if create_rst_and_config:
-            # some check to avoid copying files if useless:
-            if not os.path.isfile(template_src):
-                raise IOError("No template.rst found at %s" % template_src)
-
-            # then copy conf dir, as copytree calls mkdirs(config_dst) and requires the dst not to
-            # exist (so if we config_dst == out_path, this must be the first operation)
-            print("Copying config dir: %s in %s " % (config_src, config_dst))
-            shutil.copytree(config_src, config_dst)
-
-        # copy the images files:
+        # copy the data files:
         # Note: create the sub-directories first, as copyfiles below creates them
         # only if there are files to copy
         for path in [inst_uptimes_dst, noise_pdf_dst]:
@@ -264,8 +220,8 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
                 if not os.listdir(dst__):
                     raise IOError("No files copied. Please check '%s'" % src__)
 
-        if create_rst_and_config:
-            print("Generating report template")
+        if not dataonly:
+            print("Rendering report template with jinja2")
             sta_df = get_network_stations_df(network, start_after)
             all_sta_df = get_other_stations_df(sta_df, area_margins_in_deg)
             map_df = get_map_df(sta_df, all_sta_df)
@@ -291,47 +247,17 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
                         inst_uptimes=get_figdirective_vars(inst_uptimes_dst, out_path)
                         )
 
-            with open(template_src, 'r') as opn:
-                txt = opn.read().decode('UTF8')
-            reporttext = Environment().from_string(txt).render(**args)
+            rstfilename = "report.rst"
+            template = Environment(loader=FileSystemLoader(out_path)).get_template(rstfilename)
+            reporttext = template.render(**args)
 
-            # copying the report.rst file
+            template_dst = os.path.join(out_path, rstfilename)
+            # writing back to report.rst file
             print("Writing report rst file in %s" % (template_dst))
             with open(template_dst, 'w') as opn:
                 opn.write(reporttext.encode('UTF8'))
 
-            print("Writing command line arguments to README.txt")
-            with open(os.path.join(out_path, 'README.txt'), 'w') as opn:
-                opn.write(u'Source folder generated automatically on %s\n' %
-                          (datetime.datetime.utcnow()))
-                opn.write(u"from within:\n")
-                opn.write(u"%s:%s\n" % (__file__, inspect.stack()[0][3]))  # current module:function
-                opn.write(u'and the following arguments:\n')
-                for key, val in localz.iteritems():
-                    opn.write(u'%s = %s\n' % (str(key), str(val)))
-
-        # printing info stuff:
-
-        print("===========================================")
-        print("Generated report in '%s'" % os.path.abspath(out_path))
-        print("Please edit the file %s in that directory and then create your build with:"
-              % os.path.basename(template_dst))
-        print("    reportbuild %s OUTDIR%s -b latex -E"
-              % (os.path.abspath(out_path),
-                 "" if
-                 os.path.samefile(config_dst, out_path) else " -c " + os.path.abspath(config_dst)))
-        print("Where OUTDIR is a selected output directory and -b can be either latex, html or pdf")
-        return 0
-    except (IOError, OSError, ValueError) as exc:
-        cleanup = not out_path_exists and os.path.isdir(out_path)
-        print("Aborted: %s" % str(exc))
-        return 1
-    except:
-        cleanup = not out_path_exists and os.path.isdir(out_path)
-        raise
-    finally:
-        if cleanup:
-            shutil.rmtree(out_path, ignore_errors=True)
+    return 0
 
 
 if __name__ == '__main__':

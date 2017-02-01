@@ -5,8 +5,6 @@ Created on Jan 9, 2017
 '''
 import pandas as pd
 import urllib2
-import shutil
-from glob import glob
 import os
 import re
 from obspy import read_inventory
@@ -17,62 +15,6 @@ def relpath(path, reference_path):
     """Almost the same as os.path.relpath but prepends a dot, so the returned value is
         usable in .rst relative paths"""
     return os.path.join(".", os.path.relpath(path, reference_path))
-
-
-def makedirs(path):
-    """Same as os.makedirs except that it silently exits if the path already exists"""
-    if not os.path.isdir(path):
-        os.makedirs(path)
-
-
-def copyfiles(src, dst_dir, move=False):
-    """
-        Copies /move files recursively, extending shutil and allowing glob expressions
-        in src
-        :param src: a which MUST not be a system directory, denoting:
-            * an existing file. In this case `shutil.copy2(src, dst)` will be called
-              (If the destination file already exists under 'dst', it will be overridden)
-            * a directory, in that case *all files and dirs within src* will be moved or copied.
-              (if move=True and src is empty after the move, then src will be deleted)
-            * a glob expression such as '/home/*pdf'. Then, all files matching the glob
-                expression will be copied / moved
-        :param dst: a destination DIRECTORY. If it does not exists, it will be created
-        (os.makedirs, basically alias of 'mkdir -p').
-    """
-    files_count = 0
-
-    if os.path.isdir(src):
-        for fle in os.listdir(src):
-            files_count += copyfiles(os.path.join(src, fle), dst_dir, move)
-        # since we moved all files, we remove the dir if it's empty:
-        if move and not os.listdir(src):
-            shutil.rmtree(src, ignore_errors=True)
-
-    elif os.path.isfile(src):
-        dst_dir_exists = os.path.isdir(dst_dir)
-        # copytree does not work if dest exists. So
-        # for file in os.listdir(src):
-        if not move:
-            if not dst_dir_exists:
-                # copy2 requires a dst folder to exist,
-                makedirs(dst_dir)
-            shutil.copy2(src, dst_dir)
-        else:
-            shutil.move(src, dst_dir)
-
-        files_count = 1
-    else:
-        glb_list = glob(src)
-        if len(glb_list) and glb_list[0] != src:
-            # in principle, if src denotes a non-existing file or dir, glb_list is empty, if it
-            # denotes an existing file or dir, it has a single element equal to src. This latter
-            # case is a problem as we might have an error when copying a dir
-            # In principle copy2 below raises the exception but for safety we repeat
-            # the test here
-            for srcf in glob(src):  # glob returns joined pathname, it's not os.listdir!
-                files_count += copyfiles(srcf, dst_dir, move)
-
-    return files_count
 
 
 def read_network(network, start_after_year, **kwargs):
