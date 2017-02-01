@@ -42,17 +42,16 @@ Note that each build directory is structured as follows:
 
 @author: riccardo
 '''
-import subprocess
 import os
+import sys
+import subprocess
+from subprocess import CalledProcessError
 from cStringIO import StringIO
-from gfzreport.web.app import app
-from gfzreport.sphinxbuild.main import run as reportbuild_run
 from itertools import count
 from werkzeug.utils import secure_filename
-from subprocess import CalledProcessError
 from contextlib import contextmanager
-import sys
-from collections import OrderedDict
+from flask import current_app as app
+from gfzreport.sphinxbuild.main import run as reportbuild_run
 
 
 def get_sourcefile_content(reportdirname, commit_hash='HEAD', as_js=True):

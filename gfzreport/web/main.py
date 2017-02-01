@@ -4,7 +4,7 @@ Created on Apr 3, 2016
 @author: riccardo
 '''
 import click
-from gfzreport.web.app import app
+from gfzreport.web.app import get_app
 
 
 @click.command()
@@ -13,6 +13,7 @@ from gfzreport.web.app import app
 @click.option('-d', '--debug', default=None,
               help='The path to the FILE of the data availability image')
 def main(port, debug):
+    app = get_app()
     if not debug and not port:
         app.run()
     elif debug:
