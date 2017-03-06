@@ -91,7 +91,7 @@ class LatexTranslator(LT):
                                 "{" + definition.replace("\n", '\\\\\n') + "}"
                                 for name, definition in self.rst_bib_fields.iteritems()
                                 if name and name not in self.no_newcommand)
-        preamble_wrapper = ("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+        preamble_wrapper = (u"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
                             "%% NEWCOMMANDS FROM RST BIB.FIELDS GENERATED IN LatexTranslator:\n"
                             "{}\n"
                             "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
