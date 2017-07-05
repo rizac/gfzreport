@@ -11,19 +11,20 @@ from itertools import izip
 # app = Flask(__name__, static_folder=None)  # static_folder=None DOES TELL FLASK NOT TO ADD ROUTE
 # FOR STATIC FOLDEERS
 
-def get_app(report=None):
-    if report is None:
-        if 'REPORT' not in os.environ or not os.environ['REPORT']:
-            raise ValueError(("You need to set the environment variable REPORT "
-                              "as a valid config class name defined in config.py"))
-        report = os.environ['REPORT']
+def get_app(data_path=None):
+    if data_path is None:
+        if 'DATA_PATH' not in os.environ or not os.environ['DATA_PATH']:
+            raise ValueError(("You need to set the environment variable DATA_PATH "
+                              "pointing to a valid folder where source and build files will be processed"))
+        data_path = os.environ['DATA_PATH']
+
+    if not os.path.isdir(data_path):
+        raise ValueError("Not a directory: DATA_PATH='%s'\nPlease change environment variable 'DATA_PATH'" % str(data_path))
+ 
     app = Flask(__name__)
 
-    app.config.from_object('gfzreport.web.config.' + os.environ['REPORT'])
-    if not os.path.isdir(app.config['DATA_PATH']):
-        raise ValueError("Not a directory: DATA_PATH='%s'\nPlease change config.py " %
-                         app.config['DATA_PATH'])
-
+    app.config.from_object('gfzreport.web.config.BaseConfig')
+    app.config['DATA_PATH'] = data_path
     app.config['BUILD_PATH'] = os.path.abspath(os.path.join(app.config['DATA_PATH'], "build"))
     app.config['SOURCE_PATH'] = os.path.abspath(os.path.join(app.config['DATA_PATH'], "source"))
 

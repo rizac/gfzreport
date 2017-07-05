@@ -13,16 +13,3 @@ class BaseConfig(object):
     DATA_PATH = None  # where the sources are. Each subfolder not starting with "_" inside SOURCE_PATH will be taken as a report 
     UPLOAD_ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
     UPLOAD_DIR_BASENAME = "_www_uploaded_files"  # in principle, you don't need t change this
-
-
-# then the report types (one class per report type):
-# Note that the environment variable REPORT must match exactly one of the following subclasses:
-
-
-class NETWORK(BaseConfig):
-    DEBUG = True
-    DATA_PATH = '/data2/gfz-report/network'
-
-class ANNUAL(BaseConfig):
-    DEBUG=True
-    DATA_PATH = '/data2/gfz-report/annual'
