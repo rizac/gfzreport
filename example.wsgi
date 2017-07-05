@@ -14,7 +14,7 @@
 _VIRTUALENV_PYTHONPATH = '/home/riccardo/gfz-reportgen/bin/activate_this.py'
 # report type: in the config flask file, there must be a dict with _REPORT_TYPE name
 # with a given source folder.
-_REPORT_TYPE = 'ANNUAL'
+_DATA_PATH = '/data2/gfz-report/annual'
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -22,7 +22,7 @@ _REPORT_TYPE = 'ANNUAL'
 activate_this = _VIRTUALENV_PYTHONPATH
 execfile(activate_this, dict(__file__=activate_this))
 import os
-os.environ['REPORT'] = _REPORT_TYPE
+os.environ['DATA_PATH'] = _DATA_PATH
 from gfzreport.web.app import get_app
 application = get_app()
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
