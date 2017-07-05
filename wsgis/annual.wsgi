@@ -9,16 +9,19 @@
 # -------------------------------------------------------------
 
 # virtualenv incantation:
-activate_this = '/home/sysop/gfz-reportgen/bin/activate_this.py'
+activate_this = '/home/riccardo/gfz-reportgen/bin/activate_this.py'
 execfile(activate_this, dict(__file__=activate_this))
 
 import os
 import sys
 
-sys.path.insert(0, '/var/www/html/gfz-reportgen')
-sys.path.insert(0, '/var/www/html/gfz-reportgen/gfzreport/web')
+# print sys.path
+
+# sys.path.insert(0, '/var/www/html/gfz-reportgen')
+# sys.path.insert(0, '/var/www/html/gfz-reportgen/gfzreport/web')
 
 os.environ['REPORT'] = 'ANNUAL'
 
-from gfzreport.web.app import app as application
-
+# from gfzreport.web.app import app as application
+from gfzreport.web.app import get_app
+application = get_app()

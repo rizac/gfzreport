@@ -21,4 +21,8 @@ class BaseConfig(object):
 
 class NETWORK(BaseConfig):
     DEBUG = True
-    DATA_PATH = '/Users/riccardo/work/gfz/data/gfzreport/test-data/webapp/network'
+    DATA_PATH = '/data2/gfz-report/network'
+
+class ANNUAL(BaseConfig):
+    DEBUG=True
+    DATA_PATH = '/data2/gfz-report/annual'

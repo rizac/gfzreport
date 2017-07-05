@@ -9,7 +9,7 @@
 # -------------------------------------------------------------
 
 # virtualenv incantation:
-activate_this = '/home/sysop/gfz-reportgen/bin/activate_this.py'
+activate_this = '/home/riccardo/gfz-reportgen/bin/activate_this.py'
 execfile(activate_this, dict(__file__=activate_this))
 
 import os

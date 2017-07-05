@@ -19,7 +19,7 @@ def get_app(report=None):
         report = os.environ['REPORT']
     app = Flask(__name__)
 
-    app.config.from_object('config.' + os.environ['REPORT'])
+    app.config.from_object('gfzreport.web.config.' + os.environ['REPORT'])
     if not os.path.isdir(app.config['DATA_PATH']):
         raise ValueError("Not a directory: DATA_PATH='%s'\nPlease change config.py " %
                          app.config['DATA_PATH'])
