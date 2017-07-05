@@ -5,7 +5,7 @@ Created on Apr 3, 2016
 '''
 import os
 from flask.templating import render_template
-from flask import send_from_directory, request, jsonify, Blueprint  # redirect, url_for
+from flask import send_from_directory, request, jsonify, Blueprint, current_app  # redirect, url_for
 # from gfzreport.web.app import app
 from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
@@ -19,8 +19,8 @@ mainpage = Blueprint('main_page', __name__)  # , template_folder='templates')
 @mainpage.route('/')
 def index():
     return render_template("reportslist.html",
-                           title=mainpage.config['DATA_PATH'],
-                           reports=get_reports(mainpage.config['SOURCE_PATH']))
+                           title=current_app.config['DATA_PATH'],
+                           reports=get_reports(current_app.config['SOURCE_PATH']))
 
 
 @mainpage.route('/<reportdirname>')
