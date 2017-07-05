@@ -5,23 +5,26 @@ Created on Apr 3, 2016
 '''
 import os
 from flask.templating import render_template
-from flask import send_from_directory, request, jsonify  # redirect, url_for
-from gfzreport.web.app import app
+from flask import send_from_directory, request, jsonify, Blueprint  # redirect, url_for
+# from gfzreport.web.app import app
 from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
     get_fig_directive, get_log_files_list
 from itertools import izip
 
+# http://flask.pocoo.org/docs/0.12/patterns/appfactories/#basic-factories:
+mainpage = Blueprint('main_page', __name__)  # , template_folder='templates')
 
-@app.route('/')
+
+@mainpage.route('/')
 def index():
     return render_template("reportslist.html",
-                           title=app.config['DATA_PATH'],
-                           reports=get_reports(app.config['SOURCE_PATH']))
+                           title=mainpage.config['DATA_PATH'],
+                           reports=get_reports(mainpage.config['SOURCE_PATH']))
 
 
-@app.route('/<reportdirname>')
-@app.route('/<reportdirname>/')
+@mainpage.route('/<reportdirname>')
+@mainpage.route('/<reportdirname>/')
 def get_report(reportdirname):
     DEFAULT_START_BUILD_TYPE = 'html'  # FIME: move to config?
     return render_template("report.html",
@@ -30,8 +33,8 @@ def get_report(reportdirname):
                            pagetype=DEFAULT_START_BUILD_TYPE)
 
 
-@app.route('/<reportdirname>/content/<pagetype>')
-@app.route('/<reportdirname>/content/<pagetype>/')
+@mainpage.route('/<reportdirname>/content/<pagetype>')
+@mainpage.route('/<reportdirname>/content/<pagetype>/')
 def get_report_type(reportdirname, pagetype):
     if pagetype in ('html', 'pdf'):
         reportfilename, _ = build_report(reportdirname, pagetype, force=False)
@@ -41,14 +44,14 @@ def get_report_type(reportdirname, pagetype):
         return render_template("editor.html", source_data=get_sourcefile_content(reportdirname))
 
 
-@app.route('/<reportdirname>/content/<pagetype>/<path:static_file_path>')
+@mainpage.route('/<reportdirname>/content/<pagetype>/<path:static_file_path>')
 def get_report_static_file(reportdirname, pagetype, static_file_path):
     if pagetype in ('html', 'pdf'):
         filepath = os.path.join(get_builddir(reportdirname, pagetype), static_file_path)
         return send_from_directory(os.path.dirname(filepath), os.path.basename(filepath))
 
 
-@app.route('/<reportdirname>/save', methods=['POST'])
+@mainpage.route('/<reportdirname>/save', methods=['POST'])
 def save_report(reportdirname):
     unicode_text = request.get_json()['source_text']
     commits = save_sourcefile(reportdirname, unicode_text)
@@ -56,20 +59,20 @@ def save_report(reportdirname):
     return jsonify(commits)  # which converts to a Response
 
 
-@app.route('/<reportdirname>/get_commits', methods=['POST'])
+@mainpage.route('/<reportdirname>/get_commits', methods=['POST'])
 def get_commits_list(reportdirname):
     commits = get_commits(reportdirname)
     # note that (editable_page.html) we do not actually make use of the returned response value
     return jsonify(commits)  # which converts to a Response
 
 
-@app.route('/<reportdirname>/get_source_rst', methods=['POST'])
+@mainpage.route('/<reportdirname>/get_source_rst', methods=['POST'])
 def get_source_rst(reportdirname):
     commit_hash = request.get_json()['commit_hash']
     return jsonify(get_sourcefile_content(reportdirname, commit_hash, as_js=False))
 
 
-@app.route('/<reportdirname>/get_logs', methods=['POST'])
+@mainpage.route('/<reportdirname>/get_logs', methods=['POST'])
 def get_logs(reportdirname):
     buildtype = request.get_json()['buildtype']
     # return a list of tuples to preserve order:
@@ -78,7 +81,7 @@ def get_logs(reportdirname):
     return jsonify(lizt)
 
 
-@app.route('/<reportdirname>/upload_file', methods=['POST'])
+@mainpage.route('/<reportdirname>/upload_file', methods=['POST'])
 def upload_file(reportdirname):
     # check if the post request has the file part
     if 'file' not in request.files:
