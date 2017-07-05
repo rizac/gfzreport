@@ -5,7 +5,7 @@ Created on Jan 15, 2017
 '''
 import unittest
 import pytest
-from reportbuild.map import parse_margins
+from gfzreport.sphinxbuild.map import parse_margins
 import numpy as np
 
 class Test(unittest.TestCase):

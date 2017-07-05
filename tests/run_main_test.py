@@ -7,8 +7,8 @@ import os
 import sys
 import glob
 from click.testing import CliRunner
-from reportgen.network.generator.main import main as reportgen_main
-from reportbuild.main import run as reportbuild_run
+from gfzreport.templates.network.main import run as network_reportgen_run
+from gfzreport.sphinxbuild.main import run as reportbuild_run
 import shutil
 from cStringIO import StringIO
 
@@ -49,10 +49,10 @@ def test_all():
                 a.insert(0, os.path.join(mydir, a[0]))
                 a.append(runner)
                 print ""
-                srcdir = test_rgen(*a)
+                srcdir = tst_rgen(*a)
                 builddir = os.path.join(mydir, a[0]+"_build")
                 print ""
-                bdir = test_rbuild(srcdir, builddir, expected_exist_status)
+                bdir = tst_rbuild(srcdir, builddir, expected_exist_status)
                 # sys.stdout, sys.stderr = tmp1, tmp2
                 for rem in [srcdir, bdir]:
                     if os.path.isdir(rem):
@@ -90,7 +90,7 @@ def test_all():
     print "====================="
 
 
-def test_rgen(outdir, network, year, inst_uptimes, data_aval, noise_pdf, expected_exit_code,
+def tst_rgen(outdir, network, year, inst_uptimes, data_aval, noise_pdf, expected_exit_code,
               cli_runner=None):
     # expected_exit_code: 0 for success, 1 for failure (or something else than zero)
 
@@ -120,8 +120,8 @@ def test_rgen(outdir, network, year, inst_uptimes, data_aval, noise_pdf, expecte
     args.extend(def_args)
 
     global CURRENT_ERR_MSG
-    CURRENT_ERR_MSG = str(reportgen_main) + " " + str(args)
-    result = runner.invoke(reportgen_main, args, catch_exceptions=False)
+    CURRENT_ERR_MSG = str(network_reportgen_run) + " " + str(args)
+    result = runner.invoke(network_reportgen_run, args, catch_exceptions=False)
 
     ext_code = result.exit_code
     print "Expecting exit code %d" % expected_exit_code
@@ -149,7 +149,7 @@ def filelen(arg):
         return len(glob.glob(arg))
 
 
-def test_rbuild(sourcedir, builddir, expected_exit_status):
+def tst_rbuild(sourcedir, builddir, expected_exit_status):
     print "Building a test report"
     print "srcdir '%s'" % sourcedir
     print "builddir '%s'" % builddir
