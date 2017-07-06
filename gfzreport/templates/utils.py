@@ -15,6 +15,7 @@ import inspect
 from glob import glob
 from contextlib import contextmanager
 import errno
+import click
 
 
 def makedirs(path):
@@ -30,7 +31,7 @@ def copyfiles(src, dst_dir, move=False):
     """
         Copies /move files recursively, extending shutil and allowing glob expressions
         in src
-        :param src: a which MUST not be a system directory, denoting:
+        :param src: a file/directory which MUST not be a system directory, denoting:
             * an existing file. In this case `shutil.copy2(src, dst)` will be called
               (If the destination file already exists under 'dst', it will be overridden)
             * a directory, in that case *all files and dirs within src* will be moved or copied.
@@ -77,28 +78,25 @@ def copyfiles(src, dst_dir, move=False):
 
 
 @contextmanager
-def cp_template_tree(in_path, out_path, prompt, dataonly, locals_in_caller=None):
-    """Copies recursively in_path into out_path, creates out_path/data and yields the latter
-    to be populated with custom data by a caller. Usually, in_path is the sphinx subfolder of a
-    package with all config files and at least one rst file. This function also writes
-    out_path/README.txt with information about the caller arguments and the stack (for debugging
-    purposes)
+def cp_template_tree(in_path, out_path, confirm):
+    """Copies recursively `in_path` into `out_path`, creates `out_path`/data and yields the latter
+    to be populated with custom data by a caller. `out_path` needs **NOT** to exist
+    Usually, in_path is the sphinx subfolder of a
+    package with all sphinx config files and at least one rst file
 
     This function can be used in a with statement from within a caller:
     ```
-    with cp_tree(indir, out_path, prompt, dataonly, localz) as _data_outdir:
-
-        if isinstance(_data_outdir, Exception):  # either an IOError, OSError, ValueError
-            return 1
+    with cp_template_tree(indir, out_path, confirm=True) as data_dir:
 
         ... copy data files in data_dir ...
 
     return 0
     ```
-    This function deletes out_dir in case of exceptions. If the exception is not either
-    OSError, IOError, ValueError, it raises, otherwise prints a message
+    This function can raise (OsError, IOError, ValueError). If it raises, and
+    `out_path` was newly created inside this function, it deletes `out_path` before raising
     """
-    # NOTE: out_path must be already set e.g. /data/source/network/ZE_2012!!!
+    # NOTE: we will delete out_path if this function raises and created it meanwhile
+    # so first of all keep track if out_path exists (should return always False)
     out_path_exists = os.path.isdir(out_path)
     cleanup = False  # used if we got exceptions and the dir did not exist (so clean it up)
     try:
@@ -106,30 +104,27 @@ def cp_template_tree(in_path, out_path, prompt, dataonly, locals_in_caller=None)
             raise ValueError("sourcedir '%s': not a directory" % in_path)
 
         if out_path_exists:
-            if not dataonly:
-                # Putting content in an already existing non-empty directory is
-                # unmaintainable as we might have conflicts when building the report:
-                raise ValueError(("'%s' already exists.\nPlease provide a non-existing directory "
-                                  "path or supply the '--update' argument to copy data files only "
-                                  "(no sphinx config and rst files)") % out_path)
+            # Putting content in an already existing non-empty directory is
+            # unmaintainable as we might have conflicts when building the report:
+            # Note that we still need `out_path_exists` above because we MUST NOT
+            # delete out_path in the finally below!
+            raise ValueError(("'%s' already exists.\nPlease provide a non-existing directory "
+                              "path or supply the '--update' argument to copy data files only "
+                              "(no sphinx config and rst files)") % out_path)
 
-        if prompt:
-            print("Files %s will be written to:" %
-                  ("only (no config files) " if dataonly else "and config files "))
-            print("%s" % out_path)
-            if not out_path_exists:
-                print("The directory path will be created (mkdir -p)")
-            print("Continue? (y for yes, anything else for abort)")
-            l = sys.stdin.readline()
-            if l.strip() != 'y':
-                raise ValueError("aborted by user")
+        if confirm:
+            strmsg = """Sphinx files %s will be written to:
+%s%s
+Continue?
+""" % (out_path, "\nThe directory path will be created (mkdir -p)" if not out_path_exists else "")
+            if not click.confirm(strmsg):
+                raise ValueError("Aborted by user")
 
-        if not dataonly:
-            # then copy conf dir, as copytree calls mkdirs(config_dst) and requires the dst not to
-            # exist (so for any other operation on config_dst, this must be the first operation)
-            print("Copying recursively content of '%s' in '%s' " % (in_path, out_path))
-            # copy the CONTENT of config_src into config_dst
-            shutil.copytree(in_path, out_path)
+        # then copy conf dir, as copytree calls mkdirs(config_dst) and requires the dst not to
+        # exist (so for any other operation on config_dst, this must be the first operation)
+        print("Copying recursively content of '%s' in '%s' " % (in_path, out_path))
+        # copy the CONTENT of config_src into config_dst
+        shutil.copytree(in_path, out_path)
 
         # if path didn't exist, and doesn't, something went wrong:
         if not out_path_exists and not os.path.isdir(out_path):
@@ -138,29 +133,25 @@ def cp_template_tree(in_path, out_path, prompt, dataonly, locals_in_caller=None)
         # copy data dir if it does not exist, so the caller can write therein:
         _data_outdir = os.path.join(out_path, "data")
         makedirs(_data_outdir)
-        print("Generated '%s' (empty for now)" % _data_outdir)
+        print("Generated empty folder '%s'" % _data_outdir)
 
         # write info from the caller:
-        print("Writing caller info to README.txt")
-        with open(os.path.join(out_path, 'README.txt'), 'w') as opn:
-            opn.write(u'Source folder generated automatically on %s\n' %
-                      (datetime.datetime.utcnow()))
-            opn.write(u'in current stack (from inner to outer caller):\n')
-            for stack in inspect.stack()[1:]:
-                filename, funcname, localz = str(stack[1]), str(stack[3]), stack[0].f_locals
-                opn.write(u"%s:%s" % (filename, funcname))
-                opn.write(u'   with %d local variables:\n' % len(localz))
-                for key, val in localz.items():
-                    opn.write(u'   %s = %s\n' % (str(key), str(val)))
+#         print("Writing caller info to README.txt")
+#         with open(os.path.join(out_path, 'README.txt'), 'w') as opn:
+#             opn.write(u'Source folder generated automatically on %s\n' %
+#                       (datetime.datetime.utcnow()))
+#             opn.write(u'in current stack (from inner to outer caller):\n')
+#             for stack in inspect.stack()[1:]:
+#                 filename, funcname, localz = str(stack[1]), str(stack[3]), stack[0].f_locals
+#                 opn.write(u"%s:%s" % (filename, funcname))
+#                 opn.write(u'   with %d local variables:\n' % len(localz))
+#                 for key, val in localz.items():
+#                     opn.write(u'   %s = %s\n' % (str(key), str(val)))
 
         yield _data_outdir  # execute wrapped code
 
-    except (IOError, OSError, ValueError) as exc:
-        cleanup = not out_path_exists and os.path.isdir(out_path)
-        print("Aborted: %s" % str(exc))
-        yield exc
     except:
-        cleanup = not out_path_exists and os.path.isdir(out_path)
+        cleanup = not out_path_exists and os.path.isdir(out_path)  # for finally (see below)
         raise
     finally:
         if cleanup:

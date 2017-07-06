@@ -8,67 +8,59 @@ import urllib2
 import os
 import re
 from obspy import read_inventory
-from cStringIO import StringIO
+from io import BytesIO
 
 
 def relpath(path, reference_path):
-    """Almost the same as os.path.relpath but prepends a dot, so the returned value is
+    """Almost the same as os.path.relpath but prepends a "./", so the returned value is
         usable in .rst relative paths"""
     return os.path.join(".", os.path.relpath(path, reference_path))
 
 
 def read_network(network, start_after_year, **kwargs):
-    """
-        Returns all stations  of given network (starting from the specified year)
-        from the geofon datacenter in the form of an obspy inventory object
-        :param kwargs: keyword arguments optionally to be passed to the query string. Provide any
-        fdsn standard *except* 'format', which by default will be set to 'xml', 'level' (which
-        will be set to 'channel'), 'network' and 'startafter' (which are mandatory arguments of this
-        function)
+    """Returns an inventory object representing the stations xml file downloaded from url
+       :param network: string, denoting the network
+       :param start_after_year: an integer denoting the year to start from when
+       searching for the network stations
+       :param kwargs: keyword arguments optionally to be passed to the query string. Provide any
+       fdsn standard *except* 'format', which by default will be set to 'xml', 'level' (which
+       will be set to 'channel'), 'network' and 'startafter' (which are mandatory arguments of this
+       function)
     """
     kwargs['network'] = network
     kwargs['level'] = 'channel'
     kwargs['startafter'] = start_after_year
-    kwargs['format'] = 'xml'
     return read_stations(get_query("http://geofon.gfz-potsdam.de/fdsnws/station/1/query",
                                    **kwargs))
 
 
-def get_format(query_str):
-    """Returns the format argument of query_str (a query in string format), or 'xml' if
-    such argument is not found (xml being the FDSN default)"""
-    try:
-        match = re.compile("[\\?\\&]format=(.*?)(?:\\&|$)").search(query_str)
-        if not match:
-            return 'text'
-        return match.groups()[0]
-    except IndexError:
-        pass
-    return 'xml'
+# def get_format(query_str):
+#     """Returns the format argument of query_str (a query in string format), or 'xml' if
+#     such argument is not found (xml being the FDSN default)"""
+#     try:
+#         match = re.compile("[\\?\\&]format=(.*?)(?:\\&|$)").search(query_str)
+#         if not match:
+#             return 'text'
+#         return match.groups()[0]
+#     except IndexError:
+#         pass
+#     return 'xml'
 
 
-def read_stations(url):
+def read_stations(url, timeout=None):
     """Returns an inventory object representing the stations xml file downloaded from url
-    if ''format=xml' in url, otherwise a string representing the content read
-    (in text format)
     """
-    format_ = get_format(url)
+    # format_ = get_format(url)
     response = None
     try:
-        response = urllib2.urlopen(url)
-        # Note obspy's read_inventory does not use StringIO's but saves to file
-        # (quite inefficient)
-        return response.read() if format_ == 'text' else read_inventory(StringIO(response.read()),
-                                                                        format='STATIONXML')
+        response = urllib2.urlopen(url) if timeout is None else \
+            urllib2.urlopen(url, timeout=timeout)
+        return read_inventory(BytesIO(response.read()), format='STATIONXML')
+#         return response.read() if format_ == 'text' else read_inventory(BytesIO(response.read()),
+#                                                                         format='STATIONXML')
     finally:
         if response:
             response.close()
-#     if format_ == 'text':
-#         response = urllib2.urlopen(url)
-#         text = response.read()
-#         return text
-#     else:
-#         return etree.parse(url)
 
 
 def todf(stations_xml, func, funclevel='station', sortkey=None):
@@ -181,3 +173,57 @@ def get_query(*urlpath, **query_args):
     # http://stackoverflow.com/questions/1793261/how-to-join-components-of-a-path-when-you-are-constructing-a-url-in-python
     return "{}?{}".format('/'.join(url.strip('/') for url in urlpath),
                           "&".join("{}={}".format(k, v) for k, v in query_args.iteritems()))
+
+
+def iterdcurl(**query_args):
+    """Returns an iterator over all datacenter urls found in the eida routing service, plus
+    iris station ws url
+    :param query_args: optional set of eida routing service keyword arguments supplied to the
+    query to filter the given datacenters matching the arguments. Note that the arguments
+    are not 100% the same as the fdsn arguments (for instance, endbefore is not supported).
+    Note also that 'service' and 'format' keyword
+    arguments, if supplied will be overridden with values 'station' and 'post', respectively
+    For IRIS, the arguments will be forwarded to the IRIS station ws, so they are interpreted as
+    fdsn arguments. If the response returns at least one byte, then IRIS url is yielded, otherwise
+    not
+    """
+    query_args['service'] = 'station'
+    query_args['format'] = 'post'
+    query = get_query('http://geofon.gfz-potsdam.de/eidaws/routing/1/query', **query_args)
+
+    urlo = urllib2.urlopen(query)
+    try:
+        dc_result = urlo.read().decode('utf8') or u''
+    finally:
+        urlo.close()
+
+    # 1) parse dc_result string and assume any new line starting with http:// is a valid station
+    # query url
+    # do not use split so we do not create an array but let's yeld it
+    last_idx = 0
+    lastcharidx = len(dc_result) - 1
+    for i, char in enumerate(dc_result):
+        if (char in (u'\n', u'\r') or i == lastcharidx):
+            if dc_result[last_idx:last_idx+7] == u"http://":
+                yield dc_result[last_idx:i]
+            last_idx = i + 1
+
+    # return IRIS manually. Do a simple query as long as we get one byte, stop the connection
+    # and return the url
+    iris_url = "http://service.iris.edu/fdsnws/station/1/query"
+    # delete / modify eida routing service specific arguments
+    del query_args['service']
+    query_args['format'] = 'text'
+    query_args['level'] = 'station'
+    query = get_query('http://geofon.gfz-potsdam.de/eidaws/routing/1/query', **query_args)
+    try:
+        dc_result = urlo.read(1)
+        if dc_result:
+            yield iris_url
+    finally:
+        urlo.close()
+    # (fix bug in eida routing service when querying without network arguments):
+
+
+
+

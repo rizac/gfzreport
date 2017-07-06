@@ -26,6 +26,8 @@ def get_app(data_path=None):
 
     app = Flask(__name__)
 
+    # Note: supply absolute module path. Apache complains tht a config is elsewhere defined
+    # in the python path otherwise:
     app.config.from_object('gfzreport.web.config.BaseConfig')
     app.config['DATA_PATH'] = data_path
     app.config['BUILD_PATH'] = os.path.abspath(os.path.join(app.config['DATA_PATH'], "build"))

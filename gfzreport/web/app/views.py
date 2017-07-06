@@ -4,13 +4,15 @@ Created on Apr 3, 2016
 @author: riccardo
 '''
 import os
+from itertools import izip
+
 from flask.templating import render_template
 from flask import send_from_directory, request, jsonify, Blueprint, current_app  # redirect, url_for
+
 # from gfzreport.web.app import app
 from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
     get_fig_directive, get_log_files_list
-from itertools import izip
 
 # http://flask.pocoo.org/docs/0.12/patterns/appfactories/#basic-factories:
 mainpage = Blueprint('main_page', __name__)  # , template_folder='templates')

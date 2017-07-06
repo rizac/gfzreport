@@ -7,41 +7,21 @@ Created on May 18, 2016
 
 # from __future__ import print_function
 
-import click
 import os
 import sys
-import shutil
+# import shutil
+# import datetime
+# import inspect
+import click
 from jinja2 import Environment
+from jinja2.loaders import FileSystemLoader
+
 from gfzreport.templates.network.core.utils import relpath
 from gfzreport.templates.network.core import get_noise_pdfs_content, gen_title,\
     get_net_desc, get_network_stations_df, get_other_stations_df, get_map_df, get_figdirective_vars
 from gfzreport.sphinxbuild.map import parse_margins
 from gfzreport.sphinxbuild.core.extensions import mapfigure
-import datetime
-import inspect
-from gfzreport.templates.main import cp_template_tree, makedirs, copyfiles
-from jinja2.loaders import FileSystemLoader
-
-
-def click_path_type(isdir=False):
-    return click.Path(exists=True, file_okay=not isdir, dir_okay=isdir, writable=False,
-                      readable=True, resolve_path=True)
-
-
-def click_get_outdir(ctx, param, value):
-    """Does a check on the outdir: when it's None, it returns the dir specified in
-    ```reportgen.network.www.config.SOURCE_PATH```
-    """
-    use_default_dir = value is None
-    if use_default_dir:
-        network = ctx.params.get('network', None)
-        if network is None:
-            raise click.BadParameter("optional '%s' missing, but no network specified"
-                                     % param.human_readable_name)
-        from gfzreport.web import config
-        value = os.path.join(config.NETWORK.DATA_PATH, 'source')  # FIXME: better handling?!!
-
-    return value
+from gfzreport.templates.utils import cp_template_tree, makedirs, copyfiles
 
 
 def click_get_margins(ctx, param, value):
@@ -53,6 +33,7 @@ def click_get_margins(ctx, param, value):
     except:
         raise click.BadParameter("invalid value for '%s': '%s'"
                                  % (param.human_readable_name, str(value)))
+
 
 @click.command()
 @click.argument('network')
@@ -70,14 +51,14 @@ def click_get_margins(ctx, param, value):
                     "or a single value that will be applied to all directions. "
                     "Negative values will shrink the box, positive will "
                     "expand it"))
-@click.option('-o', '--out_path', default=None, callback=click_get_outdir,
-              help=("The output directory. If missing, it defaults to the directory specified in "
-                    "the web config file (config.py) PLUS the network and the start_after "
-                    "arguments. In this case the report can be edited in the web application. "
-                    "The destination directory "
-                    "must *not* exist, or the program will exit (unless --update is "
-                    "explicitly specified, in that case only data is copied. See --update "
-                    "option)"))
+@click.option('-o', '--out_path', default=None, type=click.Path(exists=True, dir_okay=True,
+                                                                writable=True, resolve_path=True),
+              help=("The output path. The destination directory "
+                    "will be a directory in this path with name [NETWORK]_[STATION]. "
+                    "The destination directory must *not* exist, or the program will exit. "
+                    "If this program is deployed on a web server, this is the DATA_DIR "
+                    "environment variable provided for the network report (if deployed on "
+                    "Apache, see relative .wsgi file)"))
 @click.option('-n', '--noise_pdf', default=None, multiple=True,
               help=("The path (directory, file) of the "
                     "Noise Probability Density function images. "
@@ -102,20 +83,10 @@ def click_get_margins(ctx, param, value):
                     'of the instrument uptimes image(s). If multiple files '
                     'are provided, the images will be displayed in a grid of one column '
                     'sorted alphabetically by name'))
-@click.option('-u', '--update', is_flag=True, default=False, is_eager=True,  # <- exec it first. Used?
-              help=("Flag denoting if the output directory out_path has to be updated. If false,"
-                    "(the default) then out_path must not exist, and data + config files (template "
-                    ".rst + sphinx config dir) will be copied. If True, "
-                    "only data files (see NOTE above) will be copied in the specific directories "
-                    "(see above). This option is useful if we need to update or add some images "
-                    "but we already "
-                    "edited our .rst file (so we do not want to overwrite the latter): "
-                    "However, it is then up to the user to modify the rst file to include newly "
-                    "added files, if any"))
 @click.option("--mv", is_flag=True, default=False,
               help=("Move all specified files instead of copying"
                     "them (default False, i.e. missing)"))
-@click.option("--no_prompt", is_flag=True, default=False, is_eager=True,  # <- exec it first. Used?
+@click.option("--noprompt", is_flag=True, default=False, is_eager=True,  # <- exec it first. Used?
               help=("Do not ask before proceeding if the user wants to write to out_path. "
                     "The default, when this flag is missing, is False"
                     "(always ask before writing)"))
@@ -131,7 +102,7 @@ def click_get_margins(ctx, param, value):
 @click.option('-C', '--nonnetwork_station_color', default="#dddddd", type=str,
               help=('The color used to display  non-network stations (within the network bbox) on '
                     'the map. Defaults to "#dddddd" (gray-like color)'))
-def main(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes, update, mv, no_prompt,
+def main(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes, mv, noprompt,
          network_station_marker, nonnetwork_station_marker, network_station_color,
          nonnetwork_station_color):
     """
@@ -181,22 +152,25 @@ def main(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes, 
     # to pass these to the initial map settings (supporting only degrees makes life easier,
     # just write in the map figure rst option:
     # ", ".join(str(m) for m in area_margins)
-    sys.exit(run(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes, update, mv,
-                 not no_prompt, network_station_marker, nonnetwork_station_marker,
-                 network_station_color, nonnetwork_station_color))
+    try:
+        sys.exit(run(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes,
+                     mv, not noprompt, network_station_marker, nonnetwork_station_marker,
+                     network_station_color, nonnetwork_station_color))
+    except Exception as exc:
+        print("Aborted: %s" % str(exc))
+        sys.exit(1)
 
 
-def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_uptimes, dataonly,
-        mv, prompt,
+def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_uptimes,
+        mv, confirm,
         network_station_marker, nonnetwork_station_marker, network_station_color,
         nonnetwork_station_color):
     in_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sphinx")
     out_path = os.path.abspath(os.path.join(out_path, "%s_%s" % (str(network), str(start_after))))
-    with cp_template_tree(in_path, out_path, prompt, dataonly) as _data_outdir:
+    with cp_template_tree(in_path, out_path, confirm) as _data_outdir:
 
-        if isinstance(_data_outdir, Exception):
-            return 1
-
+        # OKAY, we copied all relevant sphinx stuff. Now we have to copy the
+        # template specific files, noise_pdf and inst_uptimes:
         noise_pdf_dst = os.path.join(_data_outdir, "noise_pdf")
         inst_uptimes_dst = os.path.join(_data_outdir, "inst_uptimes")
         # copy the data files:
@@ -214,48 +188,46 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
             for src__ in arg__[0]:
                 print("Copying file: '%s' in '%s'" % (src__, dst__))
                 copyfiles(src__, dst__, mv)
-                # raise Error if no files are in the folder. Sphinx complains afterwards for bad
-                # formed code (e.g. csv tables with no content). If update, skip the check cause we
-                # cannot determine if we actually want to copy files or not
+                # raise Error if no files are in the folder (Sphinx complains afterwards for bad
+                # formed code, e.g. csv tables with no content):
                 if not os.listdir(dst__):
                     raise IOError("No files copied. Please check '%s'" % src__)
 
-        if not dataonly:
-            print("Rendering report template with jinja2")
-            sta_df = get_network_stations_df(network, start_after)
-            all_sta_df = get_other_stations_df(sta_df, area_margins_in_deg)
-            map_df = get_map_df(sta_df, all_sta_df)
+        print("Rendering report template with jinja2")
+        sta_df = get_network_stations_df(network, start_after)
+        all_sta_df = get_other_stations_df(sta_df, area_margins_in_deg)
+        map_df = get_map_df(sta_df, all_sta_df)
 
-            # convert area margins into plotmap map_margins arg:
-            mymapdefaults = dict(mapmargins=", ".join("%sdeg" % str(m)
-                                                      for m in area_margins_in_deg),
-                                 sizes=50, fontsize=8, figmargins="1,2,9,0", legend_ncol=2)
-            # building template, see template.rst:
-            # when possible, we put everything in the rst.
-            args = dict(
-                        title=gen_title(network, sta_df),
-                        network_description=get_net_desc(sta_df),
-                        stations_table={'content': sta_df.to_csv(sep=" ", quotechar='"',
-                                                                 index=False),
-                                        },
-                        stations_map={'content': map_df.to_csv(sep=" ", quotechar='"', index=False),
-                                      'options': mapfigure.get_defargs(**mymapdefaults)
-                                      },
-                        noise_pdfs={'dirpath': relpath(noise_pdf_dst, out_path),
-                                    'content': get_noise_pdfs_content(noise_pdf_dst)
+        # convert area margins into plotmap map_margins arg:
+        mymapdefaults = dict(mapmargins=", ".join("%sdeg" % str(m)
+                                                  for m in area_margins_in_deg),
+                             sizes=50, fontsize=8, figmargins="1,2,9,0", legend_ncol=2)
+        # building template, see template.rst:
+        # when possible, we put everything in the rst.
+        args = dict(
+                    title=gen_title(network, sta_df),
+                    network_description=get_net_desc(sta_df),
+                    stations_table={'content': sta_df.to_csv(sep=" ", quotechar='"',
+                                                             index=False),
                                     },
-                        inst_uptimes=get_figdirective_vars(inst_uptimes_dst, out_path)
-                        )
+                    stations_map={'content': map_df.to_csv(sep=" ", quotechar='"', index=False),
+                                  'options': mapfigure.get_defargs(**mymapdefaults)
+                                  },
+                    noise_pdfs={'dirpath': relpath(noise_pdf_dst, out_path),
+                                'content': get_noise_pdfs_content(noise_pdf_dst)
+                                },
+                    inst_uptimes=get_figdirective_vars(inst_uptimes_dst, out_path)
+                    )
 
-            rstfilename = "report.rst"
-            template = Environment(loader=FileSystemLoader(out_path)).get_template(rstfilename)
-            reporttext = template.render(**args)
+        rstfilename = "report.rst"
+        template = Environment(loader=FileSystemLoader(out_path)).get_template(rstfilename)
+        reporttext = template.render(**args)
 
-            template_dst = os.path.join(out_path, rstfilename)
-            # writing back to report.rst file
-            print("Writing report rst file in %s" % (template_dst))
-            with open(template_dst, 'w') as opn:
-                opn.write(reporttext.encode('UTF8'))
+        template_dst = os.path.join(out_path, rstfilename)
+        # writing back to report.rst file
+        print("Writing report rst file in %s" % (template_dst))
+        with open(template_dst, 'w') as opn:
+            opn.write(reporttext.encode('UTF8'))
 
     return 0
 
