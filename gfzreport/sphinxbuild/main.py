@@ -23,7 +23,7 @@ def pdflatex(texfile, texfolder=None, numruns=1):
     :param texfolder: the texfile location directory. The pdflatex process will be run inside it.
         If None (default if missing), then it is texfile directory. Otherwise, texfile denotes the
         file name which must exist inside texfolder
-    :raise: OsError in case of file not founds, pdflatex not installed etcetera.
+    :raise: OsError in case of file not found, pdflatex not installed etcetera.
     """
     texexists = False
     if texfolder is None:
@@ -41,10 +41,15 @@ def pdflatex(texfile, texfolder=None, numruns=1):
     # http://stackoverflow.com/questions/4230926/pdflatex-in-a-python-subprocess-on-mac
     # for interaction options, see here:
     # http://tex.stackexchange.com/questions/91592/where-to-find-official-and-extended-documentation-for-tex-latexs-commandlin
-    popenargs = ['pdflatex', "-interaction=nonstopmode", texfile]
+    # for -file-line-error, see:
+    # https://tex.stackexchange.com/questions/27878/pdflatex-bash-script-to-supress-all-output-except-error-messages
+    popenargs = ['pdflatex', "-interaction=nonstopmode", "-file-line-error", texfile]
     kwargs = dict(cwd=texfolder, shell=False)
     try:
         for _ in xrange(numruns):
+            # SIDE NOTE FOR DEVELOPERS: IF RUN FROM WITHIN ECLIPSE (AND POTENTIALLY ANY
+            # OTHER EDITOR), AS os.environ['PATH'] is different than the shell $PATH
+            # THE COMMAND BELOW MIGHT RAISE OSError
             ret = subprocess.call(popenargs, **kwargs)
             if ret != 0 and not warn_printed:
                 warn_printed = True
@@ -149,16 +154,18 @@ def main(sourcedir, outdir, build, other_sphinxbuild_options, sphinxhelp):
     """A wrapper around sphinx-build"""
     if sphinxhelp:
         sphinx_build_main(["", "--help"])
-        sys.exit(0)
+        return 0
 
     # for info see:
     # sphinx/cmdline.py, or
     # http://www.sphinx-doc.org/en/1.5.1/man/sphinx-build.html
     try:
-        return run(sourcedir, outdir, build, *list(other_sphinxbuild_options))
-    except (ValueError, OSError) as exc:  # FIXME: ValueError raised where?
+        ret = run(sourcedir, outdir, build, *list(other_sphinxbuild_options))
+    except (IOError, OSError) as exc:  # this should be raised by pdflatex. FIXME: what if invoked by web gui??
         sys.stderr.write("%s: %s" % (exc.__class__.__name__, str(exc)))
-        return 1
+        ret = 1
+    
+    sys.exit(ret)
 
 if __name__ == '__main__':
-    sys.exit(main())  # pylint:disable=no-value-for-parameter
+    main()  # pylint:disable=no-value-for-parameter

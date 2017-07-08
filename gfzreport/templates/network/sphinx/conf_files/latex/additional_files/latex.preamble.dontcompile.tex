@@ -14,9 +14,19 @@
 \definecolor{gfzblue}{RGB}{0,88,156} % http://media-intranet.gfz-potsdam.de/gfz/wv/%C3%96A/Corporate%20Design%20-%20de%20PDF.pdf
 
 % tablecontinued is used for longtables to show the 'continued on next/previous page'
-% string. Remove sfseries and make it smaller:
+% string. Remove sfseries and make it smaller
+% NOTE: tablecontinued has been replaced by sphinxtablecontinued now. sphinx 1.5.1 still generates
+% \tablecontinued in its latex writer (which we override, but keeping that command)
+% WHEREAS the sphinx.sty file defines a sphinxtablecontinued but apparently also
+% the old tablecontinued (what A MESS. WHAT A MESS). So, as always, thanks sphinx for the hack:
+%renewcommand twice for safety:
 \renewcommand{\tablecontinued}[1]{\rmseries\small #1}
-  
+\renewcommand{\sphinxtablecontinued}[1]{\rmseries\small #1}
+% FINAL NOTE: sphinx 1.6+ has a templating system for latex still UNDEER DEVELOPMENT.
+% maybe in the future this might be handy if it will be commented and overriddable. From the doc of
+% version 1.6 (http://www.sphinx-doc.org/en/1.6.3/latex.html):
+% ``New in version 1.6: currently all template variables are unstable and undocumented.''
+
 % make table headers ``normal'' (by default is \textsf in sphinx.sty)
 \renewcommand{\sphinxstylethead}{\textrm}
 

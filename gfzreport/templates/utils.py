@@ -108,9 +108,8 @@ def cp_template_tree(in_path, out_path, confirm):
             # unmaintainable as we might have conflicts when building the report:
             # Note that we still need `out_path_exists` above because we MUST NOT
             # delete out_path in the finally below!
-            raise ValueError(("'%s' already exists.\nPlease provide a non-existing directory "
-                              "path or supply the '--update' argument to copy data files only "
-                              "(no sphinx config and rst files)") % out_path)
+            raise ValueError(("'%s' already exists.\n"
+                              "Please provide a non-existing directory name") % out_path)
 
         if confirm:
             strmsg = """Sphinx files %s will be written to:

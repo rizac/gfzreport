@@ -18,7 +18,7 @@ from jinja2.loaders import FileSystemLoader
 
 from gfzreport.templates.network.core.utils import relpath
 from gfzreport.templates.network.core import get_noise_pdfs_content, gen_title,\
-    get_net_desc, get_network_stations_df, get_other_stations_df, get_map_df, get_figdirective_vars
+    get_net_desc, geofonstations_df, otherstations_df, get_map_df, get_figdirective_vars
 from gfzreport.sphinxbuild.map import parse_margins
 from gfzreport.sphinxbuild.core.extensions import mapfigure
 from gfzreport.templates.utils import cp_template_tree, makedirs, copyfiles
@@ -194,9 +194,18 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
                     raise IOError("No files copied. Please check '%s'" % src__)
 
         print("Rendering report template with jinja2")
-        sta_df = get_network_stations_df(network, start_after)
-        all_sta_df = get_other_stations_df(sta_df, area_margins_in_deg)
-        map_df = get_map_df(sta_df, all_sta_df)
+        try:
+            geofon_df = geofonstations_df(network, start_after)
+        except Exception as exc:
+            raise Exception(("error while fetching network stations ('%s')\n"
+                             "check arguments and internet connection") % str(exc))
+        try:
+            others_df = otherstations_df(geofon_df, area_margins_in_deg)
+        except Exception as exc:
+            raise Exception(("error while fetching other stations within network "
+                             "stations boundaries ('%s')\n"
+                             "check arguments and internet connection") % str(exc))
+        map_df = get_map_df(geofon_df, others_df)
 
         # convert area margins into plotmap map_margins arg:
         mymapdefaults = dict(mapmargins=", ".join("%sdeg" % str(m)
@@ -205,9 +214,9 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
         # building template, see template.rst:
         # when possible, we put everything in the rst.
         args = dict(
-                    title=gen_title(network, sta_df),
-                    network_description=get_net_desc(sta_df),
-                    stations_table={'content': sta_df.to_csv(sep=" ", quotechar='"',
+                    title=gen_title(network, geofon_df),
+                    network_description=get_net_desc(geofon_df),
+                    stations_table={'content': geofon_df.to_csv(sep=" ", quotechar='"',
                                                              index=False),
                                     },
                     stations_map={'content': map_df.to_csv(sep=" ", quotechar='"', index=False),

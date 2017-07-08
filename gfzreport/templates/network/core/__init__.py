@@ -28,12 +28,12 @@ import pandas as pd
 # from obspy import read_inventory
 from jinja2 import Environment
 # from lxml.etree import XMLSyntaxError
-from gfzreport.templates.network.core.utils import relpath, read_network, read_stations, todf,\
+from gfzreport.templates.network.core.utils import relpath, read_geofonstations, read_stations, todf,\
     get_query, iterdcurl
 from gfzreport.sphinxbuild.map import getbounds
 
 
-def get_network_stations_df(network, start_after_year):
+def geofonstations_df(network, start_after_year):
     """
         Returns the dataframe representing the network stations table in rst.
         :param network: string. The network name (e.g., 'ZE')
@@ -41,7 +41,7 @@ def get_network_stations_df(network, start_after_year):
         Only stations after that time will be displayed
     """
 
-    inv = read_network(network, start_after_year)
+    geofon_inventory = read_geofonstations(network, start_after_year)
 
     def int_(val):
         ival = int(val)
@@ -73,11 +73,11 @@ def get_network_stations_df(network, start_after_year):
 
         return retdict.itervalues()
 
-    dframe = todf(inv, func, funclevel='station', sortkey=lambda val: val['Label'])
+    dframe = todf(geofon_inventory, func, funclevel='station', sortkey=lambda val: val['Label'])
 
     # add metadata:
     dframe.metadata = {'start_date': None, 'end_date': None, 'desc': ''}
-    for net in inv:
+    for net in geofon_inventory:
         if net.code == network:
             dframe.metadata['start_date'] = net.start_date
             dframe.metadata['end_date'] = net.end_date
@@ -87,15 +87,15 @@ def get_network_stations_df(network, start_after_year):
     return dframe
 
 
-def get_other_stations_df(network_stations_df, margins_in_deg):
+def otherstations_df(geofonstations_df, margins_in_deg):
     tonum = pd.to_numeric
-    _, _, minlon, minlat, maxlon, maxlat = getbounds(tonum(network_stations_df['Lon']).min(),
-                                                     tonum(network_stations_df['Lat']).min(),
-                                                     tonum(network_stations_df['Lon']).max(),
-                                                     tonum(network_stations_df['Lat']).max(),
+    _, _, minlon, minlat, maxlon, maxlat = getbounds(tonum(geofonstations_df['Lon']).min(),
+                                                     tonum(geofonstations_df['Lat']).min(),
+                                                     tonum(geofonstations_df['Lon']).max(),
+                                                     tonum(geofonstations_df['Lat']).max(),
                                                      margins_in_deg)
 
-    meta = network_stations_df.metadata
+    meta = geofonstations_df.metadata
     kwargs_live_stations = dict(minlat=minlat, maxlat=maxlat, minlon=minlon, maxlon=maxlon,
                                 starttime=meta['start_date'].isoformat(),
                                 endtime=meta['end_date'].isoformat(),
@@ -135,7 +135,7 @@ def get_other_stations_df(network_stations_df, margins_in_deg):
         if error is None:
             invs.append(inv)
         else:
-            print("Error fetching inventory @'%r': %s" % (url, error))
+            print("Warning: error fetching inventory (%s)\n   url: %s" % (error, url))
 
     symbols = cycle([
                      # '.',  # point
@@ -186,8 +186,8 @@ def get_other_stations_df(network_stations_df, margins_in_deg):
             yearrng = ""
         caption = "%s%s%s" % (net.code, yearrng, restricted)
 
-        nooverlap = net.end_date < network_stations_df.metadata['start_date'] or \
-            net.start_date > network_stations_df.metadata['end_date']
+        nooverlap = net.end_date < geofonstations_df.metadata['start_date'] or \
+            net.start_date > geofonstations_df.metadata['end_date']
 
         color = '#FFFFFF00' if nooverlap else '#FFFFFF'
 
@@ -211,30 +211,30 @@ def get_other_stations_df(network_stations_df, margins_in_deg):
     return pd.concat(dfs, axis=0, ignore_index=True, copy=False)
 
 
-def get_map_df(sta_df, all_sta_df):
+def get_map_df(geofonstations_df, otherstations_df):
     """Returns a DataFrame representing the stations map of an rst mapfigure directive.
        ```
         map_df = get_map_df(...)
         # return the csv content:
         map_df.to_csv(sep=" ", quotechar='"', index=False)
 
-        :param sta_df: the dataframe representing the stations of the network 
-        :param all_sta_df: the dataframe representing all other stations which need to be
+        :param geofonstations_df: the dataframe representing the stations of the network 
+        :param otherstations_df: the dataframe representing all other stations which need to be
         shown on the map
     """
     # current captions are:
     columns = ['Label', 'Lat', 'Lon', 'Marker', 'Color', 'Legend']
-    # The first three are common to both dataframes. all_sta_df has all five columns
+    # The first three are common to both dataframes. otherstations_df has all five columns
 
-    # make a new sta_df, it will be a view of the original sta_df. But this way we do not
+    # make a new geofonstations_df, it will be a view of the original geofonstations_df. But this way we do not
     # pollute the original
-    _sta_df = sta_df[columns[:3]]
+    _sta_df = geofonstations_df[columns[:3]]
     # avoid pandas settingwithcopy warnings (we know what we are doing):
     _sta_df.is_copy = False
 
     _sta_df['Marker'] = 's'  # square
     _sta_df['Legend'] = ''
-    sensors = pd.unique(sta_df['Sensor'])
+    sensors = pd.unique(geofonstations_df['Sensor'])
 
     # create a variable color scale
     step = 255.0 / (len(sensors)+1)
@@ -243,10 +243,10 @@ def get_map_df(sta_df, all_sta_df):
 
     _sta_df['Color'] = ''
     for sens, col in izip(sensors, colors):
-        _sta_df.loc[sta_df['Sensor'] == sens, 'Color'] = col
-        _sta_df.loc[sta_df['Sensor'] == sens, 'Legend'] = sens
+        _sta_df.loc[geofonstations_df['Sensor'] == sens, 'Color'] = col
+        _sta_df.loc[geofonstations_df['Sensor'] == sens, 'Legend'] = sens
 
-    ret_df = pd.concat([_sta_df, all_sta_df], axis=0, ignore_index=True, copy=False)[columns]
+    ret_df = pd.concat([_sta_df, otherstations_df], axis=0, ignore_index=True, copy=False)[columns]
     # mark all duplicated Legends as empty except the first(s):
     ret_df.loc[ret_df['Legend'].duplicated(), 'Legend'] = ''
     return ret_df
@@ -312,14 +312,14 @@ def get_figdirective_vars(src_path, src_rst_path):
     return dic
 
 
-def gen_title(networkname, network_stations_df):
+def gen_title(networkname, geofonstations_df):
     """Generates the title for the .rst file from a pandas DataFrame returned by
     get_network_stations"""
     # template:
     # =============================================================
     # {{ network_code }} {{ network_start_date }}-{{ network_end_date }}
     # =============================================================
-    meta = network_stations_df.metadata
+    meta = geofonstations_df.metadata
     start = meta['start_date'].year if 'start_date' in meta else None
     end = meta['end_date'].year if 'end_date' in meta else None
     timerange = " %d-%d" % (start, end) if start and end else ""

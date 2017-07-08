@@ -17,8 +17,9 @@ def relpath(path, reference_path):
     return os.path.join(".", os.path.relpath(path, reference_path))
 
 
-def read_network(network, start_after_year, **kwargs):
-    """Returns an inventory object representing the stations xml file downloaded from url
+def read_geofonstations(network, start_after_year, **kwargs):
+    """Returns an inventory object representing the stations xml file of a given **geofon**
+        network
        :param network: string, denoting the network
        :param start_after_year: an integer denoting the year to start from when
        searching for the network stations
@@ -34,21 +35,11 @@ def read_network(network, start_after_year, **kwargs):
                                    **kwargs))
 
 
-# def get_format(query_str):
-#     """Returns the format argument of query_str (a query in string format), or 'xml' if
-#     such argument is not found (xml being the FDSN default)"""
-#     try:
-#         match = re.compile("[\\?\\&]format=(.*?)(?:\\&|$)").search(query_str)
-#         if not match:
-#             return 'text'
-#         return match.groups()[0]
-#     except IndexError:
-#         pass
-#     return 'xml'
-
-
 def read_stations(url, timeout=None):
-    """Returns an inventory object representing the stations xml file downloaded from url
+    """Returns an inventory object representing the stations xml file downloaded from the
+    given url
+    :param timeout: the value of the timeout passed to `urllib2`. None defaults to the
+    library default
     """
     # format_ = get_format(url)
     response = None
@@ -68,8 +59,8 @@ def todf(stations_xml, func, funclevel='station', sortkey=None):
         Converts stations_xml to pandas DataFrame: Loops through the `stations_xml`'s
         network(s), station(s) and channel(s) and executes
         func at the given funclevel
-        :param: stations_xml: An obspy station inventory object returned from
-        module functions `read_stations` and `read_network`, or, in general, from:
+        :param: stations_xml: An obspy inventory object returned from
+        module functions `read_stations` and `read_geofonstations`, or, in general, from:
         ```
             obspy.read_inventory(..., format='STATIONSXML')
         ```
@@ -80,9 +71,9 @@ def todf(stations_xml, func, funclevel='station', sortkey=None):
         `dict`s, so that one can return e.g. a list of N `dict`s to add new N rows.
         Everything evaluating to False (empty dict, empty iterable, empty dicts of an iterable)
         will be skipped and not added to the DataFrame.
-        The function accepts a variable number of arguments depending on the `funclevel`
+        The `func` argument accepts a variable number of arguments depending on the `funclevel`
         argument:
-          - funclevel='network': `func(network_obj)`,
+          - funclevel='network': `func(network_obj)`
           - funclevel='station': `func(network_obj, station_obj)`
           - funclevel='channel': `func(network_obj, station_obj, channel_obj)`
         Note: if you want to preserve the column orders as declared in each returned dict,
@@ -95,9 +86,9 @@ def todf(stations_xml, func, funclevel='station', sortkey=None):
           - funclevel='network': `func(network_obj)`,
           - funclevel='station': `func(network_obj, station_obj)`
           - funclevel='channel': `func(network_obj, station_obj, channel_obj)`
-        :param sortkey: Behaves like the python `sorted` 'key` argument: an optional key to be used
-        to sort the rows of the resulting Dataframe. It is applied to each dict prior to its
-        conversion to a DataFrame row
+        :param sortkey: Behaves like the python 'key` argument of the `sorted` function:
+        an optional key to be used to sort the rows of the resulting Dataframe.
+        It is applied to each dict prior to its conversion to a DataFrame row
     """
     arr = []
 
@@ -178,14 +169,15 @@ def get_query(*urlpath, **query_args):
 def iterdcurl(**query_args):
     """Returns an iterator over all datacenter urls found in the eida routing service, plus
     iris station ws url
-    :param query_args: optional set of eida routing service keyword arguments supplied to the
-    query to filter the given datacenters matching the arguments. Note that the arguments
-    are not 100% the same as the fdsn arguments (for instance, endbefore is not supported).
-    Note also that 'service' and 'format' keyword
-    arguments, if supplied will be overridden with values 'station' and 'post', respectively
-    For IRIS, the arguments will be forwarded to the IRIS station ws, so they are interpreted as
-    fdsn arguments. If the response returns at least one byte, then IRIS url is yielded, otherwise
-    not
+    :param query_args: optional set of **eida routing service keyword arguments** which will be
+    appended to the query url. Note that the arguments are not 100% the same as the fdsn arguments
+    (for instance, endbefore is not supported), so please use only arguments valid in both cases.
+    Note also that 'service' and 'format' keyword arguments, if supplied, will be overridden with
+    values 'station' and 'post', respectively.
+    For IRIS, due to a bug in the eida routing service, the arguments will be forwarded to the IRIS
+    station web service, so they need to be
+    valid fdsn arguments. The IRIS datacenter is yielded if the station web service response
+    returns at least one byte, otherwise not
     """
     query_args['service'] = 'station'
     query_args['format'] = 'post'
@@ -199,11 +191,11 @@ def iterdcurl(**query_args):
 
     # 1) parse dc_result string and assume any new line starting with http:// is a valid station
     # query url
-    # do not use split so we do not create an array but let's yeld it
+    # do not use split so we do not create an array but let's yield it
     last_idx = 0
     lastcharidx = len(dc_result) - 1
     for i, char in enumerate(dc_result):
-        if (char in (u'\n', u'\r') or i == lastcharidx):
+        if char in (u'\n', u'\r') or i == lastcharidx:
             if dc_result[last_idx:last_idx+7] == u"http://":
                 yield dc_result[last_idx:i]
             last_idx = i + 1
