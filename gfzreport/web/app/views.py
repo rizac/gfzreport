@@ -26,9 +26,8 @@ def index():
 
 
 @mainpage.route('/<reportdirname>')
-@mainpage.route('/<reportdirname>/')
 def get_report(reportdirname):
-    DEFAULT_START_BUILD_TYPE = 'html'  # FIME: move to config?
+    DEFAULT_START_BUILD_TYPE = 'html'  # FIME: move to config? WHAT IS THIS DOING??
     return render_template("report.html",
                            title=reportdirname,
                            report_id=reportdirname,
@@ -36,8 +35,8 @@ def get_report(reportdirname):
 
 
 @mainpage.route('/<reportdirname>/content/<pagetype>')
-@mainpage.route('/<reportdirname>/content/<pagetype>/')
 def get_report_type(reportdirname, pagetype):
+    '''views for the iframes'''
     if pagetype in ('html', 'pdf'):
         reportfilename, _ = build_report(reportdirname, pagetype, force=False)
         return send_from_directory(os.path.dirname(reportfilename),
@@ -48,6 +47,7 @@ def get_report_type(reportdirname, pagetype):
 
 @mainpage.route('/<reportdirname>/content/<pagetype>/<path:static_file_path>')
 def get_report_static_file(reportdirname, pagetype, static_file_path):
+    '''views for the static content in iframes'''
     if pagetype in ('html', 'pdf'):
         filepath = os.path.join(get_builddir(reportdirname, pagetype), static_file_path)
         return send_from_directory(os.path.dirname(filepath), os.path.basename(filepath))
