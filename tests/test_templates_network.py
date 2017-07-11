@@ -211,6 +211,8 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
                 
                 result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
                 assert os.path.isdir(outdir)
+                if not os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext)):
+                    sdf = 9
                 assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
                 # assert "ValueError: invalid PNG header" in result.output
                 assert result.exit_code == exp_exitcode

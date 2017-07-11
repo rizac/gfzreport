@@ -1,0 +1,6 @@
+# simple text file which sets up users and permissions. Put an email and a regex (quoted)
+# where the email identifies the user and the regex will match the given url to assess if the user
+# has permissions for the given url. re.match will be used to match the given expression,
+# so use ^ and $ if needed 
+user1@mysite.com ".*"
+user2@myite.com "/abc*$"

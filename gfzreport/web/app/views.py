@@ -7,12 +7,16 @@ import os
 from itertools import izip
 
 from flask.templating import render_template
-from flask import send_from_directory, request, jsonify, Blueprint, current_app  # redirect, url_for
+from flask import abort, send_from_directory, request, jsonify, Blueprint, current_app  # redirect, url_for
+
+from flask_login import current_user, login_required
 
 # from gfzreport.web.app import app
 from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
     get_fig_directive, get_log_files_list
+from flask_login.utils import login_user
+import re
 
 # http://flask.pocoo.org/docs/0.12/patterns/appfactories/#basic-factories:
 mainpage = Blueprint('main_page', __name__)  # , template_folder='templates')
@@ -37,8 +41,16 @@ def get_report(reportdirname):
 @mainpage.route('/<reportdirname>/content/<pagetype>')
 def get_report_type(reportdirname, pagetype):
     '''views for the iframes'''
+    # instead of the decorator @login_required, which handles redirects and makes the view
+    # disabled for non-logged-in users, we prefer a lower level approach. First, because
+    # This view is restricted depending on pagetype, second because we do not want redirects,
+    # but aborting with a 403 (Forbidden) status. It is then the frontend which will handle
+    # this
+    if pagetype != 'html' and not current_user.is_authenticated:
+        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+        return abort(401)
     if pagetype in ('html', 'pdf'):
-        reportfilename, _ = build_report(reportdirname, pagetype, force=False)
+        reportfilename, _ = build_report(reportdirname, pagetype, current_user, force=False)
         return send_from_directory(os.path.dirname(reportfilename),
                                    os.path.basename(reportfilename))
     elif pagetype == 'edit':
@@ -48,6 +60,14 @@ def get_report_type(reportdirname, pagetype):
 @mainpage.route('/<reportdirname>/content/<pagetype>/<path:static_file_path>')
 def get_report_static_file(reportdirname, pagetype, static_file_path):
     '''views for the static content in iframes'''
+    # instead of the decorator @login_required, which handles redirects and makes the view
+    # disabled for non-logged-in users, we prefer a lower level approach. First, because
+    # This view is restricted depending on pagetype, second because we do not want redirects,
+    # but aborting with a 403 (Forbidden) status. It is then the frontend which will handle
+    # this
+    if pagetype != 'html' and not current_user.is_authenticated:
+        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+        return abort(401)
     if pagetype in ('html', 'pdf'):
         filepath = os.path.join(get_builddir(reportdirname, pagetype), static_file_path)
         return send_from_directory(os.path.dirname(filepath), os.path.basename(filepath))
@@ -55,14 +75,31 @@ def get_report_static_file(reportdirname, pagetype, static_file_path):
 
 @mainpage.route('/<reportdirname>/save', methods=['POST'])
 def save_report(reportdirname):
+    # instead of the decorator @login_required, which handles redirects and makes the view
+    # disabled for non-logged-in users, we prefer a lower level approach. First, because
+    # This view is restricted depending on pagetype, second because we do not want redirects,
+    # but aborting with a 403 (Forbidden) status. It is then the frontend which will handle
+    # this
+    if not current_user.is_authenticated:
+        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+        return abort(401)
     unicode_text = request.get_json()['source_text']
-    commits = save_sourcefile(reportdirname, unicode_text)
+    commits = save_sourcefile(reportdirname, unicode_text, current_user)
     # note that (editable_page.html) we do not actually make use of the returned response value
     return jsonify(commits)  # which converts to a Response
 
 
 @mainpage.route('/<reportdirname>/get_commits', methods=['POST'])
 def get_commits_list(reportdirname):
+    # instead of the decorator @login_required, which handles redirects and makes the view
+    # disabled for non-logged-in users, we prefer a lower level approach. First, because
+    # This view is restricted depending on pagetype, second because we do not want redirects,
+    # but aborting with a 403 (Forbidden) status. It is then the frontend which will handle
+    # this
+    if not current_user.is_authenticated:
+        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+        return abort(401)
+
     commits = get_commits(reportdirname)
     # note that (editable_page.html) we do not actually make use of the returned response value
     return jsonify(commits)  # which converts to a Response
@@ -70,12 +107,30 @@ def get_commits_list(reportdirname):
 
 @mainpage.route('/<reportdirname>/get_source_rst', methods=['POST'])
 def get_source_rst(reportdirname):
+    # instead of the decorator @login_required, which handles redirects and makes the view
+    # disabled for non-logged-in users, we prefer a lower level approach. First, because
+    # This view is restricted depending on pagetype, second because we do not want redirects,
+    # but aborting with a 403 (Forbidden) status. It is then the frontend which will handle
+    # this
+    if not current_user.is_authenticated:
+        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+        return abort(401)
+
     commit_hash = request.get_json()['commit_hash']
     return jsonify(get_sourcefile_content(reportdirname, commit_hash, as_js=False))
 
 
 @mainpage.route('/<reportdirname>/get_logs', methods=['POST'])
 def get_logs(reportdirname):
+    # instead of the decorator @login_required, which handles redirects and makes the view
+    # disabled for non-logged-in users, we prefer a lower level approach. First, because
+    # This view is restricted depending on pagetype, second because we do not want redirects,
+    # but aborting with a 403 (Forbidden) status. It is then the frontend which will handle
+    # this
+    if not current_user.is_authenticated:
+        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+        return abort(401)
+
     buildtype = request.get_json()['buildtype']
     # return a list of tuples to preserve order:
     lizt = [(k, v) for k, v in izip(['Sphinx log', 'PdfLatex log'],
@@ -85,6 +140,15 @@ def get_logs(reportdirname):
 
 @mainpage.route('/<reportdirname>/upload_file', methods=['POST'])
 def upload_file(reportdirname):
+    # instead of the decorator @login_required, which handles redirects and makes the view
+    # disabled for non-logged-in users, we prefer a lower level approach. First, because
+    # some views are restricted depending on pagetype, second because we do not want redirects,
+    # but aborting with a 403 (Forbidden) status: it is then the frontend which will handle
+    # this
+    if not current_user.is_authenticated:
+        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+        return abort(401)
+
     # check if the post request has the file part
     if 'file' not in request.files:
         raise ValueError('No file part')
@@ -98,3 +162,18 @@ def upload_file(reportdirname):
                                          request.form['label'], request.form['caption']))
     else:
         raise ValueError('Error while saving "%s"' % upfile.filename)
+
+
+@mainpage.route("/<reportdirname>/login/", methods=["POST"])
+def login():
+    """View to process login form data and login user in case.
+    """
+    email = request.form['email']
+    user = User.query().get().where(User.c.email == email)  # @UndefinedVariable
+    if not user:
+        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+        return abort(401)
+    elif not re.match(user.permission_regex, request.base_url):
+        return abort(403)
+    login_user(user, remember=False)
+    return jsonify({})  # FIXME: what to return?

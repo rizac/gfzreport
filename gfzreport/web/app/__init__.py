@@ -12,6 +12,7 @@ from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_con
 
 from gfzreport.web.app.models import Base
 from gfzreport.web.app.models import User
+from flask_login.login_manager import LoginManager
 # from flask import url_for
 # from flask import request
 # app = Flask(__name__, static_folder=None)  # static_folder=None DOES TELL FLASK NOT TO ADD ROUTE
@@ -31,6 +32,7 @@ def get_app(data_path=None):
                          "Please change environment variable 'DATA_PATH'" % str(data_path))
 
     app = Flask(__name__)
+    app.secret_key = os.urandom(24)
 
     # we should look at ini file or whatever
     initdb(app)
@@ -42,6 +44,19 @@ def get_app(data_path=None):
     app.config['DATA_PATH'] = data_path
     app.config['BUILD_PATH'] = os.path.abspath(os.path.join(app.config['DATA_PATH'], "build"))
     app.config['SOURCE_PATH'] = os.path.abspath(os.path.join(app.config['DATA_PATH'], "source"))
+
+    # Flask-Login Login Manager
+    login_manager = LoginManager()
+    # Tell the login manager where to redirect users to display the login page
+    # login_manager.login_view = "/login/"
+    # Setup the login manager.
+    login_manager.setup_app(app)
+    # https://github.com/maxcountryman/flask-login/blob/master/docs/index.rst#session-protection:
+    login_manager.session_protection = "strong"
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id)) or None  # @UndefinedVariable
 
     from gfzreport.web.app.views import mainpage
     app.register_blueprint(mainpage)

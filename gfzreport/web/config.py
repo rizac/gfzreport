@@ -4,7 +4,8 @@ Flask config file
 @author: riccardo
 '''
 # http://flask.pocoo.org/docs/0.12/config/#development-production
-# One class per report type. First the "base" class:
+# The "base" class as base for any report type:
+from datetime import timedelta
 
 
 class BaseConfig(object):
@@ -13,3 +14,5 @@ class BaseConfig(object):
     DATA_PATH = None  # where the sources are. Each subfolder not starting with "_" inside SOURCE_PATH will be taken as a report 
     UPLOAD_ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
     UPLOAD_DIR_BASENAME = "_www_uploaded_files"  # in principle, you don't need t change this
+    # flask-login settings:
+    REMEMBER_COOKIE_DURATION = timedelta(days=1)
