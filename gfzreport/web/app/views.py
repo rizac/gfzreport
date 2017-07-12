@@ -17,6 +17,7 @@ from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_con
     get_fig_directive, get_log_files_list
 from flask_login.utils import login_user
 import re
+from gfzreport.web.app.models import User, session
 
 # http://flask.pocoo.org/docs/0.12/patterns/appfactories/#basic-factories:
 mainpage = Blueprint('main_page', __name__)  # , template_folder='templates')
@@ -90,7 +91,7 @@ def save_report(reportdirname):
 
 
 @mainpage.route('/<reportdirname>/get_commits', methods=['POST'])
-def get_commits_list(reportdirname):
+def get_commits_list(reportdirname):  # do not name get_commits otherwise it overrides core.get_commits
     # instead of the decorator @login_required, which handles redirects and makes the view
     # disabled for non-logged-in users, we prefer a lower level approach. First, because
     # This view is restricted depending on pagetype, second because we do not want redirects,
@@ -122,6 +123,9 @@ def get_source_rst(reportdirname):
 
 @mainpage.route('/<reportdirname>/get_logs', methods=['POST'])
 def get_logs(reportdirname):
+    '''returns a list of (name, content) tuples, where name is the log name and 
+    content is the relative log content. The tuples are two, representing
+    the sphinx log file and the pdflatex log file, respectively'''
     # instead of the decorator @login_required, which handles redirects and makes the view
     # disabled for non-logged-in users, we prefer a lower level approach. First, because
     # This view is restricted depending on pagetype, second because we do not want redirects,
@@ -164,16 +168,19 @@ def upload_file(reportdirname):
         raise ValueError('Error while saving "%s"' % upfile.filename)
 
 
-@mainpage.route("/<reportdirname>/login/", methods=["POST"])
-def login():
+@mainpage.route("/<reportdirname>/login", methods=["POST"])
+def login(reportdirname):
     """View to process login form data and login user in case.
     """
     email = request.form['email']
-    user = User.query().get().where(User.c.email == email)  # @UndefinedVariable
+    with session(current_app) as sess:
+        user = sess.query(User).filter(User.email == email).first()
+
     if not user:
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
         return abort(401)
-    elif not re.match(user.permission_regex, request.base_url):
+    matching_url = os.path.join(request.url_root, reportdirname)
+    if not re.match(user.permission_regex, matching_url):
         return abort(403)
     login_user(user, remember=False)
     return jsonify({})  # FIXME: what to return?

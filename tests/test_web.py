@@ -12,13 +12,15 @@ from gfzreport.templates.network.main import main as network_reportgen_main
 from gfzreport.sphinxbuild.main import main as sphinxbuild_main
 from datetime import datetime
 import shutil
-from gfzreport.web.app import get_app
+from gfzreport.web.app import get_app, initdbusers
 from mock import patch
 from io import BytesIO
 import re
 
 from gfzreport.web.app.core import reportbuild_run as _reportbuild_run_orig, get_sphinxlogfile
 import tempfile
+from urllib2 import URLError
+import json
 
 
 
@@ -89,7 +91,24 @@ class Test(unittest.TestCase):
         self.cwd = os.getcwd()
         self.source = tempfile.mkdtemp()  #os.path.join(SOURCEWEBDIR, datetime.utcnow().isoformat())
         os.chdir(self.source)
-        
+
+        # setup stuff in self.source:
+        # the users txt file, and a config that will be loaded
+        # 
+        with open(os.path.join(os.getcwd(), 'users.txt'), 'w') as opn:
+            opn.write("""
+user1_ok@example.com ".*"
+user2_no@example.com "/ZE_2012"
+user3_no@example.com ".*/ZE2012$"
+user4_ok@example.com ".*/ZE2012$"
+            """)
+
+        with open(os.path.join(os.getcwd(), 'users.txt'), 'r') as opn:
+            _ = opn.read()
+
+        with open(os.path.join(os.getcwd(), 'users.txt'), 'r') as opn:
+            _ = opn.readline()
+
         # os.makedirs(self.source)
         self.addCleanup(_cleanup, self)
 
@@ -109,6 +128,7 @@ class Test(unittest.TestCase):
             raise unittest.SkipTest("Unable to generate test report:\n%s" % res.output)
 
         os.environ['DATA_PATH'] = self.source
+        os.environ['DB_PATH'] = self.source 
         self.app = get_app()
 
     def tearDown(self):
@@ -149,12 +169,12 @@ class Test(unittest.TestCase):
                                                    'build',  'ZE_2012', 'html', '_sphinx_stderr.log')
             with open(logfile, 'r') as opn:
                 logfilecontent = opn.read()
-            
+
             #stupid test, we shouldhave warnings concerning images not found, check we have something
             # printed out
             assert len(logfilecontent) > 0
             g = 9
-            
+
         mock_reportbuild_run.reset_mock()
         # now test the page content is not re-built:
         with self.app.test_request_context():
@@ -182,9 +202,86 @@ class Test(unittest.TestCase):
             # we should ahve an html page:
             assert res.status_code == 401
             assert mock_reportbuild_run.call_count == 0
+        
+            # now try to login:
+            # with a non-registered email
+            res = app.post("/ZE_2012/login", data={'email' :'abc'})
+            assert res.status_code == 401
+            # thus, we do not access the pdf creation:
+            res = app.get("/ZE_2012/content/pdf")
+            # few stupid asserts, the main test is not raising
+            # we should ahve an html page:
+            assert res.status_code == 401
+            assert mock_reportbuild_run.call_count == 0
+        
+            # now try to login:
+            # with a registered email and wrong permission
+            res = app.post("/ZE_2012/login", data={'email' :'user3_no@example.com'})
+            assert res.status_code == 403
+            # thus, we do not access the pdf creation:
+            res = app.get("/ZE_2012/content/pdf")
+            # few stupid asserts, the main test is not raising
+            # we should ahve an html page:
+            assert res.status_code == 401
+            assert mock_reportbuild_run.call_count == 0
+
+            # now try to login:
+            # with a non-registered email
+            res = app.post("/ZE_2012/login", data={'email' :'user1_ok@example.com'})
+            assert res.status_code == 200
+            # thus, we DO access the pdf creation:
             
-        # now add some user
+            # but w need to setup urlread for the arcgis image, because we mocked it
+            # (FIXME: we mocked in gfzreport.templates.network.core.utils.urllib2.urlopen,
+            # why is it mocked in map module?!!!)
+            # we setup an URLError if 'geofon' is not in url (which is the case for
+            # arcgis query). This way, the map is generated with drawcostallines
+            # and the pdf is created
+            se = self.mock_urlopen.side_effect
+            self.mock_urlopen.side_effect = _get_urlopen_sideeffect(None, URLError('wat'))
+            res = app.get("/ZE_2012/content/pdf")
+            # few stupid asserts, the main test is not raising
+            # we should ahve an html page:
+            assert res.status_code == 200
+            assert mock_reportbuild_run.call_count == 1
             
+            # check commits:
+            res = app.post("/ZE_2012/get_commits",
+                           content_type='application/json')
+            
+            assert res.status_code == 200
+            commitz = json.loads(res.data)
+            assert len(commitz) == 1
+            commit = commitz[0]
+            assert commit['email'] == 'user1_ok@example.com'
+            
+            
+            # check logs:
+            res = app.post("/ZE_2012/get_logs", data=json.dumps({'buildtype': 'pdf'}),
+                           content_type='application/json')
+            
+            assert res.status_code == 200
+            # res.data is a 2element list of two elements: the log name, and the log file
+            # content. The files are two: the sphinx log and the pdf log. So assert:
+            assert len(json.loads(res.data)) == 2
+            
+            
+            
+            mock_reportbuild_run.reset_mock()
+            # test that we do not call mock_reportbuild_run
+            # once again:
+            res = app.get("/ZE_2012/content/pdf")
+            # few stupid asserts, the main test is not raising
+            # we should ahve an html page:
+            assert res.status_code == 200
+            # assert we did not call mock_reportbuild again:
+            assert mock_reportbuild_run.call_count == 0
+        
+            # If needed UNCOMMENT NEXT LINE AND reset url mock side effect (in case used afterwards)?
+            # self.mock_urlopen.side_effect = se
+            
+        # first re-set the db:
+
 #         mock_reportbuild_run.reset_mock()
 #         # now test the page content is not re-built:
 #         with self.app.test_request_context():

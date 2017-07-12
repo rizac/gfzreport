@@ -163,7 +163,7 @@ def gitcommit(reportdirname, user=None):
     # user might be an AnonymousUserMixin user, i.e. what flask-login sets as default
     # In this case, it has no asgitauthor method
     try:
-        gitauthor = user.asgitauthor() if user else None
+        gitauthor = user.asgitauthor if user else None
     except AttributeError:
         gitauthor = None
 
@@ -304,7 +304,7 @@ def get_commits(reportdirname):
         # Note according to git log, we could provide also %n for newlines in the command
         # maybe implement later ...
         sep = "_;<!>;_"
-        pretty_format_arg = "%H{0}%an{0}%ad{0}%s".format(sep)
+        pretty_format_arg = "%H{0}%an{0}%ad{0}%ae{0}%s".format(sep)
         cmts = subprocess.check_output(["git", "log",
                                         "--pretty=format:%s" % (pretty_format_arg)], **args)
 
@@ -312,7 +312,7 @@ def get_commits(reportdirname):
             if commit:
                 clist = commit.split(sep)
                 commits.append({'hash': clist[0], 'author': clist[1], 'date': clist[2],
-                                'msg': clist[3]})
+                                'email': clist[3], 'msg': clist[4]})
         return commits
     except (OSError, CalledProcessError):
         return []

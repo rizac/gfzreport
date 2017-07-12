@@ -6,6 +6,9 @@ Created on Jul 10, 2017
 from sqlalchemy.ext.declarative.api import declarative_base
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm.scoping import scoped_session
+from sqlalchemy.orm.session import sessionmaker
+from contextlib import contextmanager
 
 Base = declarative_base()
 
@@ -65,3 +68,14 @@ class User(Base):
 
     def __repr__(self):
         return '<User email=%r>' % (self.email)
+
+
+@contextmanager
+def session(app):
+    sess = None
+    try:
+        sess = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=app.engine))
+        yield sess
+    finally:
+        if sess:
+            sess.close()
