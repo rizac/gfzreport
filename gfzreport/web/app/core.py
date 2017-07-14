@@ -53,6 +53,7 @@ from werkzeug.utils import secure_filename
 from contextlib import contextmanager
 from flask import current_app as app
 from gfzreport.sphinxbuild.main import run as reportbuild_run
+import re
 
 
 def get_sourcefile_content(reportdirname, commit_hash='HEAD', as_js=True):
@@ -373,6 +374,13 @@ def get_fig_directive(reportdirname, fig_filepath, fig_label=None, fig_caption=N
 
 
 def get_log_files_list(reportdirname, buildtype):
+    '''Returns an array of:
+    sphinx log file content (if buildtype='html') or
+    sphinx log file content, pdflatex log file errors, pdflatex log file content (if buildtype
+    is 'latex' or 'pdf')
+    pdflatex log file errors is a substring of the pdflatex log file content, extracted
+    via the pdflatex option that prints errors in the format .*:[0-9]:.*
+    '''
     sphinxlogfile = get_sphinxlogfile(reportdirname, buildtype)
     ret = []  # preserve order!
     if os.path.isfile(sphinxlogfile):
@@ -385,4 +393,11 @@ def get_log_files_list(reportdirname, buildtype):
         if os.path.isfile(pdflatexlog):
             with open(pdflatexlog, 'r') as fopen:
                 ret.append(fopen.read().decode('utf8'))
+        # get errors: actually, don't get only the error line, but also the following lines until
+        # the end of the paragraph (end of string or two consecutive newlines): the lines after
+        # usually explain better what's wrong
+        r = re.compile("[^\n\r:]+:[0-9]+:.*?(?:$|[\n\r][\n\r]+)", re.DOTALL)
+        ret.insert(1, "\n\n\n".join(err.strip() for err in r.findall(ret[-1])))  # add 3 "\n"
+        if not ret[-2]:
+            ret[-2] = "No warnings / errors"
     return ret

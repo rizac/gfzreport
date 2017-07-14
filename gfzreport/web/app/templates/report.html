@@ -6,12 +6,12 @@
 
 {%- block center %}
 {{ super() }}
-<div class="edit pos-center col-container"  ng-show='editing'>
+<div class="edit pos-center col-container" ng-show='editing'>
 	<div class="pos-top row-container">
 		<div class=pos-center>
 			<button class="btn btn-primary"  ng-disabled="!modified" ng-click="save();" >Save</button>
-			<button ng-click="popups.insertFig=true" class="btn btn-primary">add figure</button>
-			<button ng-click="popups.commits=true" ng-disabled="modified" class="btn btn-primary">revisions</button>
+			<button ng-click="popups.addFig.show()" class="btn btn-primary">add figure</button>
+			<button ng-click="popups.commits.show()" ng-disabled="modified" class="btn btn-primary">revisions</button>
 		</div>
 		<div class=pos-right>
 			<div id=editor_keys_info>
@@ -31,20 +31,30 @@
 </div>
 <div class="view pos-center col-container">
 	<div class=pos-top>
+		<!-- Note: there is no ng-disabled for anchors, set the whole ul viewable -->
 		<ul class="nav nav-tabs pos-center">
-	  		<li ng-repeat="v in ['html', 'pdf']" ng-class="{'active' : view==v}" ng-disabled='loading'>
-	  			<a href ng-click='setView(v)' ng-disabled='loading'>
-	  				{{ '{{' }} v + (view==v && needsRefresh[v] ? ' (Click to refresh)' : '') {{ '}}' }}
+	  		<li ng-repeat="v in ['html', 'pdf']" ng-class="{'active' : view==v}">
+	  			<a href ng-click='setView(v)' ng-show='v=="html" || isLoggedIn'>
+	  				{% raw %}{{ v + (view==v && needsRefresh[v] ? ' (Click to refresh)' : '') }}{% endraw %}
 	  			</a>
 	  		</li>
-	  		<li ng-show="!editing">
+	  		<li ng-show="!editing && isLoggedIn">
 	  			<a href ng-click="toggleEdit()">Edit source</a>
 	  		</li>
 		</ul>
-		<button ng-click="showLogs()" ng-show="!loading" id="logs" class='btn btn-xs btn-warning'>Log</button>
+		
+		<div id='top-right-div'>
+			<button ng-click="showLogs()" ng-show="!loading && editing && isLoggedIn" id="logs" class='btn btn-xs btn-warning'>Build info</button>
+			<button ng-click="popups.logIn.show()" ng-show="!loading && !isLoggedIn" id="loginout" class='btn btn-default'>
+			Log in
+			</button>
+			<button ng-click="logOut()" ng-show="!loading && isLoggedIn" id="loginout" class='btn btn-default'>
+			Log out
+			</button>
+		</div>
 	</div>
 	<div class="pos-center row-container">
-		<div ng-show='loading' id='loading_div'>
+		<div ng-show='loading' id='loading_div' ng-cloak>
 			<div class=waitbar>
 				<div></div>
 			</div>
@@ -62,23 +72,63 @@
 	</div>
 </div>
 
+{% raw %}
 <!-- ADDING POPUPS DIVS. As they will be set with position fixed they can be enywhere,
-let's put them here for readibility-->
+let's put them here for readibility. Note: ng-cloack prevents flockering (e.g., shortly show them
+and then hide them at window load
 
-<!-- image upload: -->
-<div id='upload_img_popup' class="alert popup" ng-show="popups.insertFig">
-	<button ng-click="popups.insertFig=false" class="close" data-dismiss="alert"
-		aria-label="close">&times;
-	</button>
+IMPLEMENTING A NEW POPUP: =========================================================================
+
+1) set a new key in $scope.popups (e.g., $scope.popups.mypopup): this sets automatically the property / functions:
+	- popups.mypopup.visible (false by default)
+	- popups.mypopup.errMsg ('' by default)
+	- popups.mypopup.show()
+	- popups.mypopup.hide()
+	- popups.mypopup.toggle() // toogles visibility on / off
+	PLUS any other property you want to set. The property will be accessible as usual: popups.mypopup.property
+	and can be used e.g., for ng-model bindings inside the popup. THE PROPERTY SHOULD BE LINKED TO THE POPUP VIEW
+	(e.g., a property dynamically changing a span content on the popup);
+	ANY OTHER RELEVANT PROPERTY SHOULD BE ATTACHED TO THE $scope for CONSISTENCY
+2) Set a button somewhere with ng-click="popups.mypopup.show()", or any function that calls internally $scope.popups.mypopup.show() 
+3) Implement here the skeleton:
+<div class="popup">
+	<div>
+    	<div>{{ popups.mypopup.title }}</div>
+    	<button ng-click="popups.mypopup.hide()" class="close" data-dismiss="alert" aria-label="close">&times;</button>
+  	</div>
+  	<div>[1]</div>
+  	<div>
+    	<div>{{ popups.mypopup.errMsg }}</div>
+    	<button>[2]</button>
+  	</div>
+</div>
+
+NOTES:
+[1] inside the div create your custom components / forms/ whatever you want: 
+ - forms, bindings to the popups.mypopup properties or to the main $scope, etcetera
+[2] This is the button attached to some $scope function via ng-click. If the popup has no submit functionality,
+the parent div is optional (you can remove the whole block)
+
+===================================================================================================
+-->
+{% endraw %}
+
+<!-- image upload popup: -->
+<div id='upload_img_popup' class="alert popup" ng-show="popups.addFig.visible" ng-cloak>
+	<div>
+		<div>{% raw %}{{ popups.addFig.title }}{% endraw %}</div>
+		<button ng-click="popups.addFig.hide()" class="close" data-dismiss="alert" aria-label="close">&times;</button>
+	</div>
 	<div>
 		<form method=post enctype=multipart/form-data id=upload-file>
 			<div class='form-group'>
-  				<label for="flbl_">Label</label> <span> to reference the figure in the document 
-  						<span ng-show="popups.figLabel && popups.figLabel.indexOf(' ')==-1">type  
-  						<code>{{ '{{' }} ':numref:`' + popups.figLabel + '`' {{ '}}' }}</code>
+  				<label for="flbl_">Label</label>
+  					<span> to reference the figure in the document 
+  						<span ng-show="popups.addFig.label && popups.addFig.label.indexOf(' ')==-1">type  
+  							<code>{% raw %}{{ ':numref:`' + popups.addFig.label + '`' }}{% endraw %}</code>
   						</span>
   					</span>
-				<input ng-model="popups.figLabel" id="flbl_" type=text name=label class=form-control>
+				<input ng-model="popups.addFig.label" id="flbl_" type=text name=label class=form-control>
   			</div>
   			<div class='form-group'>
   				<label for="flupld_">Image</label> <span> note: file might be renamed on server</span>
@@ -88,52 +138,85 @@ let's put them here for readibility-->
    				<label for="figcapt_">Caption</label>
  				<textarea id="figcapt_" type=text name=caption class=form-control></textarea>
  			</div>
-     		<div class=form-group style='display:inline-block'>
+     		<div class='form-group'>
 				The figure markup block will be added at the end of the document: you can always cut/paste it
 				anywhere <i>including</i> the first and last empty lines <i>which are part of the block</i>.
 				You can also change the caption and label later in the document.
-			</div> 
-			<button style='float:right' ng-disabled="popups.figLabel.indexOf(' ')>=0" class='btn btn-primary' ng-click='addFigure()'>Add</button>
+			</div>
 		</form>
-	</div>	
+		<label>
+			<input type=checkbox ng-model="popups.addFig.keepOpen"> Keep me open after 'Add' (I'm planning to add several figures)
+		</label>
+	</div>
+	<div>
+		<div>{% raw %}{{ popups.addFig.errMsg }}{% endraw %}</div>
+		<button style='float:right' ng-disabled="popups.addFig.label.indexOf(' ')>=0" class='btn btn-primary' ng-click='addFigure()'>Add</button>
+	</div>
 </div> 
 
-<!-- commits div: -->
-<div id='commits_popup' class="alert popup" ng-show="popups.commits">
-	<button ng-click="popups.commits=false" class="close" data-dismiss="alert"
-		aria-label="close">&times;
-	</button>
+<!-- commits div popup: -->
+<div id='commits_popup' class="alert popup" ng-show="popups.commits.visible" ng-cloak>
+	<div>
+		<div>{% raw %}{{ popups.commits.title }}{% endraw %}</div>
+		<button ng-click="popups.commits.hide()" class="close" data-dismiss="alert" aria-label="close">&times;</button>
+	</div>
 	<div>
 		<table>
 		<tr ng-repeat="c in commits.data" >
 			<td>
-			<pre ng-class="{'bg-success' : currentCommit().hash==c.hash}">
-hash: {{ '{{' }} c.hash {{ '}}' }}
-date: {{ '{{' }} c.date {{ '}}' }}
-message: {{ '{{' }} c.msg {{ '}}' }}
-author: {{ '{{' }} c.author {{ '}}' }}</pre></td>
+			<pre ng-class="{'bg-success' : currentCommit().hash==c.hash}">{% raw %}
+date: {{ c.date }}
+author: {{ c.author }} &lt;{{ c.email }}&gt;
+hash: {{ c.hash }}
+message: {{ c.msg }}
+{% endraw %}</pre>
+			</td>
 			<td>
-			<button class="btn-sm btn-primary" ng-show="currentCommit().hash!=c.hash" 
-				ng-click="currentCommit(c.hash)">view</button>
-			<span ng-show="currentCommit().hash==c.hash">(current)</span>
- 				</td>
+				<button class="btn-sm btn-primary" ng-show="currentCommit().hash!=c.hash" 
+					ng-click="currentCommit(c.hash)">view</button>
+				<span ng-show="currentCommit().hash==c.hash">(current)</span>
+ 			</td>
  			</tr>
  		</table>
 	</div>	
 </div>
 
 
-<!-- logs div: -->
-<div id='logs_popup' class="alert popup" ng-show="logs">
-	<button ng-click="logs=null" class="close" data-dismiss="alert"
-		aria-label="close">&times;
-	</button>
+<!-- logs div popup: -->
+<div id='logs_popup' class="alert popup" ng-show="popups.logs.visible" ng-cloak>
 	<div>
-		<div ng-show="logsLoading">Loading logs, please wait...</div>
+		<div>{% raw %}{{ popups.logs.title }}{% endraw %}</div>
+		<button ng-click="popups.logs.hide()" class="close" data-dismiss="alert" aria-label="close">&times;</button>
+	</div>
+	<div>
+		<div ng-show="popups.logs.loading">Loading logs, please wait...</div>
 		<div ng-repeat="(key, value) in logs">
-	  		<span class="danger">{{ '{{' }} key {{ '}}' }}</span>
-	  		<pre>{{ '{{' }} value {{ '}}' }}</pre>
+	  		<span class="danger">{% raw %}{{ key }}{% endraw %}</span>
+	  		<pre>{% raw %}{{ value }}{% endraw %}</pre>
 		</div>
+	</div>
+	<div>
+		<div>{% raw %}{{ popups.logs.errMsg }}{% endraw %}</div>
+	</div>
+</div>
+
+
+<!-- login popup: -->
+<div id='login_popup' class="alert popup" ng-show="popups.logIn.visible" ng-cloak>
+	<div>
+		<div>{% raw %}{{ popups.logIn.title }}{% endraw %}</div>
+		<button ng-click="popups.logIn.hide()" class="close" data-dismiss="alert" aria-label="close">&times;</button>
+	</div>
+	<div>
+		<form method=post id="login">  <!-- enctype=multipart/form-data -->
+			<div class="form-group">
+		    	<input type="text" class="form-control" id="login-email" placeholder="email" name='email'> <!-- NOT USED: ng-model="popups.logIn.email"> -->
+		  	</div>
+	  	</form>
+  	</div>
+	<div>
+		<div>{% raw %}{{ popups.logIn.errMsg }}{% endraw %}</div>
+		<button class='btn btn-primary' ng-click="logIn()">Log in</button>
 	</div>	
 </div>
 

@@ -148,7 +148,7 @@ user4_ok@example.com ".*/ZE2012$"
             # If we add routes with the slash at the end, we should 
             # add follow_redirect=True to app.get. See
             # http://flask.pocoo.org/docs/0.11/quickstart/#routing
-            res = app.get("/ZE_2012")
+            res = app.get("/ZE_2012", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert "<html lang=\"en\">" in res.data
@@ -161,7 +161,7 @@ user4_ok@example.com ".*/ZE2012$"
             # If we add routes with the slash at the end, we should 
             # add follow_redirect=True to app.get. See
             # http://flask.pocoo.org/docs/0.11/quickstart/#routing
-            res = app.get("/ZE_2012/content/html")
+            res = app.get("/ZE_2012/content/html", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert mock_reportbuild_run.call_count == 1
@@ -197,7 +197,7 @@ user4_ok@example.com ".*/ZE2012$"
             # If we add routes with the slash at the end, we should 
             # add follow_redirect=True to app.get. See
             # http://flask.pocoo.org/docs/0.11/quickstart/#routing
-            res = app.get("/ZE_2012/content/pdf")
+            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert res.status_code == 401
@@ -208,7 +208,7 @@ user4_ok@example.com ".*/ZE2012$"
             res = app.post("/ZE_2012/login", data={'email' :'abc'})
             assert res.status_code == 401
             # thus, we do not access the pdf creation:
-            res = app.get("/ZE_2012/content/pdf")
+            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert res.status_code == 401
@@ -219,7 +219,7 @@ user4_ok@example.com ".*/ZE2012$"
             res = app.post("/ZE_2012/login", data={'email' :'user3_no@example.com'})
             assert res.status_code == 403
             # thus, we do not access the pdf creation:
-            res = app.get("/ZE_2012/content/pdf")
+            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert res.status_code == 401
@@ -239,7 +239,7 @@ user4_ok@example.com ".*/ZE2012$"
             # and the pdf is created
             se = self.mock_urlopen.side_effect
             self.mock_urlopen.side_effect = _get_urlopen_sideeffect(None, URLError('wat'))
-            res = app.get("/ZE_2012/content/pdf")
+            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert res.status_code == 200
@@ -261,16 +261,16 @@ user4_ok@example.com ".*/ZE2012$"
                            content_type='application/json')
             
             assert res.status_code == 200
-            # res.data is a 2element list of two elements: the log name, and the log file
+            # res.data is a 3element list of two elements: the log name, and the log file
             # content. The files are two: the sphinx log and the pdf log. So assert:
-            assert len(json.loads(res.data)) == 2
+            assert len(json.loads(res.data)) == 3
             
             
             
             mock_reportbuild_run.reset_mock()
             # test that we do not call mock_reportbuild_run
             # once again:
-            res = app.get("/ZE_2012/content/pdf")
+            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert res.status_code == 200
