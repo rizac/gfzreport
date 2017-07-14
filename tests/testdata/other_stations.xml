@@ -1,0 +1,313 @@
+<FDSNStationXML xmlns="http://www.fdsn.org/xml/station/1" schemaVersion="1.0">
+<Source>SeisComP3</Source>
+<Sender>GFZ</Sender>
+<Created>2017-07-06T11:20:43</Created>
+<Network code="ZE_FAKE_NETWORK" startDate="2012-04-19T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed">
+	<Description>TEST Project, Madagascar 2012-2014</Description>
+	<!-- this station is within the ZE range (lat lon) -->
+	<Station code="IN_RANGE" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed">
+		<Latitude>-22.47355</Latitude>
+		<Longitude>45.56681</Longitude>
+		<Elevation>972</Elevation>
+		<Site>
+		<Name>MadagascarProfile Station MS10, Madagascar</Name>
+		<Country>Madagascar</Country>
+		</Site>
+		<CreationDate>2012-05-04T00:00:00</CreationDate>
+		<Channel code="HHZ" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed" locationCode="">
+			<Latitude>-22.47355</Latitude>
+			<Longitude>45.56681</Longitude>
+			<Elevation>972</Elevation>
+			<Depth>0</Depth>
+			<Azimuth>0</Azimuth>
+			<Dip>-90</Dip>
+			<SampleRate>100</SampleRate>
+			<SampleRateRatio>
+			<NumberSamples>100</NumberSamples>
+			<NumberSeconds>1</NumberSeconds>
+			</SampleRateRatio>
+			<StorageFormat>Steim2</StorageFormat>
+			<ClockDrift>0</ClockDrift>
+			<Sensor resourceId="Sensor#20160216182010.811097.5">
+			<Type>BB</Type>
+			<Description>GFZ:ZE2012:CMG-3ESP/60/g=2000</Description>
+			<Manufacturer>Guralp</Manufacturer>
+			<Model>CMG-3ESP/60</Model>
+			<SerialNumber>GC249</SerialNumber>
+			</Sensor>
+			<DataLogger resourceId="Datalogger#20160216182010.812083.7">
+			<Type>EarthData PS6-SC</Type>
+			<Description>GFZ:ZE2012:PS6-Log/g=400000</Description>
+			<Manufacturer>EarthData</Manufacturer>
+			<Model>PS6-SC</Model>
+			<SerialNumber>3241</SerialNumber>
+			</DataLogger>
+			<Response></Response>
+		</Channel>
+		<Channel code="HHN" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed" locationCode="">
+			<Latitude>-22.47355</Latitude>
+			<Longitude>45.56681</Longitude>
+			<Elevation>972</Elevation>
+			<Depth>0</Depth>
+			<Azimuth>341</Azimuth>
+			<Dip>0</Dip>
+			<SampleRate>100</SampleRate>
+			<SampleRateRatio>
+			<NumberSamples>100</NumberSamples>
+			<NumberSeconds>1</NumberSeconds>
+			</SampleRateRatio>
+			<StorageFormat>Steim2</StorageFormat>
+			<ClockDrift>0</ClockDrift>
+			<Sensor resourceId="Sensor#20160216182010.811097.5">
+			<Type>BB</Type>
+			<Description>GFZ:ZE2012:CMG-3ESP/60/g=2000</Description>
+			<Manufacturer>Guralp</Manufacturer>
+			<Model>CMG-3ESP/60</Model>
+			<SerialNumber>GC249</SerialNumber>
+			</Sensor>
+			<DataLogger resourceId="Datalogger#20160216182010.812083.7">
+			<Type>EarthData PS6-SC</Type>
+			<Description>GFZ:ZE2012:PS6-Log/g=400000</Description>
+			<Manufacturer>EarthData</Manufacturer>
+			<Model>PS6-SC</Model>
+			<SerialNumber>3241</SerialNumber>
+			</DataLogger>
+			<Response></Response>
+		</Channel>
+		<Channel code="HHE" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed" locationCode="">
+			<Latitude>-22.47355</Latitude>
+			<Longitude>45.56681</Longitude>
+			<Elevation>972</Elevation>
+			<Depth>0</Depth>
+			<Azimuth>71</Azimuth>
+			<Dip>0</Dip>
+			<SampleRate>100</SampleRate>
+			<SampleRateRatio>
+			<NumberSamples>100</NumberSamples>
+			<NumberSeconds>1</NumberSeconds>
+			</SampleRateRatio>
+			<StorageFormat>Steim2</StorageFormat>
+			<ClockDrift>0</ClockDrift>
+			<Sensor resourceId="Sensor#20160216182010.811097.5">
+			<Type>BB</Type>
+			<Description>GFZ:ZE2012:CMG-3ESP/60/g=2000</Description>
+			<Manufacturer>Guralp</Manufacturer>
+			<Model>CMG-3ESP/60</Model>
+			<SerialNumber>GC249</SerialNumber>
+			</Sensor>
+			<DataLogger resourceId="Datalogger#20160216182010.812083.7">
+			<Type>EarthData PS6-SC</Type>
+			<Description>GFZ:ZE2012:PS6-Log/g=400000</Description>
+			<Manufacturer>EarthData</Manufacturer>
+			<Model>PS6-SC</Model>
+			<SerialNumber>3241</SerialNumber>
+			</DataLogger>
+			<Response></Response>  
+		</Channel>
+	</Station>
+
+	<!-- this station is outside the ZE rectangle -->
+	<Station code="OUT_RANGE_LON_75" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed">
+		<Latitude>-22.47355</Latitude>
+		<Longitude>75</Longitude>
+		<Elevation>972</Elevation>
+		<Site>
+		<Name>MadagascarProfile Station MS10, Madagascar</Name>
+		<Country>Madagascar</Country>
+		</Site>
+		<CreationDate>2012-05-04T00:00:00</CreationDate>
+		<Channel code="HHZ" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed" locationCode="">
+			<Latitude>-22.47355</Latitude>
+			<Longitude>75</Longitude>
+			<Elevation>972</Elevation>
+			<Depth>0</Depth>
+			<Azimuth>0</Azimuth>
+			<Dip>-90</Dip>
+			<SampleRate>100</SampleRate>
+			<SampleRateRatio>
+			<NumberSamples>100</NumberSamples>
+			<NumberSeconds>1</NumberSeconds>
+			</SampleRateRatio>
+			<StorageFormat>Steim2</StorageFormat>
+			<ClockDrift>0</ClockDrift>
+			<Sensor resourceId="Sensor#20160216182010.811097.5">
+			<Type>BB</Type>
+			<Description>GFZ:ZE2012:CMG-3ESP/60/g=2000</Description>
+			<Manufacturer>Guralp</Manufacturer>
+			<Model>CMG-3ESP/60</Model>
+			<SerialNumber>GC249</SerialNumber>
+			</Sensor>
+			<DataLogger resourceId="Datalogger#20160216182010.812083.7">
+			<Type>EarthData PS6-SC</Type>
+			<Description>GFZ:ZE2012:PS6-Log/g=400000</Description>
+			<Manufacturer>EarthData</Manufacturer>
+			<Model>PS6-SC</Model>
+			<SerialNumber>3241</SerialNumber>
+			</DataLogger>
+			<Response></Response>
+		</Channel>
+		<Channel code="HHN" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed" locationCode="">
+			<Latitude>-22.47355</Latitude>
+			<Longitude>75</Longitude>
+			<Elevation>972</Elevation>
+			<Depth>0</Depth>
+			<Azimuth>341</Azimuth>
+			<Dip>0</Dip>
+			<SampleRate>100</SampleRate>
+			<SampleRateRatio>
+			<NumberSamples>100</NumberSamples>
+			<NumberSeconds>1</NumberSeconds>
+			</SampleRateRatio>
+			<StorageFormat>Steim2</StorageFormat>
+			<ClockDrift>0</ClockDrift>
+			<Sensor resourceId="Sensor#20160216182010.811097.5">
+			<Type>BB</Type>
+			<Description>GFZ:ZE2012:CMG-3ESP/60/g=2000</Description>
+			<Manufacturer>Guralp</Manufacturer>
+			<Model>CMG-3ESP/60</Model>
+			<SerialNumber>GC249</SerialNumber>
+			</Sensor>
+			<DataLogger resourceId="Datalogger#20160216182010.812083.7">
+			<Type>EarthData PS6-SC</Type>
+			<Description>GFZ:ZE2012:PS6-Log/g=400000</Description>
+			<Manufacturer>EarthData</Manufacturer>
+			<Model>PS6-SC</Model>
+			<SerialNumber>3241</SerialNumber>
+			</DataLogger>
+			<Response></Response>
+		</Channel>
+		<Channel code="HHE" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed" locationCode="">
+			<Latitude>-22.47355</Latitude>
+			<Longitude>75</Longitude>
+			<Elevation>972</Elevation>
+			<Depth>0</Depth>
+			<Azimuth>71</Azimuth>
+			<Dip>0</Dip>
+			<SampleRate>100</SampleRate>
+			<SampleRateRatio>
+			<NumberSamples>100</NumberSamples>
+			<NumberSeconds>1</NumberSeconds>
+			</SampleRateRatio>
+			<StorageFormat>Steim2</StorageFormat>
+			<ClockDrift>0</ClockDrift>
+			<Sensor resourceId="Sensor#20160216182010.811097.5">
+			<Type>BB</Type>
+			<Description>GFZ:ZE2012:CMG-3ESP/60/g=2000</Description>
+			<Manufacturer>Guralp</Manufacturer>
+			<Model>CMG-3ESP/60</Model>
+			<SerialNumber>GC249</SerialNumber>
+			</Sensor>
+			<DataLogger resourceId="Datalogger#20160216182010.812083.7">
+			<Type>EarthData PS6-SC</Type>
+			<Description>GFZ:ZE2012:PS6-Log/g=400000</Description>
+			<Manufacturer>EarthData</Manufacturer>
+			<Model>PS6-SC</Model>
+			<SerialNumber>3241</SerialNumber>
+			</DataLogger>
+			<Response></Response>  
+		</Channel>
+	</Station>
+	
+	<!-- this station is outside the ZE rectangle -->
+	<Station code="OUT_RANGE_LON_85" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed">
+		<Latitude>-22.47355</Latitude>
+		<Longitude>85</Longitude>
+		<Elevation>972</Elevation>
+		<Site>
+		<Name>MadagascarProfile Station MS10, Madagascar</Name>
+		<Country>Madagascar</Country>
+		</Site>
+		<CreationDate>2012-05-04T00:00:00</CreationDate>
+		<Channel code="HHZ" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed" locationCode="">
+			<Latitude>-22.47355</Latitude>
+			<Longitude>85</Longitude>
+			<Elevation>972</Elevation>
+			<Depth>0</Depth>
+			<Azimuth>0</Azimuth>
+			<Dip>-90</Dip>
+			<SampleRate>100</SampleRate>
+			<SampleRateRatio>
+			<NumberSamples>100</NumberSamples>
+			<NumberSeconds>1</NumberSeconds>
+			</SampleRateRatio>
+			<StorageFormat>Steim2</StorageFormat>
+			<ClockDrift>0</ClockDrift>
+			<Sensor resourceId="Sensor#20160216182010.811097.5">
+			<Type>BB</Type>
+			<Description>GFZ:ZE2012:CMG-3ESP/60/g=2000</Description>
+			<Manufacturer>Guralp</Manufacturer>
+			<Model>CMG-3ESP/60</Model>
+			<SerialNumber>GC249</SerialNumber>
+			</Sensor>
+			<DataLogger resourceId="Datalogger#20160216182010.812083.7">
+			<Type>EarthData PS6-SC</Type>
+			<Description>GFZ:ZE2012:PS6-Log/g=400000</Description>
+			<Manufacturer>EarthData</Manufacturer>
+			<Model>PS6-SC</Model>
+			<SerialNumber>3241</SerialNumber>
+			</DataLogger>
+			<Response></Response>
+		</Channel>
+		<Channel code="HHN" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed" locationCode="">
+			<Latitude>-22.47355</Latitude>
+			<Longitude>85</Longitude>
+			<Elevation>972</Elevation>
+			<Depth>0</Depth>
+			<Azimuth>341</Azimuth>
+			<Dip>0</Dip>
+			<SampleRate>100</SampleRate>
+			<SampleRateRatio>
+			<NumberSamples>100</NumberSamples>
+			<NumberSeconds>1</NumberSeconds>
+			</SampleRateRatio>
+			<StorageFormat>Steim2</StorageFormat>
+			<ClockDrift>0</ClockDrift>
+			<Sensor resourceId="Sensor#20160216182010.811097.5">
+			<Type>BB</Type>
+			<Description>GFZ:ZE2012:CMG-3ESP/60/g=2000</Description>
+			<Manufacturer>Guralp</Manufacturer>
+			<Model>CMG-3ESP/60</Model>
+			<SerialNumber>GC249</SerialNumber>
+			</Sensor>
+			<DataLogger resourceId="Datalogger#20160216182010.812083.7">
+			<Type>EarthData PS6-SC</Type>
+			<Description>GFZ:ZE2012:PS6-Log/g=400000</Description>
+			<Manufacturer>EarthData</Manufacturer>
+			<Model>PS6-SC</Model>
+			<SerialNumber>3241</SerialNumber>
+			</DataLogger>
+			<Response></Response>
+		</Channel>
+		<Channel code="HHE" startDate="2012-05-04T00:00:00" endDate="2014-12-31T00:00:00" restrictedStatus="closed" locationCode="">
+			<Latitude>-22.47355</Latitude>
+			<Longitude>85</Longitude>
+			<Elevation>972</Elevation>
+			<Depth>0</Depth>
+			<Azimuth>71</Azimuth>
+			<Dip>0</Dip>
+			<SampleRate>100</SampleRate>
+			<SampleRateRatio>
+			<NumberSamples>100</NumberSamples>
+			<NumberSeconds>1</NumberSeconds>
+			</SampleRateRatio>
+			<StorageFormat>Steim2</StorageFormat>
+			<ClockDrift>0</ClockDrift>
+			<Sensor resourceId="Sensor#20160216182010.811097.5">
+			<Type>BB</Type>
+			<Description>GFZ:ZE2012:CMG-3ESP/60/g=2000</Description>
+			<Manufacturer>Guralp</Manufacturer>
+			<Model>CMG-3ESP/60</Model>
+			<SerialNumber>GC249</SerialNumber>
+			</Sensor>
+			<DataLogger resourceId="Datalogger#20160216182010.812083.7">
+			<Type>EarthData PS6-SC</Type>
+			<Description>GFZ:ZE2012:PS6-Log/g=400000</Description>
+			<Manufacturer>EarthData</Manufacturer>
+			<Model>PS6-SC</Model>
+			<SerialNumber>3241</SerialNumber>
+			</DataLogger>
+			<Response></Response>  
+		</Channel>
+	</Station>
+</Network>
+</FDSNStationXML>

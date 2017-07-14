@@ -5,128 +5,53 @@ Created on Jan 9, 2017
 '''
 import pandas as pd
 import urllib2
-import shutil
-from glob import glob
 import os
 import re
 from obspy import read_inventory
-from cStringIO import StringIO
+from io import BytesIO
 
 
 def relpath(path, reference_path):
-    """Almost the same as os.path.relpath but prepends a dot, so the returned value is
+    """Almost the same as os.path.relpath but prepends a "./", so the returned value is
         usable in .rst relative paths"""
     return os.path.join(".", os.path.relpath(path, reference_path))
 
 
-def makedirs(path):
-    """Same as os.makedirs except that it silently exits if the path already exists"""
-    if not os.path.isdir(path):
-        os.makedirs(path)
-
-
-def copyfiles(src, dst_dir, move=False):
-    """
-        Copies /move files recursively, extending shutil and allowing glob expressions
-        in src
-        :param src: a which MUST not be a system directory, denoting:
-            * an existing file. In this case `shutil.copy2(src, dst)` will be called
-              (If the destination file already exists under 'dst', it will be overridden)
-            * a directory, in that case *all files and dirs within src* will be moved or copied.
-              (if move=True and src is empty after the move, then src will be deleted)
-            * a glob expression such as '/home/*pdf'. Then, all files matching the glob
-                expression will be copied / moved
-        :param dst: a destination DIRECTORY. If it does not exists, it will be created
-        (os.makedirs, basically alias of 'mkdir -p').
-    """
-    files_count = 0
-
-    if os.path.isdir(src):
-        for fle in os.listdir(src):
-            files_count += copyfiles(os.path.join(src, fle), dst_dir, move)
-        # since we moved all files, we remove the dir if it's empty:
-        if move and not os.listdir(src):
-            shutil.rmtree(src, ignore_errors=True)
-
-    elif os.path.isfile(src):
-        dst_dir_exists = os.path.isdir(dst_dir)
-        # copytree does not work if dest exists. So
-        # for file in os.listdir(src):
-        if not move:
-            if not dst_dir_exists:
-                # copy2 requires a dst folder to exist,
-                makedirs(dst_dir)
-            shutil.copy2(src, dst_dir)
-        else:
-            shutil.move(src, dst_dir)
-
-        files_count = 1
-    else:
-        glb_list = glob(src)
-        if len(glb_list) and glb_list[0] != src:
-            # in principle, if src denotes a non-existing file or dir, glb_list is empty, if it
-            # denotes an existing file or dir, it has a single element equal to src. This latter
-            # case is a problem as we might have an error when copying a dir
-            # In principle copy2 below raises the exception but for safety we repeat
-            # the test here
-            for srcf in glob(src):  # glob returns joined pathname, it's not os.listdir!
-                files_count += copyfiles(srcf, dst_dir, move)
-
-    return files_count
-
-
-def read_network(network, start_after_year, **kwargs):
-    """
-        Returns all stations  of given network (starting from the specified year)
-        from the geofon datacenter in the form of an obspy inventory object
-        :param kwargs: keyword arguments optionally to be passed to the query string. Provide any
-        fdsn standard *except* 'format', which by default will be set to 'xml', 'level' (which
-        will be set to 'channel'), 'network' and 'startafter' (which are mandatory arguments of this
-        function)
+def read_geofonstations(network, start_after_year, **kwargs):
+    """Returns an inventory object representing the stations xml file of a given **geofon**
+        network
+       :param network: string, denoting the network
+       :param start_after_year: an integer denoting the year to start from when
+       searching for the network stations
+       :param kwargs: keyword arguments optionally to be passed to the query string. Provide any
+       fdsn standard *except* 'format', which by default will be set to 'xml', 'level' (which
+       will be set to 'channel'), 'network' and 'startafter' (which are mandatory arguments of this
+       function)
     """
     kwargs['network'] = network
     kwargs['level'] = 'channel'
     kwargs['startafter'] = start_after_year
-    kwargs['format'] = 'xml'
     return read_stations(get_query("http://geofon.gfz-potsdam.de/fdsnws/station/1/query",
                                    **kwargs))
 
 
-def get_format(query_str):
-    """Returns the format argument of query_str (a query in string format), or 'xml' if
-    such argument is not found (xml being the FDSN default)"""
-    try:
-        match = re.compile("[\\?\\&]format=(.*?)(?:\\&|$)").search(query_str)
-        if not match:
-            return 'text'
-        return match.groups()[0]
-    except IndexError:
-        pass
-    return 'xml'
-
-
-def read_stations(url):
-    """Returns an inventory object representing the stations xml file downloaded from url
-    if ''format=xml' in url, otherwise a string representing the content read
-    (in text format)
+def read_stations(url, timeout=None):
+    """Returns an inventory object representing the stations xml file downloaded from the
+    given url
+    :param timeout: the value of the timeout passed to `urllib2`. None defaults to the
+    library default
     """
-    format_ = get_format(url)
+    # format_ = get_format(url)
     response = None
     try:
-        response = urllib2.urlopen(url)
-        # Note obspy's read_inventory does not use StringIO's but saves to file
-        # (quite inefficient)
-        return response.read() if format_ == 'text' else read_inventory(StringIO(response.read()),
-                                                                        format='STATIONXML')
+        response = urllib2.urlopen(url) if timeout is None else \
+            urllib2.urlopen(url, timeout=timeout)
+        return read_inventory(BytesIO(response.read()), format='STATIONXML')
+#         return response.read() if format_ == 'text' else read_inventory(BytesIO(response.read()),
+#                                                                         format='STATIONXML')
     finally:
         if response:
             response.close()
-#     if format_ == 'text':
-#         response = urllib2.urlopen(url)
-#         text = response.read()
-#         return text
-#     else:
-#         return etree.parse(url)
 
 
 def todf(stations_xml, func, funclevel='station', sortkey=None):
@@ -134,8 +59,8 @@ def todf(stations_xml, func, funclevel='station', sortkey=None):
         Converts stations_xml to pandas DataFrame: Loops through the `stations_xml`'s
         network(s), station(s) and channel(s) and executes
         func at the given funclevel
-        :param: stations_xml: An obspy station inventory object returned from
-        module functions `read_stations` and `read_network`, or, in general, from:
+        :param: stations_xml: An obspy inventory object returned from
+        module functions `read_stations` and `read_geofonstations`, or, in general, from:
         ```
             obspy.read_inventory(..., format='STATIONSXML')
         ```
@@ -146,9 +71,9 @@ def todf(stations_xml, func, funclevel='station', sortkey=None):
         `dict`s, so that one can return e.g. a list of N `dict`s to add new N rows.
         Everything evaluating to False (empty dict, empty iterable, empty dicts of an iterable)
         will be skipped and not added to the DataFrame.
-        The function accepts a variable number of arguments depending on the `funclevel`
+        The `func` argument accepts a variable number of arguments depending on the `funclevel`
         argument:
-          - funclevel='network': `func(network_obj)`,
+          - funclevel='network': `func(network_obj)`
           - funclevel='station': `func(network_obj, station_obj)`
           - funclevel='channel': `func(network_obj, station_obj, channel_obj)`
         Note: if you want to preserve the column orders as declared in each returned dict,
@@ -161,9 +86,9 @@ def todf(stations_xml, func, funclevel='station', sortkey=None):
           - funclevel='network': `func(network_obj)`,
           - funclevel='station': `func(network_obj, station_obj)`
           - funclevel='channel': `func(network_obj, station_obj, channel_obj)`
-        :param sortkey: Behaves like the python `sorted` 'key` argument: an optional key to be used
-        to sort the rows of the resulting Dataframe. It is applied to each dict prior to its
-        conversion to a DataFrame row
+        :param sortkey: Behaves like the python 'key` argument of the `sorted` function:
+        an optional key to be used to sort the rows of the resulting Dataframe.
+        It is applied to each dict prior to its conversion to a DataFrame row
     """
     arr = []
 
@@ -239,3 +164,58 @@ def get_query(*urlpath, **query_args):
     # http://stackoverflow.com/questions/1793261/how-to-join-components-of-a-path-when-you-are-constructing-a-url-in-python
     return "{}?{}".format('/'.join(url.strip('/') for url in urlpath),
                           "&".join("{}={}".format(k, v) for k, v in query_args.iteritems()))
+
+
+def iterdcurl(**query_args):
+    """Returns an iterator over all datacenter urls found in the eida routing service, plus
+    iris station ws url
+    :param query_args: optional set of **eida routing service keyword arguments** which will be
+    appended to the query url. Note that the arguments are not 100% the same as the fdsn arguments
+    (for instance, endbefore is not supported), so please use only arguments valid in both cases.
+    Note also that 'service' and 'format' keyword arguments, if supplied, will be overridden with
+    values 'station' and 'post', respectively.
+    For IRIS, due to a bug in the eida routing service, the arguments will be forwarded to the IRIS
+    station web service, so they need to be
+    valid fdsn arguments. The IRIS datacenter is yielded if the station web service response
+    returns at least one byte, otherwise not
+    """
+    query_args['service'] = 'station'
+    query_args['format'] = 'post'
+    query = get_query('http://geofon.gfz-potsdam.de/eidaws/routing/1/query', **query_args)
+
+    urlo = urllib2.urlopen(query)
+    try:
+        dc_result = urlo.read().decode('utf8') or u''
+    finally:
+        urlo.close()
+
+    # 1) parse dc_result string and assume any new line starting with http:// is a valid station
+    # query url
+    # do not use split so we do not create an array but let's yield it
+    last_idx = 0
+    lastcharidx = len(dc_result) - 1
+    for i, char in enumerate(dc_result):
+        if char in (u'\n', u'\r') or i == lastcharidx:
+            if dc_result[last_idx:last_idx+7] == u"http://":
+                yield dc_result[last_idx:i]
+            last_idx = i + 1
+
+    # return IRIS manually. Do a simple query as long as we get one byte, stop the connection
+    # and return the url
+    iris_url = "http://service.iris.edu/fdsnws/station/1/query"
+    # delete / modify eida routing service specific arguments
+    del query_args['service']
+    query_args['format'] = 'text'
+    query_args['level'] = 'station'
+    query = get_query('http://geofon.gfz-potsdam.de/eidaws/routing/1/query', **query_args)
+    try:
+        dc_result = urlo.read(1)
+        if dc_result:
+            yield iris_url
+    finally:
+        urlo.close()
+    # (fix bug in eida routing service when querying without network arguments):
+
+
+
+

@@ -15,57 +15,81 @@ $PATH_TO_VENV/lib/python2.7/site-packages/sphinx/themes/basic
 <!DOCTYPE html>
 {%- endblock %}
 
-<!-- add custom css. Bootstrap for nice buttons and potential bars, my style for custom stuff --> 
-{% set css_files = css_files + ['https://cdn.jsdelivr.net/leaflet/1.0.0-beta.2/leaflet.css',
-								'_static/css/style.css'] %}
+<!-- add custom css. just add OUR stylesheet (FIXME: DO WE NEED IT?!!)
+Do not add leaflet here as we do it in extrahead below (due to subresource integrity suggestion
+from their site: http://leafletjs.com/download.html--> 
+{% set css_files = css_files + ['_static/css/style.css'] %}
 
-<!-- add custom js. This is actually doing nothing but it shows how to do if we want to
-add new stuff (add each line denoting a js path)-->
+<!-- add custom js. By default, sphinx loads (just mentioning relevant libraries, there might be more): jquery and ajax.
+First note that as embedded = True, we do not load sidebars, BUT the parent template will not load
+ANY script, too. So the line below is actually never executed. Scripts will be loaded in the extrehead below
+However, if in the future we plan to set embedded=False, then uncomment the next line if u want to add extra scripts:
+
 {% set script_files = script_files + [] %}
 
-<!-- another option was to remove all javascript and keeping only necessary stuff: -->
-<!-- set script_files = ["https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML",
-									  "https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular.min.js",
-									  "_static/jquery.js"] -->
+For instance, an option was to remove all javascript and keeping only necessary stuff:
+
+{% set script_files = ["https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML",
+					   "https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular.min.js",
+					   "_static/jquery.js"] %}
+-->
+
 {%- block extrahead %}
 
 	<!-- As embedded = True, we do not load sidebars, BUT the parent template will not load
 	ANY script, too. This is fine for page speed rendering, BUT we still need to display math
-	formulae. Copied from sphinx defaults: let's do it:-->
+	formulae. Note that this line (copied from sphinx default) seems not to be valid anymore:
 	<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-	
-	<!-- the comment below is a workaround to make this a template also -->
+	For info, see https://www.mathjax.org/cdn-shutting-down/
+	So replace it with:
+	-->
+	<script type="text/javascript"
+  		src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 
-	<!--  http://esri.github.io/esri-leaflet/examples/  -->
-
-	<!-- Load Leaflet from CDN-->
- 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.2/dist/leaflet.css" />
-	<script src="https://unpkg.com/leaflet@1.0.2/dist/leaflet-src.js"></script>
-
+	<!-- Load Leaflet from CDN
+	NOTE: locally, leaflet is in a specified dir as it is shipped with js and css together.
+	Keeping it in the same dir is more handy so that we rename just the dir with the leaflet version and moreover
+	if we want to move to newer versions we just replace the whole dir
+	-->
+ 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.1.0/dist/leaflet.css"
+  		integrity="sha512-wcw6ts8Anuw10Mzh9Ytw4pylW8+NAD4ch3lqm9lzAsTxg0GFeJgoAtxuCLREZSC5lUXdVyo/7yfsqFjQ4S+aKw=="
+  		crossorigin=""/>
+	<script src="https://unpkg.com/leaflet@1.1.0/dist/leaflet.js"
+  		integrity="sha512-mNqn2Wg7tSToJhvHcqfzLMU6J4mkOImSPTxVZAdo+lcPlk+GhZmYgACEe0x35K7YzW1zJ7XyJV/TT1MrdXvMcA=="
+  		crossorigin=""></script>
 	<!-- Load Esri Leaflet from CDN -->
-	<script src="https://unpkg.com/esri-leaflet@2.0.7"></script>
+	<script src="https://unpkg.com/esri-leaflet@2.0.8"></script>
 
-	<!--EDITABLE_PAGE % endblock % EDITABLE_PAGE-->
+	<script type='text/javascript' defer>
+		/* implement fallback if leaflet is not loaded. If Leaflet is not loaded, load also esri and css
+		(rough, but for safety)*/
+		if (!(window.L)){
+			// note: leaflet.js is minified, leaflet-src.js not (keep it in the dir who knows)
+			document.write('<script src="_static/leaflet.1.1.0/leaflet.js"><\/script>');
+			document.write('<link rel="stylesheet" href="_static/leaflet.1.1.0/leaflet.css"\/>');
+			document.write('<script src="_static/js/esri-leaflet.2.0.8.min.js"><\/script>');
+		}
+		if(!(window.MathJax)){
+			document.write('<script src="_static/js/MathJax.2.7.1.js?config=TeX-AMS-MML_HTMLorMML"><\/script>');
+		}
+	</script>
 
 {% endblock %}
 
+
+<!-- we might remove these blocks right? they are just calling super() -->
 {%- block header %}
-	<!--EDITABLE_PAGE %- block header % EDITABLE_PAGE-->
 	{{ super() }}
-	<!--EDITABLE_PAGE % endblock % EDITABLE_PAGE-->
 {% endblock %}
 
 {%- block document %}
-	<!--EDITABLE_PAGE %- block document % EDITABLE_PAGE-->
 	{{ super() }}
-	<!--EDITABLE_PAGE % endblock % EDITABLE_PAGE-->
 {% endblock %}
 
 <!--  this hides the search panel (as we set embedded=True, it might be irrelevant. However, for safety... -->
 {% block sidebarsearch %}{% endblock %}
 
+<!-- we might remove these blocks right? they are just calling super() -->
 {%- block footer %}
-	<!--EDITABLE_PAGE %- block footer % EDITABLE_PAGE-->
 	{{ super() }}
-	<!--EDITABLE_PAGE % endblock % EDITABLE_PAGE-->
 {% endblock %}

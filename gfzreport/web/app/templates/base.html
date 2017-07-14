@@ -3,18 +3,20 @@
 <head>
 	<meta charset="utf-8">
 	<title>{{ title }}</title>
-	<!--
-	<meta name="description" content="The HTML5 Herald">
-	<meta name="author" content="SitePoint">
-	<link rel="stylesheet" href="static/css/styles.css?v=1.0">
-	<script src="js/scripts.js"></script>
-	<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap/css/bootstrap.min.css') }}">
-	-->
-	<link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap/css/bootstrap.min.css') }}">
+
+	<!-- load bootstrap css (with fallback to local copy, see
+	https://stackoverflow.com/questions/14141532/how-to-load-local-copy-of-bootstrap-css-when-the-cdn-server-is-down -->
+	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" media="screen">
+	
 	<link rel="stylesheet" href="{{ url_for('static', filename='css/webapp.css') }}">
-	<script src="{{ url_for('static', filename='js/angular.min.js') }}"></script>
+	
+	<!-- load angular (with fallback to local copy) -->
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.6/angular.min.js"></script>
+	<script>window.angular || document.write("<script src=\"{{ url_for('static', filename='js/angular.1.5.6.min.js') }}\"><\/script>")</script>
 </head>
 <body>
+<!-- https://stackoverflow.com/questions/14141532/how-to-load-local-copy-of-bootstrap-css-when-the-cdn-server-is-down: -->
+<div id="_bootstrapfallbacktest_______H;68_ft" class='hidden'></div>
 <div class='container col-container' id='MyApp' ng-app="MyApp" ng-controller="MyController">
 	<div class='pos-top row-container'>
 		{% block header %}{% endblock %}
@@ -27,5 +29,23 @@
 	</div>
 </div>
 </body>
+	<!-- load angular now (at the end) -->
 	<script src="{{ url_for('static', filename='js/myapp.js') }}"></script>
+	<!--
+	LOAD BOOTSTRAP FROM LOCAL COPY IF SERVICE IS DOWN:
+	 https://stackoverflow.com/questions/14141532/how-to-load-local-copy-of-bootstrap-css-when-the-cdn-server-is-down
+	and
+	https://stackoverflow.com/questions/19669786/check-if-element-is-visible-in-dom
+	(we have pure javascript no jquery here:) -->
+	<script>
+	if(document.getElementById("_bootstrapfallbacktest_______H;68_ft").offsetParent !== null){  //element is not hidden, load bootstrap
+		console.log('LOADING BOOTSTRAP from server');
+		local_bootstrap = document.createElement('link');
+        local_bootstrap.setAttribute("rel", "stylesheet");
+        local_bootstrap.setAttribute("type", "text/css");
+        local_bootstrap.setAttribute("media", "screen");
+        local_bootstrap.setAttribute("href", "{{ url_for('static', filename='css/bootstrap.3.3.7.min.css') }}");
+        document.getElementsByTagName("head")[0].appendChild(local_bootstrap);
+	}
+	</script>
 </html>

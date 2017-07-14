@@ -9,29 +9,31 @@ Core utilities for the network-generator program
 import sys
 import os
 import shutil
-from glob import glob
-import numpy as np
+# import threading
+from multiprocessing.pool import ThreadPool
 import csv
 from datetime import datetime
 import re
-import pandas as pd
-# from obspy import read_inventory
-from lxml import etree
+from collections import defaultdict, OrderedDict
 import urllib2
 from cStringIO import StringIO
+from itertools import product, cycle, izip
+from lxml import etree
+from lxml.etree import XMLSyntaxError
+from glob import glob
 from urllib2 import URLError, HTTPError
+
+import numpy as np
+import pandas as pd
+# from obspy import read_inventory
 from jinja2 import Environment
 # from lxml.etree import XMLSyntaxError
-from collections import defaultdict as defdict, OrderedDict as odict
-from gfzreport.templates.network.core.utils import relpath, read_network, read_stations, todf,\
-    get_query
-from itertools import product, cycle, izip
-from lxml.etree import XMLSyntaxError
-from collections import defaultdict
+from gfzreport.templates.network.core.utils import relpath, read_geofonstations, read_stations, todf,\
+    get_query, iterdcurl
 from gfzreport.sphinxbuild.map import getbounds
 
 
-def get_network_stations_df(network, start_after_year):
+def geofonstations_df(network, start_after_year):
     """
         Returns the dataframe representing the network stations table in rst.
         :param network: string. The network name (e.g., 'ZE')
@@ -39,14 +41,14 @@ def get_network_stations_df(network, start_after_year):
         Only stations after that time will be displayed
     """
 
-    inv = read_network(network, start_after_year)
+    geofon_inventory = read_geofonstations(network, start_after_year)
 
     def int_(val):
         ival = int(val)
         return ival if ival == val else val
 
     def func(net, sta):
-        retdict = defdict(odict)
+        retdict = defaultdict(OrderedDict)
         strfrmt = "%0.4d-%0.2d-%0.2d"
         for cha in sta.channels:
             start = strfrmt % (cha.start_date.year, cha.start_date.month, cha.start_date.day)
@@ -71,11 +73,11 @@ def get_network_stations_df(network, start_after_year):
 
         return retdict.itervalues()
 
-    dframe = todf(inv, func, funclevel='station', sortkey=lambda val: val['Label'])
+    dframe = todf(geofon_inventory, func, funclevel='station', sortkey=lambda val: val['Label'])
 
     # add metadata:
     dframe.metadata = {'start_date': None, 'end_date': None, 'desc': ''}
-    for net in inv:
+    for net in geofon_inventory:
         if net.code == network:
             dframe.metadata['start_date'] = net.start_date
             dframe.metadata['end_date'] = net.end_date
@@ -85,42 +87,55 @@ def get_network_stations_df(network, start_after_year):
     return dframe
 
 
-def get_other_stations_df(network_stations_df, margins_in_deg):
+def otherstations_df(geofonstations_df, margins_in_deg):
     tonum = pd.to_numeric
-    _, _, minlon, minlat, maxlon, maxlat = getbounds(tonum(network_stations_df['Lon']).min(),
-                                                     tonum(network_stations_df['Lat']).min(),
-                                                     tonum(network_stations_df['Lon']).max(),
-                                                     tonum(network_stations_df['Lat']).max(),
+    _, _, minlon, minlat, maxlon, maxlat = getbounds(tonum(geofonstations_df['Lon']).min(),
+                                                     tonum(geofonstations_df['Lat']).min(),
+                                                     tonum(geofonstations_df['Lon']).max(),
+                                                     tonum(geofonstations_df['Lat']).max(),
                                                      margins_in_deg)
 
-    meta = network_stations_df.metadata
+    meta = geofonstations_df.metadata
     kwargs_live_stations = dict(minlat=minlat, maxlat=maxlat, minlon=minlon, maxlon=maxlon,
                                 starttime=meta['start_date'].isoformat(),
                                 endtime=meta['end_date'].isoformat(),
-                                level='station',
-                                format='xml')
+                                level='station')
+                                # format='xml')
 
     kwargs_dead_stations = dict(kwargs_live_stations)
     kwargs_dead_stations['endbefore'] = kwargs_dead_stations.pop('starttime')
     kwargs_dead_stations.pop('endtime')
 
     invs = []
+    # use standard python process pool thread:
+    # see second post here:
+    # https://stackoverflow.com/questions/16181121/a-very-simple-multithreading-parallel-url-fetching-without-queue
+    timeout = 180
 
-    dcs = [d for d in get_datacenters() if 'geofon' not in d]
-#     dcs = ['http://service.iris.edu/fdsnws/station/1/query',
-#            'http://www.orfeus-eu.org/fdsnws/station/1/query']
-
-    for dc, kwargs in product(dcs, [kwargs_live_stations, kwargs_dead_stations]):
-        querystr = get_query(dc, **kwargs)
+    def fetch_inv(tup):
+        querystr = 'unknown url'
         try:
-            invs.append(read_stations(querystr))
-            print "%s [OK]" % querystr
-        except (URLError, HTTPError, XMLSyntaxError) as exc:
-            print "%s [%s]" % (querystr, str(exc))
-            pass
-        # r = read_inventory(StringIO(text), format="STATIONXML")
-        # df = pd.read_csv(StringIO(text), delimiter='|', index_col=False)
-        # dfs.append(df)
+            dc, kwargs = tup
+            querystr = get_query(dc, **kwargs)
+            return read_stations(querystr, timeout=timeout), querystr, None
+        except Exception as exc:
+            return None, querystr, exc
+
+    # Note: we could remove lon and lat args (minlat, maxlat,...) from kwargs_live_stations and
+    # kwargs_dead_stations, as we passed it to iterdcurl
+    # but iterdcurl for IRIS returns the url ignoring the arguments (eida routing service "bug")
+    # so so we need to forward them also to fetch_inv above
+    fetch_inv_args = (args for args in product(iterdcurl(minlon=minlon, minlat=minlat,
+                                                         maxlon=maxlon, maxlat=maxlat),
+                                               [kwargs_live_stations, kwargs_dead_stations])
+                      if "geofon" not in args[0])
+
+    results = ThreadPool(20).imap_unordered(fetch_inv, fetch_inv_args)
+    for inv, url, error in results:
+        if error is None:
+            invs.append(inv)
+        else:
+            print("Warning: error fetching inventory (%s)\n   url: %s" % (error, url))
 
     symbols = cycle([
                      # '.',  # point
@@ -152,7 +167,7 @@ def get_other_stations_df(network_stations_df, margins_in_deg):
 
     # parse all inventories and return dataframes
     def func(net, sta):
-        retdict = defdict(odict)
+        retdict = defaultdict(OrderedDict)
         # Code: # net.code
         if net.code == 'SY':  # ignore synthetic data
             return retdict
@@ -171,12 +186,12 @@ def get_other_stations_df(network_stations_df, margins_in_deg):
             yearrng = ""
         caption = "%s%s%s" % (net.code, yearrng, restricted)
 
-        nooverlap = net.end_date < network_stations_df.metadata['start_date'] or \
-            net.start_date > network_stations_df.metadata['end_date']
+        nooverlap = net.end_date < geofonstations_df.metadata['start_date'] or \
+            net.start_date > geofonstations_df.metadata['end_date']
 
         color = '#FFFFFF00' if nooverlap else '#FFFFFF'
 
-        mydic = odict()
+        mydic = OrderedDict()
         mydic['Label'] = sta.code
         mydic['Lat'] = sta.latitude
         mydic['Lon'] = sta.longitude
@@ -196,49 +211,30 @@ def get_other_stations_df(network_stations_df, margins_in_deg):
     return pd.concat(dfs, axis=0, ignore_index=True, copy=False)
 
 
-def get_datacenters(**query_args):
-    """Queries all datacenters and returns the local db model rows correctly added
-    Rows already existing (comparing by datacenter station_query_url) are returned as well,
-    but not added again
-    :param query_args: any key value pair for the query. Note that 'service' and 'format' will
-    be overiidden in the code with values of 'station' and 'format', repsecively
-    """
-    empty_result = {}  # Create once an empty result consistent with the excpetced return value
-    query_args['service'] = 'station'
-    query_args['format'] = 'post'
-    query = get_query('http://geofon.gfz-potsdam.de/eidaws/routing/1/query', **query_args)
+def get_map_df(geofonstations_df, otherstations_df):
+    """Returns a DataFrame representing the stations map of an rst mapfigure directive.
+       ```
+        map_df = get_map_df(...)
+        # return the csv content:
+        map_df.to_csv(sep=" ", quotechar='"', index=False)
 
-    urlo = urllib2.urlopen(query)
-    dc_result = urlo.read().decode('utf8')
-    urlo.close()
-
-    if not dc_result:
-        return empty_result
-    # add to db the datacenters read. Two little hacks:
-    # 1) parse dc_result string and assume any new line starting with http:// is a valid station
-    # query url
-    # 2) When adding the datacenter, the table column dataselect_query_url (when not provided, as
-    # in this case) is assumed to be the same as station_query_url by replacing "/station" with
-    # "/dataselect". See https://www.fdsn.org/webservices/FDSN-WS-Specifications-1.1.pdf
-    return [dcen for dcen in dc_result.split("\n") if dcen[:7] == "http://"]
-
-
-def get_map_df(sta_df, all_sta_df):
-    """Returns a DataFrame for the rst map. 
+        :param geofonstations_df: the dataframe representing the stations of the network 
+        :param otherstations_df: the dataframe representing all other stations which need to be
+        shown on the map
     """
     # current captions are:
     columns = ['Label', 'Lat', 'Lon', 'Marker', 'Color', 'Legend']
-    # The first three are common to both dataframes. all_sta_df has all five columns
+    # The first three are common to both dataframes. otherstations_df has all five columns
 
-    # make a new sta_df, it will be a view of the original sta_df. But this way we do not
+    # make a new geofonstations_df, it will be a view of the original geofonstations_df. But this way we do not
     # pollute the original
-    _sta_df = sta_df[columns[:3]]
+    _sta_df = geofonstations_df[columns[:3]]
     # avoid pandas settingwithcopy warnings (we know what we are doing):
     _sta_df.is_copy = False
 
     _sta_df['Marker'] = 's'  # square
     _sta_df['Legend'] = ''
-    sensors = pd.unique(sta_df['Sensor'])
+    sensors = pd.unique(geofonstations_df['Sensor'])
 
     # create a variable color scale
     step = 255.0 / (len(sensors)+1)
@@ -247,10 +243,10 @@ def get_map_df(sta_df, all_sta_df):
 
     _sta_df['Color'] = ''
     for sens, col in izip(sensors, colors):
-        _sta_df.loc[sta_df['Sensor'] == sens, 'Color'] = col
-        _sta_df.loc[sta_df['Sensor'] == sens, 'Legend'] = sens
+        _sta_df.loc[geofonstations_df['Sensor'] == sens, 'Color'] = col
+        _sta_df.loc[geofonstations_df['Sensor'] == sens, 'Legend'] = sens
 
-    ret_df = pd.concat([_sta_df, all_sta_df], axis=0, ignore_index=True, copy=False)[columns]
+    ret_df = pd.concat([_sta_df, otherstations_df], axis=0, ignore_index=True, copy=False)[columns]
     # mark all duplicated Legends as empty except the first(s):
     ret_df.loc[ret_df['Legend'].duplicated(), 'Legend'] = ''
     return ret_df
@@ -263,11 +259,11 @@ def get_noise_pdfs_content(dst_dir, regex="^(?P<row>.*)_(?P<col>[A-Z][A-Z][A-Z])
     # Provide a default value DEF_VAL for non-found files. Do not provide empty strings as DEF_VAL
     # if the delimiter is the space as this is not rendered properly in the csv content
     # (for safety, do not provide empty strings as DEF_VAL in any case):
-    DEF_VAL = 'WARNING:_file_not_found'
+    DEF_VAL = 'WARNING: file not found'
     lineterminator = '\n'
     quotechar = '"'
     reg = re.compile(regex)
-    dct = defdict(lambda: [DEF_VAL] * len(columns))
+    dct = defaultdict(lambda: [DEF_VAL] * len(columns))
     for fl in os.listdir(dst_dir):
         mat = reg.match(fl)
         if mat and len(mat.groups()) == 2:
@@ -316,14 +312,14 @@ def get_figdirective_vars(src_path, src_rst_path):
     return dic
 
 
-def gen_title(networkname, network_stations_df):
+def gen_title(networkname, geofonstations_df):
     """Generates the title for the .rst file from a pandas DataFrame returned by
     get_network_stations"""
     # template:
     # =============================================================
     # {{ network_code }} {{ network_start_date }}-{{ network_end_date }}
     # =============================================================
-    meta = network_stations_df.metadata
+    meta = geofonstations_df.metadata
     start = meta['start_date'].year if 'start_date' in meta else None
     end = meta['end_date'].year if 'end_date' in meta else None
     timerange = " %d-%d" % (start, end) if start and end else ""

@@ -3,10 +3,10 @@ app.controller('MyController', function ($scope, $http, $window) {
 	$scope._init = true; //basically telling setView to update the commits only the first time
 	$scope._VIEWS = ['html', 'pdf'];
 	$scope.view = null;  // the current view null for the moment
-	
-	// note: needsRefresh means: true: request the server, false: display what's in the iframe
-	// (if the page has really to be refreshed - e.g.e built, is up to the server)
-	// pdfs could be quite heavy so we don't want to download them all the time
+
+	// note: needsRefresh means: false: display what's in the iframe; true: request the server 
+	// (if the page has really to be refreshed - e.g.e built, is up to the server).
+	// Pdfs could be quite heavy so we don't want to download them all the time
 	$scope.needsRefresh = {};
 	$scope.frames = {'edit': document.getElementById("edit_iframe")};
 
@@ -21,10 +21,7 @@ app.controller('MyController', function ($scope, $http, $window) {
 			$scope.$apply(function() {
 				$scope.needsRefresh[_view] = false;
 				$scope.loading = false;
-				if ($scope._init){  // we need to update commits only the first load, after it 
-					//will be managed by saving the document from within the app
-					$scope.getCommits(); //therein we will set $scope._init = false;
-				}
+				$scope._init = false; //if first time, notify that everything is loaded succesfully
 			});
 		};
 		$scope.frames[_view] = frame;
@@ -59,20 +56,12 @@ app.controller('MyController', function ($scope, $http, $window) {
 	    		//add listener WHEN LOADED:
 	    		$scope.aceEditor.on("input", function() {
 	    			$scope.$apply(function() {
-	    				var cmts = $scope.commits;
-	    				// we might be here if we are modifying the text via keyboard, or if
-	    				// we want to view an old commit. In the latter, do not set the editor
-	    				// as modified, as we have a copy on the server: the user must modify the
-	    				// text by himself if he/she wants to save the content
-	    				if (cmts._selIndexRemainder > -1){
-	    					// we are viewing an old commit
-	    					$scope.modified = false;
-	    				}else{
-	    					// we are really modifying the editor
-	    					$scope.modified = true;
+	    				// If popup commits is showing, do not mark the editor as modified
+	    				// I.e., do not update save buttons and alike
+	    				if ($scope.popups.commits.visible){
+	    					return;
 	    				}
-	    				cmts.selIndex = cmts._selIndexRemainder;
-	    				cmts._selIndexRemainder = -1;
+	    				$scope.modified = true;
 	    			});
 	    		});
 		    };
@@ -81,20 +70,27 @@ app.controller('MyController', function ($scope, $http, $window) {
 	};
 	
     $scope.save = function(){
+    	/**
+    	 * Saves the content of the editor on the server, which returns the new commits
+    	 * list. The commits list is then passed to $scope._setCommits to update what will
+    	 * be shown in the 'commits popup' window
+    	 */
     	if (!$scope.aceEditor){
     		return;
     	}
-    	$http.post('save', JSON.stringify({source_text: $scope.aceEditor.getValue() }),
-	    		   {headers: { 'Content-Type': 'application/json' }}
+    	$http.post(
+    		'save',
+    		JSON.stringify({source_text: $scope.aceEditor.getValue() }),
+	    	{headers: { 'Content-Type': 'application/json' }}
     	).then(
-    			function(response){ // success callback
-		    		$scope.modified = false;
-				  	$scope.aceEditor.session.getUndoManager().markClean();
-				  	$scope._setCommits(response.data || []);
-		    	},
-		    	function(response){ // failure callback
-		    		console.log("failed saving");  //FIXME: handle failure
-				}
+			function(response){ // success callback
+	    		$scope.modified = false;
+			  	$scope.aceEditor.session.getUndoManager().markClean();
+			  	$scope._setCommits(response.data || [], true); //true: do a check to see if we need to refresh the views (pdf, html)
+	    	},
+	    	function(response){ // failure callback
+	    		console.log("failed saving");  //FIXME: handle failure
+			}
     	);
     };
 
@@ -127,39 +123,114 @@ app.controller('MyController', function ($scope, $http, $window) {
 		// (http://stackoverflow.com/questions/13477451/can-i-force-a-hard-refresh-on-an-iframe-with-javascript)
 	};
 	
-	$scope.commits = {data:[], selIndex: -1, _selIndexRemainder: -1};
-	$scope.getCommits = function(){
+	
+	/********************************************************************************************
+	 * POPUPS STUFF 
+	 ********************************************************************************************/
+	
+	/** first define our popup data container:
+	 * we want an object type reflecting a popup, storing popup properties and that:
+	 * can get if it's visible (by default it isn't) easily
+	 * can toggle its visibility easily
+	 * can store properties like a normal object for eg. ng-model bindings
+	 * we implement the props class which will be mapped to any popup defined here:
+	 */
+	function props(defaults){
+		// initialize by setting all our desfaults properties to this object
+		var defs = defaults || {};
+		for (var d in defs){
+			this[d] = defs[d];
+		}
+		// attach common properties (for the moment, visible and errMsg)
+		if (this.visible === undefined){
+			this.visible = false;
+		}
+		if (this.errMsg === undefined){
+			this.errMsg = '';
+		}
+		// methods:
+		this.show = function(){
+			// make errMsg empty, so that previous errors, if any, do not appear when window shows up (misleading)
+			this.errMsg = '';
+			this.visible = true;
+		};
+		this.hide = function(){
+			this.visible = false;
+		};
+		this.toggle = function(){
+			// call the respective functions so if there is something to setup in there, we do it
+			if (this.visible){
+				this.hide();
+			}else{
+				this.show();
+			}
+		};
+	};
+	
+	$scope.popups = {
+		'commits': new props(),  // if u want a title, set {'title': '...'} as dict arg (see below)
+		'logIn': new props(),
+		'addFig': new props({'label': '', 'keepOpen': false}),
+		'logs': new props({'title': 'Build log files', 'loading': false})
+	};	
+	
+	$scope.exc = function(message, response){
+		/**
+		 * handle http exception by returning message + response (response converted as text)
+		 */
+		// if there is no connection status seems to be -1 and statusText empty, so try to help:
+		var status = response.status;
+		var statusText = response.statusText;
+		if(status == -1 && !statusText){
+			statusText = "No internet connection?";
+		}
+		return message + " (" + status + ": " + statusText + ")";
+	};
+	
+	/**
+	 * COMMITS POPUP callback(s) and data
+	 */
+	
+	$scope.commits = {data:[], selIndex: -1};
+	$scope.fetchCommits = function(){
 		$http.post(
-				'get_commits', JSON.stringify({}), {headers: { 'Content-Type': 'application/json' }}
-			).then(
-	    		function(response){ // success callback
-	    			$scope._setCommits(response.data || []);
-	    		},
-	    		function(response){ // failure callback
-	    			console.log("failed getting commits");  //FIXME: handle failure (weel this should be silently ignored)
-	    		}
+			'get_commits',
+			JSON.stringify({}),
+			{headers: { 'Content-Type': 'application/json' }}
+		).then(
+    		function(response){ // success callback
+    			$scope._setCommits(response.data || [], false);
+    		},
+    		function(response){ // failure callback
+    			console.log("failed getting commits");  //FIXME: handle failure (weel this should be silently ignored)
+    		}
 	    );
 	}
 	
-	$scope._setCommits = function(commitsArray){
-		// set commits is called at startup AFTER setting the view
-		// (cause we might have to git-init or update stuff and we want the commits to be in synchro)
-		// and as the response after saving.
-		// if at startup, do not mark views as dirty (needsRefresh)
+	$scope._setCommits = function(commitsArray, checkIfViewNeedRefresh){
+		// set commits is called from $scope.fetchCommits() and $scope.save. Both functions
+		// return an array of commits:
+		// $scope.fetchCommits is intended only to set $scope.commits.data and other stuff, e.g. when we want to display the commits popup
+		// $scope.save is intended to check if we are out of synchro and mark the views as dirty (need to refresh)
+		// the second argument 'checkIfNeedsRefresh' does this synchro check, if true
 		var cmts = $scope.commits;
-		if($scope._init){
-			$scope._init = false;
-		}else if (cmts.length != commitsArray.length || (!commitsArray.length) || (cmts[0] != commitsArray[0])){
-			for (var i=0; i < $scope._VIEWS.length; i++){
-				$scope.needsRefresh[$scope._VIEWS[i]] = true;
+		if(checkIfViewNeedRefresh){
+			if (cmts.length != commitsArray.length || (!commitsArray.length) || (cmts[0] != commitsArray[0])){
+				for (var i=0; i < $scope._VIEWS.length; i++){
+					$scope.needsRefresh[$scope._VIEWS[i]] = true;
+				}
 			}
 		}
 		cmts.data = commitsArray;
 		cmts.selIndex = 0; //as returned from server `git` command (0=last)
-		cmts._selIndexRemainder = -1;
 	};
 	
 	$scope.currentCommit = function(hash){
+		/**
+		 * This function is executed from the view (html) in the "commits popup" div.
+		 * Without argument, returns the current commit. With arguments, sets the
+		 * current commit, modifying the editor test accordingly
+		 */
 		var cmts = $scope.commits;
 		if (hash === undefined){ // called with no argument, return current commit or null
 			if (!cmts.data || cmts.selIndex<0){
@@ -168,50 +239,96 @@ app.controller('MyController', function ($scope, $http, $window) {
 			return cmts.data[cmts.selIndex];
 		}
 		
-		$http.post('get_source_rst', 
-	    		   JSON.stringify({'commit_hash': hash}),
-	    		   {headers: { 'Content-Type': 'application/json' }}
-	    	).then(
-	    		function(response){ // success callback
-    			   $scope.aceEditor.setValue(response.data, 1);  // 1: moves cursor to the start
-    			   cmts.selIndex = -1;
-    			   for( var i=0 ;i < cmts.data.length; i++){
-    					if (cmts.data[i].hash == hash){
-    						cmts.selIndex = i;
-    						break;
-    					}
-    				}
-    				
-    				// Changes in the editor text (aceEditor.on('input',...) see above) notify
-    				// a function listener F (see above) which sets
-    				// some flags (e.g. $scope.modified=true and $scope.commitIndex=-1).
-    				// We might set here the new commitIndex (most likely not -1), *but*
-    				// F is called after timeout,
-    				// (and only once if we do several changes quickly), so we
-    				// need to set a $scope "hidden" variable to be checked inside F
-    			   cmts._selIndexRemainder = cmts.selIndex;
-	    		},
-	    		function(response){ // failure callback
-	    			console.log("failed getting commits");  //FIXME: handle failure (weel this should be silently ignored)
-	    		}
-	    	);
+		$http.post(
+			'get_source_rst', 
+	    	JSON.stringify({'commit_hash': hash}),
+	    	{headers: { 'Content-Type': 'application/json' }}
+    	).then(
+    		function(response){ // success callback
+			   $scope.aceEditor.setValue(response.data, 1);  // 1: moves cursor to the start
+			   cmts.selIndex = -1;
+			   for( var i=0 ;i < cmts.data.length; i++){
+					if (cmts.data[i].hash == hash){
+						cmts.selIndex = i;
+						break;
+					}
+				}
+    		},
+    		function(response){ // failure callback
+    			$scope.popups.commits.errMsg = $scope.exc(msg, response);
+    		}
+    	);
 	}
 
-	var popups = {commits: false, addFig: false, figLabel: ''};
+	/**
+	 * LOGIN POPUP callback(s) and data
+	 */
+
+	$scope.isLoggedIn = false;
+	$scope.logIn = function(){
+		// create a FormData object. The FormData gets a Form html elements and will add to it
+		// all inputs with a name attribute set
+		var elm = document.getElementById('login');
+		var formData = new FormData(elm);
+		$http.post(
+			'login', 
+			formData,
+			{headers: {'Content-Type': undefined }, transformRequest: angular.identity}  // let angular guess the type (it works!)
+		).then(
+    		function(response){ // success callback
+    			$scope.isLoggedIn=true;
+    			$scope.popups.logIn.hide();
+    			//load commits now:
+    			$scope.fetchCommits();
+    		},
+    		function(response){ // failure callback
+    			$scope.isLoggedIn=false; // for safety
+    			var msg = response.statusText;
+    			if (response.status == 401){
+    				msg = "Email not registered."
+    			}else if (response.status == 403){
+    				msg = "Email registered but not authorized to access this URL.";
+    			}
+    			$scope.popups.logIn.errMsg = $scope.exc(msg, response);
+    		}
+    	);
+	};
+
+	$scope.logOut = function(){
+		$http.post('logout', 
+			JSON.stringify({}),
+	    	{headers: { 'Content-Type': 'application/json' }}
+	    ).then(
+	    	function(response){ // success callback
+	    		$scope.isLoggedIn=false;
+	   		},
+	   		function(response){ // failure callback
+	   			$scope.isLoggedIn=false;
+	   		}
+    	);
+	};
+	
+	/**
+	 * ADD FIGURE POPUP callback(s) and data
+	 */
 	
 	$scope.addFigure = function(){
+		// create a FormData object. The FormData gets a Form html elements and will add to it
+		// all inputs with a name attribute set
 		var elm = document.getElementById('upload-file');
 		var formData = new FormData(elm);
-		// from http://stackoverflow.com/questions/13963022/angularjs-how-to-implement-a-simple-file-upload-with-multipart-form
+		// BUT: from http://stackoverflow.com/questions/13963022/angularjs-how-to-implement-a-simple-file-upload-with-multipart-form
 		// Angularjs (1.0.6, but apparently also 1.5.6) does not support ng-model on "input-file"
 		// tags so you have to do it in
 		// a "native-way" that pass the all (eventually) selected files from the user.
 		var files = elm.querySelector('#flupld_').files;
 		formData.append('file', files[0]);
 		// post and see if it worked
-		$http.post('upload_file',  formData,{headers: {'Content-Type': undefined },  // let angular guess the type (it works!)
-	        								 transformRequest: angular.identity})
-	    .then(
+		$http.post(
+			'upload_file',
+			formData,
+			{headers: {'Content-Type': undefined }, transformRequest: angular.identity} // let angular guess the type (it works!)
+	    ).then(
 	    	function(response){ // success callback
 	    		// $scope.aceEditor.setValue(response.data, 1);  // 1: moves cursor to the start
 	    		var text = response.data;
@@ -234,50 +351,76 @@ app.controller('MyController', function ($scope, $http, $window) {
 	    		// editor.selection.moveCursorTo(row+1, 0, false);
 	    		// editor.selection.selectFileEnd();
 	    		editor.renderer.scrollSelectionIntoView();
+	    		
+	    		if (!$scope.popups.addFig.keepOpen){
+	    			$scope.popups.addFig.hide();
+	    		}
 	    	},
 	    	function(response){ // failure callback
-	    		console.log("failed getting commits");  //FIXME: handle failure (weel this should be silently ignored)
+	    		$scope.popups.addFig.errMsg = $scope.exc("Error", response);
 	    	}
 	    );
 	}
 	
+	/**
+	 * LOGS POPUP callback(s) and data (note logs are the build logs (sphinx + pdflatex) not the login/out functionality!
+	 */
+
 	$scope.logs = null;
-	$scope.logsLoading = false;
 	$scope.showLogs = function(){
-		$scope.logLoading = true;
+		$scope.popups.logs.loading = true;
 		$scope.logs = {};
-		$http.post('get_logs', 
-	    		   JSON.stringify({'buildtype': $scope.view}),
-	    		   {headers: { 'Content-Type': 'application/json' }}
-	    	).then(
-	    		function(response){ // success callback
-	    		   // response.data is a dict
-	    			$scope.logsLoading = false;
-	    			//stupid workaround to make
-	    			if (response.data){
-	    				for(var i in response.data){
-	    					$scope.logs[response.data[i][0]] = response.data[i][1];
-	    				}
-	    			}
-	    		},
-	    		function(response){ // failure callback
-	    			$scope.logsLoading = false;
-	    		}
-	    	);
+		$scope.popups.logs.show();
+		$http.post(
+			'get_logs', 
+			JSON.stringify({'buildtype': $scope.view}),
+	    	{headers: { 'Content-Type': 'application/json' }}
+    	).then(
+    		function(response){ // success callback
+    		   // response.data is a dict
+    			$scope.popups.logs.loading = false;
+    			//stupid workaround to make
+    			if (response.data){
+    				for(var i in response.data){
+    					$scope.logs[response.data[i][0]] = response.data[i][1];
+    				}
+    			}
+    		},
+    		function(response){ // failure callback
+    			$scope.popups.logs.errMsg = $scope.exc("Error", response);
+    		}
+    	);
 	}
 
-	// EXPERIMENTAL (not workong): show keyboard shortcuts:
-//	$scope.toggleKeyboardShortcuts = function(){
-//		var editor = $scope.aceEditor;
-//		if(editor && $scope.editing){
-//			ace.config.loadModule("ace/ext/keybinding_menu", function(module) {
-//                module.init(editor);
-//                editor.showKeyboardShortcuts()
-//            });
-//		}
-//	}
-	
+	/**
+	 * FINALLY, SETUP THE INITIAL VIEW:
+	 */
 	
 	$scope.setView('html');
 
 });
+
+
+// EXPERIMENTAL (not workong): show keyboard shortcuts:
+//$scope.toggleKeyboardShortcuts = function(){
+//	var editor = $scope.aceEditor;
+//	if(editor && $scope.editing){
+//		ace.config.loadModule("ace/ext/keybinding_menu", function(module) {
+//            module.init(editor);
+//            editor.showKeyboardShortcuts()
+//        });
+//	}
+//}
+
+
+
+// experimental: components. PLEASE REMOVE:
+//app.component("popup",{
+//	selector: '[popup]',
+//    template: "<button ng-click='$ctrl.showPopup=true'>{{$ctrl.name}}</button>" +
+//    		  "<div class='popup' ng-show='$ctrl.showPopup'><button ng-click='$ctrl.showPopup=false' class='close' data-dismiss='alert' aria-label='close'>&times;</button>" +
+//    		  "<div ng-transclude></div>" +
+//    		  "</div>",
+//    bindings: { name: '@', showPopup: '<' },
+//    transclude: true,
+//});

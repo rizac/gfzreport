@@ -42,17 +42,18 @@ Note that each build directory is structured as follows:
 
 @author: riccardo
 '''
-import subprocess
 import os
+import sys
+import subprocess
+from subprocess import CalledProcessError
+# from cStringIO import StringIO
 from cStringIO import StringIO
-from gfzreport.web.app import app
-from gfzreport.sphinxbuild.main import run as reportbuild_run
 from itertools import count
 from werkzeug.utils import secure_filename
-from subprocess import CalledProcessError
 from contextlib import contextmanager
-import sys
-from collections import OrderedDict
+from flask import current_app as app
+from gfzreport.sphinxbuild.main import run as reportbuild_run
+import re
 
 
 def get_sourcefile_content(reportdirname, commit_hash='HEAD', as_js=True):
@@ -146,18 +147,33 @@ def mark_build_updated(reportdirname, buildtype):
     return is_build_updated(reportdirname, buildtype)
 
 
-def gitcommit(reportdirname):
+def gitcommit(reportdirname, user=None):
     """Issues a git commit and returns True if there where files untracked/modified
-    which where added to the commit. False if the working directory was clean"""
+    which where added to the commit. False if the working directory was clean
+    :pqram author: ignored if the path does not have uncommitted changes. Otherwise,
+    specifies the commit author. **It should be in the format
+    ```
+    Name <email>
+    ```
+    (https://stackoverflow.com/questions/11579311/git-commit-as-different-user-without-email-or-only-email)
+    if None or evaluates to False, no author argument will be provided for the commit
+    """
     cwd = get_sourcedir(reportdirname)
     args = dict(cwd=cwd, shell=False)
+
+    # user might be an AnonymousUserMixin user, i.e. what flask-login sets as default
+    # In this case, it has no asgitauthor method
+    try:
+        gitauthor = user.asgitauthor if user else None
+    except AttributeError:
+        gitauthor = None
 
     gitinited = False
     k = subprocess.call(['git', 'status'], **args)
     if k == 128:
         k = subprocess.call(['git', 'init', '.'], **args)
         gitinited = True
-        if k == 0:
+        if k == 0:  # FIXME: why do we do this?
             k = subprocess.call(['git', 'status'], **args)
 
     if k != 0:
@@ -174,7 +190,11 @@ def gitcommit(reportdirname):
         # the dot is to commit only the working tree. We are on the source root, is just for safety
         if k == 0:
             commit_msg = '"%scommit from webapp"' % ('git-init and ' if gitinited else '')
-            k = subprocess.call(['git', 'commit', '-am', commit_msg], **args)
+            gitargs = ['git', 'commit']
+            if gitauthor:
+                gitargs.append("--author=\"%s\"" % gitauthor)
+            gitargs.extend(['-am', commit_msg])
+            k = subprocess.call(gitargs, **args)
             if k != 0:
                 raise ValueError("Unable to run commit -am . on the specified folder '%s'. "
                                  "Please contact the administrator" % cwd)
@@ -184,7 +204,7 @@ def gitcommit(reportdirname):
     return True
 
 
-def needs_build(reportdirname, buildtype, commit_if_needed=False):
+def needs_build(reportdirname, buildtype, user, commit_if_needed=False):
     """
         Returns True if the git repo has uncommitted changes or the source rst file last
         modification time (LMT) is greater or equal than the destination file LMT
@@ -192,54 +212,29 @@ def needs_build(reportdirname, buildtype, commit_if_needed=False):
         Calls `git` (via the `subprocess` module)
         :param reportdirname: the report dirrecotory name. Its full path will be retrieved
         via app config settings
+        :param user: The User currently authenticated. It is up to the view restrict the access
+        if the user is not authenticated, this is not checked here
         :param commit_if_needed: does what it says. If True (False by default) and no error is
         raised, then needs_build called again with the same arguments returns False.
         :raise: ValueError if git complains
     """
-    committed = gitcommit(reportdirname)
+    committed = gitcommit(reportdirname, user)
     if committed:  # working directory was not clean
         return True
     # nothing to commit but we might have an outdated build dir. Check file last modification time:
     return not is_build_updated(reportdirname, buildtype)
 
 
-@contextmanager
-def capture_sphinx_stderr(reportdirname, buildtype):
-    '''
-    Captures the sphinx warnings / errors (written to stderr)
-    ```
-        with capture_sphinx_stderr(reportdirname, buildtype):
-            ... execute sphinx build ...
-    ```
-    '''
-    stderr = sys.stderr
-    sys.stderr = mystderr = StringIO()
-    try:
-        yield  # allow code to be run with the redirected stdout/stderr
-    finally:
-        # restore stderr
-        sys.stderr = stderr
-        # NOW we can try to write to file, cause the build directory might have been created
-        # meanwhile ...
-        fileout = get_sphinxlogfile(reportdirname, buildtype)
-        if os.path.isdir(os.path.dirname(fileout)):
-            try:
-                with open(fileout, 'w') as fopen:
-                    fopen.write(mystderr.getvalue())
-            except IOError:
-                pass
-
-
-def build_report(reportdirname, buildtype, force=False):
+def build_report(reportdirname, buildtype, user, force=False):
     """Builds the given report according to the specified network. Returns
     the tuple reportfile (string), hasChanged (boolean)"""
-    if not needs_build(reportdirname, buildtype):
+    if not needs_build(reportdirname, buildtype, user):
         if not force:
             return get_buildfile(reportdirname, buildtype), False
     # sphinx puts warnings/ errors on the stderr
     # (http://www.sphinx-doc.org/en/stable/config.html#confval-keep_warnings)
     # capture it:
-    with capture_sphinx_stderr(reportdirname, buildtype):
+    with capturestderr(reportdirname, buildtype):
         sourcedir = get_sourcedir(reportdirname)
         builddir = get_builddir(reportdirname, buildtype)
         # ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
@@ -250,14 +245,51 @@ def build_report(reportdirname, buildtype, force=False):
     return get_buildfile(reportdirname, buildtype), True
 
 
-def save_sourcefile(reportdirname, unicode_text):
-    """Save the source rst file and returns `get_commits()`"""
+@contextmanager
+def capturestderr(reportdirname, buildtype):
+    '''Captures standard error to a StrinIO and writes it to a file. Used in `build_report`
+    '''
+    # set the stderr to a StringIO. Yield, and after that get the sphinx log file path
+    # The sphinx log file directory might not yet exist if this is the first build
+    # After yielding, check if the sphinx logfile dir exists. If yes, write the content
+    # of the captured stderr to that file
+    # Restore the old stderr and exit
+    stderr = sys.stderr
+    new_stderr = StringIO()
+    sys.stderr = new_stderr
+    try:
+        yield  # allow code to be run with the redirected stdout/stderr
+    finally:
+        # write to file, if the build was succesfull we should have the
+        # directory in place:
+        fileout = get_sphinxlogfile(reportdirname, buildtype)
+        if os.path.isdir(os.path.dirname(fileout)):
+            with open(fileout, 'w') as _:
+                _.write(new_stderr.getvalue())
+        # restore stderr. buffering and flags such as CLOEXEC may be different
+        sys.stderr = stderr
+
+#     fileout = get_sphinxlogfile(reportdirname, buildtype)
+#     with open(fileout, 'w') as new_stderr:
+#         sys.stderr = new_stderr
+#         try:
+#             yield  # allow code to be run with the redirected stdout/stderr
+#         finally:
+#             # restore stderr. buffering and flags such as CLOEXEC may be different
+#             sys.stderr = stderr
+
+
+def save_sourcefile(reportdirname, unicode_text, user):
+    """Save the source rst file and returns `get_commits()`
+    :param user: the current User. It is up to the view check if the User is authenticated.
+    This is not checked here
+    """
     filepath = get_sourcefile(reportdirname)
 
     with open(filepath, 'w') as fopen:
         fopen.write(unicode_text.encode('utf8'))
 
-    gitcommit(reportdirname)
+    gitcommit(reportdirname, user)
     # we return the new commits
     return get_commits(reportdirname)
 
@@ -273,7 +305,7 @@ def get_commits(reportdirname):
         # Note according to git log, we could provide also %n for newlines in the command
         # maybe implement later ...
         sep = "_;<!>;_"
-        pretty_format_arg = "%H{0}%an{0}%ad{0}%s".format(sep)
+        pretty_format_arg = "%H{0}%an{0}%ad{0}%ae{0}%s".format(sep)
         cmts = subprocess.check_output(["git", "log",
                                         "--pretty=format:%s" % (pretty_format_arg)], **args)
 
@@ -281,7 +313,7 @@ def get_commits(reportdirname):
             if commit:
                 clist = commit.split(sep)
                 commits.append({'hash': clist[0], 'author': clist[1], 'date': clist[2],
-                                'msg': clist[3]})
+                                'email': clist[3], 'msg': clist[4]})
         return commits
     except (OSError, CalledProcessError):
         return []
@@ -342,6 +374,13 @@ def get_fig_directive(reportdirname, fig_filepath, fig_label=None, fig_caption=N
 
 
 def get_log_files_list(reportdirname, buildtype):
+    '''Returns an array of:
+    sphinx log file content (if buildtype='html') or
+    sphinx log file content, pdflatex log file errors, pdflatex log file content (if buildtype
+    is 'latex' or 'pdf')
+    pdflatex log file errors is a substring of the pdflatex log file content, extracted
+    via the pdflatex option that prints errors in the format .*:[0-9]:.*
+    '''
     sphinxlogfile = get_sphinxlogfile(reportdirname, buildtype)
     ret = []  # preserve order!
     if os.path.isfile(sphinxlogfile):
@@ -354,4 +393,11 @@ def get_log_files_list(reportdirname, buildtype):
         if os.path.isfile(pdflatexlog):
             with open(pdflatexlog, 'r') as fopen:
                 ret.append(fopen.read().decode('utf8'))
+        # get errors: actually, don't get only the error line, but also the following lines until
+        # the end of the paragraph (end of string or two consecutive newlines): the lines after
+        # usually explain better what's wrong
+        r = re.compile("[^\n\r:]+:[0-9]+:.*?(?:$|[\n\r][\n\r]+)", re.DOTALL)
+        ret.insert(1, "\n\n\n".join(err.strip() for err in r.findall(ret[-1])))  # add 3 "\n"
+        if not ret[-2]:
+            ret[-2] = "No warnings / errors"
     return ret

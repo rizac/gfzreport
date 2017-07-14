@@ -1,0 +1,11 @@
+# Developer notes on paths (locally)
+# Defined $SPHINXDIR the sphinx package dir
+# (currently locally $WORK/../../../../.virtualenvwrapper/envs/gfz-gfzreport/lib/python2.7/site-packages/sphinx/)
+# then:
+
+# layout for the html are at:
+# $SPHINXDIR/themes/basic/layout.html
+
+
+# latex writer (NOTE:FROM SPHINX 1.6+ that's not VALID ANYMORE. Check pip freeze to see ehich sphinx version we are)
+# $SPHINXDIR/writers/latex.py
