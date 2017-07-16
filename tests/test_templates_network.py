@@ -224,7 +224,7 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
 
 @patch('gfzreport.templates.network.core.iterdcurl', side_effect=lambda *a, **v: _getdatacenters(*a, **v))
 @patch('gfzreport.templates.network.core.utils.urllib2.urlopen')
-def tst_netgen_ok_sphinxbuild_ok(mock_urlopen, mock_get_dcs):
+def test_netgen_ok_sphinxbuild_ok(mock_urlopen, mock_get_dcs):
     # set args, with wildcards
     # mock urllib returns our testdata files
     setupurlread(mock_urlopen)
@@ -243,7 +243,12 @@ def tst_netgen_ok_sphinxbuild_ok(mock_urlopen, mock_get_dcs):
 #         assert result.exit_code != 0
 
         # Now try to run sphinx build:
-        
+        # Now re-set our mock library to return an exception (the mock_url
+        # is intended to distinguish if 'geofon' is in the url or not, provide 
+        # an exception for both cases to be sure)
+        # Our map module will handle silently the error by returning a map
+        # with coastal lines drawn
+        setupurlread(mock_urlopen, URLError('wat?'), URLError('wat?'))
 
 
         # while the dir is already open, test that we cannot override it:

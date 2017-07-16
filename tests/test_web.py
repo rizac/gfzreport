@@ -213,7 +213,7 @@ user4_ok@example.com ".*/ZE2012$"
             # we should ahve an html page:
             assert res.status_code == 401
             assert mock_reportbuild_run.call_count == 0
-        
+
             # now try to login:
             # with a registered email and wrong permission
             res = app.post("/ZE_2012/login", data={'email' :'user3_no@example.com'})
@@ -230,7 +230,7 @@ user4_ok@example.com ".*/ZE2012$"
             res = app.post("/ZE_2012/login", data={'email' :'user1_ok@example.com'})
             assert res.status_code == 200
             # thus, we DO access the pdf creation:
-            
+
             # but w need to setup urlread for the arcgis image, because we mocked it
             # (FIXME: we mocked in gfzreport.templates.network.core.utils.urllib2.urlopen,
             # why is it mocked in map module?!!!)
@@ -244,11 +244,11 @@ user4_ok@example.com ".*/ZE2012$"
             # we should ahve an html page:
             assert res.status_code == 200
             assert mock_reportbuild_run.call_count == 1
-            
+
             # check commits:
             res = app.post("/ZE_2012/get_commits",
                            content_type='application/json')
-            
+
             assert res.status_code == 200
             commitz = json.loads(res.data)
             assert len(commitz) == 1

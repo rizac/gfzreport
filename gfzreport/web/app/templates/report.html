@@ -10,11 +10,15 @@
 	<div class="pos-top row-container">
 		<div class=pos-center>
 			<!-- EDITOR BUTTONS: -->
-			<button class="btn btn-primary"  ng-disabled="!modified" ng-click="save();" >Save</button>
-			<button ng-click="popups.addFig.show()" class="btn btn-primary">Add fig.</button>
-			<button ng-click="popups.commits.show()" ng-disabled="modified" class="btn btn-primary">Revisions</button>
-			<button ng-click="aceEditor.execCommand('showSettingsMenu')" class='btn btn-xs btn-warning'>Options</button>
-			<button ng-click="aceEditor.execCommand('showKeyboardShortcuts')" class='btn btn-xs btn-warning'>Shortcuts</button>
+			<div class="btn-group">
+				<button class="btn btn-primary"  ng-disabled="!modified" ng-click="save();" >Save</button>
+				<button ng-click="popups.addFig.show()" class="btn btn-primary">Add fig.</button>
+				<button ng-click="popups.commits.show()" ng-disabled="modified" class="btn btn-primary">Revisions</button>
+			</div>
+			<div class="btn-group">
+				<button ng-click="aceEditor.execCommand('showSettingsMenu')" class='btn btn-xs btn-default'>Options</button>
+				<button ng-click="aceEditor.execCommand('showKeyboardShortcuts')" class='btn btn-xs btn-default'>Shortcuts</button>
+			</div>
 		</div>
 		<div class=pos-right>
 			<button type="button" class="close" aria-label="Close edit panel" ng-click="toggleEdit()">

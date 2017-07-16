@@ -13,10 +13,10 @@ The DEFAULT ace style is in js/ace-buil/mode-rst-default.js
 	<!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap/css/bootstrap.min.css') }}">
 	 -->
 	 
-	 <script src="{{url_for('static', filename='js/ace-build/ace.js')}}"></script>
-	 <!-- fallback to local copy if cdn is down: -->
-	 <script>window.ace || document.write("<script src=\"{{url_for('static', filename='js/ace-build/ace.js')}}\"></script>")</script>
-	 
+	 <script src="{{url_for('static', filename='js/ace-builds.1.2.8/src-min-noconflict/ace.js')}}"></script>
+	 <!-- fallback to local copy if cdn is down: COMMENTED FOR THE MOMENT -->
+	 <!-- <script>window.ace || document.write("<script src=\"{{url_for('static', filename='js/ace-builds.1.2.8/src-min-noconflict/ace.js')}}\"><\/script>")</script>
+	  -->
 	<style>
 	html, body, div.ace_editor{
 		height:100%;
@@ -26,6 +26,21 @@ The DEFAULT ace style is in js/ace-buil/mode-rst-default.js
 		padding: 0;
 	}
 	/*custom ace stuff:*/
+	
+	/* panels showing settings menu: Normalize fonts */
+	#ace_settingsmenu, #ace_settingsmenu input, #ace_settingsmenu label, #ace_settingsmenu select,
+	#kbshortcutmenu, #kbshortcutmenu span{
+	    font-size: 12px;
+    	font-family: system-ui;
+	}
+	
+	/* panels showing settings menu: Normalize fonts */
+	#ace_settingsmenu, #ace_settingsmenu input, #ace_settingsmenu label, #ace_settingsmenu select{
+	    font-size: 12px;
+    	font-family: system-ui;
+	}
+	
+	/* editor highlight COLORS */
 	.ace-clouds .ace_markup.ace_heading{ /*headers (sections, chapters) colors (note that it's impossible to color
 	  							also titles, this style applies to decorators only*/
 		color: goldenrod !important;

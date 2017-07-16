@@ -127,26 +127,6 @@ def get_sphinxlogfile(reportdirname, buildtype):
     return os.path.join(get_builddir(reportdirname, buildtype), '_sphinx_stderr.log')
 
 
-def is_build_updated(reportdirname, buildtype):
-    '''Returns True if the current buildtype
-    buildpath = get_builddir(reportdirname, buildtype)
-    '''
-    sourcefile = get_sourcefile(reportdirname)
-    destfile = get_buildfile(reportdirname, buildtype)
-    return os.path.isfile(destfile) and os.stat(sourcefile).st_mtime < os.stat(destfile).st_mtime
-
-
-def mark_build_updated(reportdirname, buildtype):
-    # sets the modification time of the build file greater than the current source rst file,
-    # if not already. For safety.
-    if is_build_updated(reportdirname, buildtype):
-        return True
-    destfile = get_buildfile(reportdirname, buildtype)
-    os.utime(destfile, None)  # set to current time, which should be surely greater than
-    # sourcefile mtime. If not, we will run again later the build, too bad but not tragic
-    return is_build_updated(reportdirname, buildtype)
-
-
 def gitcommit(reportdirname, user=None):
     """Issues a git commit and returns True if there where files untracked/modified
     which where added to the commit. False if the working directory was clean
@@ -204,6 +184,28 @@ def gitcommit(reportdirname, user=None):
     return True
 
 
+def build_report(reportdirname, buildtype, user, force=False):
+    """Builds the given report according to the specified network. Returns
+    the tuple reportfile (string), hasChanged (boolean)"""
+
+    # we return reportfile, exit_status, has_changed
+    if not needs_build(reportdirname, buildtype, user):
+        if not force:
+            return get_buildfile(reportdirname, buildtype), False
+    # sphinx puts warnings/ errors on the stderr
+    # (http://www.sphinx-doc.org/en/stable/config.html#confval-keep_warnings)
+    # capture it:
+    with capturestderr(reportdirname, buildtype):
+        sourcedir = get_sourcedir(reportdirname)
+        builddir = get_builddir(reportdirname, buildtype)
+        # ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
+        ret = reportbuild_run(sourcedir, builddir, buildtype, "-E")
+#     if ret != 0:
+#         raise ValueError('Error building the report, please contact the administrator')
+    mark_build_updated(reportdirname, buildtype)
+    return get_buildfile(reportdirname, buildtype), True
+
+
 def needs_build(reportdirname, buildtype, user, commit_if_needed=False):
     """
         Returns True if the git repo has uncommitted changes or the source rst file last
@@ -225,24 +227,23 @@ def needs_build(reportdirname, buildtype, user, commit_if_needed=False):
     return not is_build_updated(reportdirname, buildtype)
 
 
-def build_report(reportdirname, buildtype, user, force=False):
-    """Builds the given report according to the specified network. Returns
-    the tuple reportfile (string), hasChanged (boolean)"""
-    if not needs_build(reportdirname, buildtype, user):
-        if not force:
-            return get_buildfile(reportdirname, buildtype), False
-    # sphinx puts warnings/ errors on the stderr
-    # (http://www.sphinx-doc.org/en/stable/config.html#confval-keep_warnings)
-    # capture it:
-    with capturestderr(reportdirname, buildtype):
-        sourcedir = get_sourcedir(reportdirname)
-        builddir = get_builddir(reportdirname, buildtype)
-        # ret = reportbuild_run(["reportbuild", sourcedir, builddir, "-b", build, "-E"])
-        ret = reportbuild_run(sourcedir, builddir, buildtype, "-E")
-#     if ret != 0:
-#         raise ValueError('Error building the report, please contact the administrator')
-    mark_build_updated(reportdirname, buildtype)
-    return get_buildfile(reportdirname, buildtype), True
+def is_build_updated(reportdirname, buildtype):
+    '''Returns True if the built file exists and its modification time is greater
+    than the rst source file'''
+    sourcefile = get_sourcefile(reportdirname)
+    destfile = get_buildfile(reportdirname, buildtype)
+    return os.path.isfile(destfile) and os.stat(sourcefile).st_mtime < os.stat(destfile).st_mtime
+
+
+def mark_build_updated(reportdirname, buildtype):
+    # sets the modification time of the build file greater than the current source rst file,
+    # if not already. For safety.
+    if is_build_updated(reportdirname, buildtype):
+        return True
+    destfile = get_buildfile(reportdirname, buildtype)
+    os.utime(destfile, None)  # set to current time, which should be surely greater than
+    # sourcefile mtime. If not, we will run again later the build, too bad but not tragic
+    return is_build_updated(reportdirname, buildtype)
 
 
 @contextmanager
