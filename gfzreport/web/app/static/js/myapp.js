@@ -33,6 +33,13 @@ app.controller('MyController', function ($scope, $http, $window) {
 	$scope.editing = false;
 	
 	$scope.aceEditor = null;  //this will be set to an object after we init editing the first time
+	// therefore do not bound angular properties to editor properties. For instance, if the editor wrap is on
+	// the check box below:
+	// <input type="checkbox" ng-checked="aceEditoraceEditor.getSession().getUseWrapMode()" ... >
+	// will NOT be selected when the editor shows up.
+	// What to do: bound  angular properties to $cope variables (the usual way) and update the variables
+	// "manually" when the editor relative property changes. We use a dict to store these options:
+	$scope.editorOptions = {wrap:false};
 	$scope.toggleEdit = function(){
 		$scope.editing = !$scope.editing;
 		if ($scope.editing && !$scope.aceEditor){
@@ -42,6 +49,19 @@ app.controller('MyController', function ($scope, $http, $window) {
 		        //$scope.loading = false;
 		        $scope.aceEditor = iframe.contentWindow.editor;
 		        
+		        // set options:
+		        // In case you want more options,type Cmd , or Ctrl ,
+		        // and inspect the given element
+		        // var elm = document.querySelector('#setUseWrapMode');
+		        // But there are
+		        // actually listeners and we use them:
+		        
+		        $scope.aceEditor.getSession().on("changeWrapMode", function(){
+		        	// arguments[1] seems to be the aceEditor.getSession()
+		        	var val = arguments[1].getUseWrapMode();
+		        	console.log(val);
+		        });
+
 		        // add command to save via keybinding
 		        $scope.aceEditor.commands.addCommand({
 		            name: "saveContent",
@@ -67,6 +87,32 @@ app.controller('MyController', function ($scope, $http, $window) {
 		    };
 		    iframe.src = "content/edit";
 		}
+	};
+
+//	$scope.editorShowKeyboardShortcuts = function(){
+//		$scope.aceEditor.execCommand("showKeyboardShortcuts");
+//	};
+//	
+//	$scope.editorShowSettingsMenu = function(string){
+//		$scope.aceEditor.execCommand("showSettingsMenu");
+//	};
+	
+	$scope.editorToggleKeyboardShortcuts = function(string){
+		if ($scope.editorShowKeyboardShortcuts){
+			$scope.aceEditor.execCommand("hideKeyboardShortcuts");
+		}else{
+			$scope.aceEditor.execCommand("showKeyboardShortcuts");
+		}
+		$scope.editorShowKeyboardShortcuts = !$scope.editorShowKeyboardShortcuts;
+	};
+	
+	$scope.editorToggleSettingsMenu = function(string){
+		if ($scope.editorShowSettingsMenu){
+			$scope.aceEditor.execCommand("hideSettingsMenu");
+		}else{
+			$scope.aceEditor.execCommand("showSettingsMenu");
+		}
+		$scope.editorShowSettingsMenu = !$scope.editorShowSettingsMenu;
 	};
 	
     $scope.save = function(){
@@ -300,10 +346,12 @@ app.controller('MyController', function ($scope, $http, $window) {
 	    	{headers: { 'Content-Type': 'application/json' }}
 	    ).then(
 	    	function(response){ // success callback
-	    		$scope.isLoggedIn=false;
+	    		$scope.isLoggedIn = false; //should hide editor if visible
+	    		$scope.setView('html'); //if we are on the pdf, restore the html view. This forces a rebuild if needed
 	   		},
 	   		function(response){ // failure callback
-	   			$scope.isLoggedIn=false;
+	   			$scope.isLoggedIn=false; //should hide editor if visible
+	    		$scope.setView('html'); //if we are on the pdf, restore the html view. This forces a rebuild if needed
 	   		}
     	);
 	};

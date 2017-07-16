@@ -114,7 +114,7 @@ user4_ok@example.com ".*/ZE2012$"
 
         self.mock_urlopen = patch('gfzreport.templates.network.core.utils.urllib2.urlopen').start()
         self.mock_urlopen.side_effect = _get_urlopen_sideeffect()
-        
+
         self.mock_iterdcurl = patch('gfzreport.templates.network.core.iterdcurl').start()
         self.mock_iterdcurl.side_effect=lambda *a, **v: _getdatacenters(*a, **v)
 
@@ -129,12 +129,12 @@ user4_ok@example.com ".*/ZE2012$"
 
         os.environ['DATA_PATH'] = self.source
         os.environ['DB_PATH'] = self.source 
-        self.app = get_app()
+        self.app = get_app(config_obj='gfzreport.web.config_example.BaseConfig')
 
     def tearDown(self):
         pass
 
-    
+
     @patch('gfzreport.web.app.core.reportbuild_run', side_effect = _reportbuild_run_orig)
     def test_report_views(self, mock_reportbuild_run):
         with self.app.test_request_context():

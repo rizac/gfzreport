@@ -12,7 +12,11 @@ The DEFAULT ace style is in js/ace-buil/mode-rst-default.js
 	<title>Editor</title>
 	<!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap/css/bootstrap.min.css') }}">
 	 -->
+	 
 	 <script src="{{url_for('static', filename='js/ace-build/ace.js')}}"></script>
+	 <!-- fallback to local copy if cdn is down: -->
+	 <script>window.ace || document.write("<script src=\"{{url_for('static', filename='js/ace-build/ace.js')}}\"></script>")</script>
+	 
 	<style>
 	html, body, div.ace_editor{
 		height:100%;
@@ -58,6 +62,22 @@ The DEFAULT ace style is in js/ace-buil/mode-rst-default.js
  			fontFamily: "'Menlo', 'Ubuntu Mono', 'monospace'",
  			fontSize: "10pt",
  			//showPrintMargin: true,
-		printMarginColumn: 100
+ 			// wrapBehavioursEnabled: true,
+ 			wrap: true,
+			printMarginColumn: 100
 	});
+ 	// add command to lazy-load keybinding_menu extension, accessible via the command
+ 	// editor.showKeyboardShortcuts(). Note that editor.showSettingsMenu() is already
+ 	// "registered", se no need to add it
+ 	// For info see https://ace.c9.io/demo/keyboard_shortcuts.html
+    editor.commands.addCommand({
+        name: "showKeyboardShortcuts",
+        bindKey: {win: "Ctrl-Alt-h", mac: "Command-Alt-h"},
+        exec: function(editor) {
+            ace.config.loadModule("ace/ext/keybinding_menu", function(module) {
+                module.init(editor);
+                editor.showKeyboardShortcuts();
+            })
+        }
+    });
 </script>
