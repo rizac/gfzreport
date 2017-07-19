@@ -17,7 +17,7 @@ from mock import patch
 from io import BytesIO
 import re
 
-from gfzreport.web.app.core import reportbuild_run as _reportbuild_run_orig, get_sphinxlogfile
+from gfzreport.web.app.core import _run_sphinx as _reportbuild_run_orig, get_sphinxlogfile
 import tempfile
 from urllib2 import URLError
 import json
@@ -135,7 +135,7 @@ user4_ok@example.com ".*/ZE2012$"
         pass
 
 
-    @patch('gfzreport.web.app.core.reportbuild_run', side_effect = _reportbuild_run_orig)
+    @patch('gfzreport.web.app.core._run_sphinx', side_effect = _reportbuild_run_orig)
     def test_report_views(self, mock_reportbuild_run):
         with self.app.test_request_context():
             app = self.app.test_client()
@@ -165,8 +165,7 @@ user4_ok@example.com ".*/ZE2012$"
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert mock_reportbuild_run.call_count == 1
-            logfile = os.path.join(os.getcwd(),
-                                                   'build',  'ZE_2012', 'html', '_sphinx_stderr.log')
+            logfile = os.path.join(os.getcwd(), 'build',  'ZE_2012', 'html', '_sphinx_stderr.log')
             with open(logfile, 'r') as opn:
                 logfilecontent = opn.read()
 
@@ -188,7 +187,7 @@ user4_ok@example.com ".*/ZE2012$"
             assert mock_reportbuild_run.call_count == 0
             
 
-    @patch('gfzreport.web.app.core.reportbuild_run', side_effect = _reportbuild_run_orig)
+    @patch('gfzreport.web.app.core._run_sphinx', side_effect = _reportbuild_run_orig)
     def test_report_views_auth(self, mock_reportbuild_run):
         
         # test the page pdf. We are unauthorized, so this should give us error:
@@ -254,6 +253,7 @@ user4_ok@example.com ".*/ZE2012$"
             assert len(commitz) == 1
             commit = commitz[0]
             assert commit['email'] == 'user1_ok@example.com'
+            assert "pdf: Successful, with compilation errors" in commit['notes']
             
             
             # check logs:
@@ -263,8 +263,13 @@ user4_ok@example.com ".*/ZE2012$"
             assert res.status_code == 200
             # res.data is a 3element list of two elements: the log name, and the log file
             # content. The files are two: the sphinx log and the pdf log. So assert:
-            assert len(json.loads(res.data)) == 3
-            
+            _data = json.loads(res.data)
+            assert len(_data) == 2
+            sphinxlog, sphinxerrs = _data[0][1][0], _data[0][1][1]
+            pdflatexlog, pdflatexerrs = _data[1][1][0], _data[1][1][1]
+            assert len(sphinxlog)==1 and len(pdflatexlog)==1
+            assert sphinxerrs == ['No error found']
+            assert any('Missing number, treated as zero' in _ for _ in pdflatexerrs)
             
             
             mock_reportbuild_run.reset_mock()

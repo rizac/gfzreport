@@ -18,16 +18,17 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), nullable=True)
-    email = Column(String(150), unique=True)
-    permission_regex = Column(String(500), nullable=False)
-    password = Column(String(150), nullable=True)  # not used for the moment
+    name = Column(String, nullable=True)
+    email = Column(String, unique=True)
+    permission_regex = Column(String, nullable=False)
+    password = Column(String, nullable=True)  # not used for the moment
     # this should set on the db if the user is logged in by setting the datetime of the login.
     # NULL means: not logged in
     # It might be used to warn about concurrent editing on the same page
-    login_datetime = Column(DateTime, nullable=True)  # not used for the moment
+    login_date = Column(DateTime, nullable=True)  # not used for the moment
+    login_baseurl = Column(String, nullable=True)  # not used for the moment
     # this should store json as string if we want to set the user settings on the editor
-    settings_json = Column(String(500), nullable=True)  # not used for the moment
+    settings_json = Column(String, nullable=True)  # not used for the moment
 
     @property
     def asgitauthor(self):

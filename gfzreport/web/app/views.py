@@ -7,17 +7,20 @@ import os
 from itertools import izip
 
 from flask.templating import render_template
-from flask import abort, send_from_directory, request, jsonify, Blueprint, current_app  # redirect, url_for
+from flask import abort, send_from_directory, request, jsonify, Blueprint, current_app, session  # redirect, url_for
 
 from flask_login import current_user, login_required
 
 # from gfzreport.web.app import app
 from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
-    get_fig_directive, get_log_files_list
+    get_fig_directive, get_sourcedir, get_buildfile, get_logs_
 from flask_login.utils import login_user, logout_user
 import re
-from gfzreport.web.app.models import User, session
+from gfzreport.web.app.models import User, session as dbsession
+from gfzreport.sphinxbuild.main import get_master_doc
+import threading
+from multiprocessing.pool import ThreadPool
 
 # http://flask.pocoo.org/docs/0.12/patterns/appfactories/#basic-factories:
 mainpage = Blueprint('main_page', __name__)  # , template_folder='templates')
@@ -29,6 +32,7 @@ def index():
                            title=current_app.config['DATA_PATH'],
                            reports=get_reports(current_app.config['SOURCE_PATH']))
 
+
 # FIXME: WITH THIS ROUTE /reportdirname is redirected here, AND ALSO
 # ALL angular endpoints do not need the /reportdirname/. That is issuing a 
 # content/<pagetype> from within angular redirects to the view below, without the need
@@ -36,11 +40,19 @@ def index():
 # with follow_redirects=True
 @mainpage.route('/<reportdirname>/')
 def get_report(reportdirname):
-    DEFAULT_START_BUILD_TYPE = 'html'  # FIME: move to config? WHAT IS THIS DOING??
+    # what if the user moved from a link to another and it had permission for the first but not
+    # for this one? logout user. This is harsh, but a more detailed implementation would require
+    # to copy code from login_user and match against the regexp, and if not redirect to an
+    # unauthorized page. As the case where the user jumps from report to another is quite rare,
+    # let's be strict and sure:
+    if current_user.is_authenticated:
+        logout_user()
+
+    # return the normal way
     return render_template("report.html",
                            title=reportdirname,
                            report_id=reportdirname,
-                           pagetype=DEFAULT_START_BUILD_TYPE)
+                           pagetype="html")
 
 
 # slash at the end: this way the routes defined in the next view are pointing to the right location
@@ -55,9 +67,22 @@ def get_report_type(reportdirname, pagetype):
     # this
     if pagetype != 'html' and not current_user.is_authenticated:
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
-        return abort(401)
+        abort(401)
+
+    if pagetype == 'edit':
+        return render_template("editor.html", source_data=get_sourcefile_content(reportdirname))
+
+    binfo = None  # NOT USED. it might be something like
+    # session['buildinginfo'] = BuildingInfo("Building page")
+    # but this functionality is not implemented yet
+
     if pagetype in ('html', 'pdf'):
-        reportfilename, _ = build_report(reportdirname, pagetype, current_user, force=False)
+        ret = build_report(reportdirname, pagetype, current_user, binfo, force=False)
+        session['last_build_exitcode'] = ret
+        if ret == 2:
+            abort(500)  # FIXME: better handling!!
+        # binfo('Serving page', None, 0, 0)
+        reportfilename = get_buildfile(reportdirname, pagetype)
         response = send_from_directory(os.path.dirname(reportfilename),
                                        os.path.basename(reportfilename))
         if pagetype == 'pdf':
@@ -69,8 +94,22 @@ def get_report_type(reportdirname, pagetype):
                 'inline; filename=%s.pdf' % reportdirname
 
         return response
-    elif pagetype == 'edit':
-        return render_template("editor.html", source_data=get_sourcefile_content(reportdirname))
+
+
+# @mainpage.route('/<reportdirname>/building_info', methods=['POST'])
+# def get_building_info(reportdirname):
+#     ret = []
+#     if current_user.is_authenticated and 'buildinginfo' in session:
+#         # calculate the remaining time in the second element, instead of the start time:
+#         ret = session['buildinginfo'].tojson()
+#     return jsonify(ret)
+@mainpage.route('/<reportdirname>/last_build_exitcode', methods=['POST'])
+def get_building_info(reportdirname):
+    try:
+        ret = session['last_build_exitcode']
+    except:
+        ret = -1
+    return jsonify(ret)
 
 
 @mainpage.route('/<reportdirname>/content/<pagetype>/<path:static_file_path>')
@@ -85,7 +124,7 @@ def get_report_static_file(reportdirname, pagetype, static_file_path):
     # Note: pagetype might be also "_static"
     if pagetype != 'html' and not current_user.is_authenticated:
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
-        return abort(401)
+        abort(401)
     if pagetype in ('html', 'pdf'):
         filepath = os.path.join(get_builddir(reportdirname, pagetype), static_file_path)
         return send_from_directory(os.path.dirname(filepath), os.path.basename(filepath))
@@ -100,15 +139,15 @@ def save_report(reportdirname):
     # this
     if not current_user.is_authenticated:
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
-        return abort(401)
+        abort(401)
     unicode_text = request.get_json()['source_text']
-    commits = save_sourcefile(reportdirname, unicode_text, current_user)
+    result = save_sourcefile(reportdirname, unicode_text, current_user)
     # note that (editable_page.html) we do not actually make use of the returned response value
-    return jsonify(commits)  # which converts to a Response
+    return jsonify(result)  # which converts to a Response
 
 
 @mainpage.route('/<reportdirname>/get_commits', methods=['POST'])
-def get_commits_list(reportdirname):  # do not name get_commits otherwise it overrides core.get_commits
+def get_commits_list(reportdirname):  # dont use get_commits otherwise it overrides core.get_commits
     # instead of the decorator @login_required, which handles redirects and makes the view
     # disabled for non-logged-in users, we prefer a lower level approach. First, because
     # This view is restricted depending on pagetype, second because we do not want redirects,
@@ -116,9 +155,9 @@ def get_commits_list(reportdirname):  # do not name get_commits otherwise it ove
     # this
     if not current_user.is_authenticated:
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
-        return abort(401)
+        abort(401)
 
-    commits = get_commits(reportdirname) 
+    commits = get_commits(reportdirname)
     # note that (editable_page.html) we do not actually make use of the returned response value
     return jsonify(commits)  # which converts to a Response
 
@@ -132,7 +171,7 @@ def get_source_rst(reportdirname):
     # this
     if not current_user.is_authenticated:
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
-        return abort(401)
+        abort(401)
 
     commit_hash = request.get_json()['commit_hash']
     return jsonify(get_sourcefile_content(reportdirname, commit_hash, as_js=False))
@@ -150,15 +189,10 @@ def get_logs(reportdirname):
     # this
     if not current_user.is_authenticated:
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
-        return abort(401)
+        abort(401)
 
     buildtype = request.get_json()['buildtype']
-    # return a list of tuples to preserve order. Note that izip iterates len(get_log_files) times
-    # The length is either 1 (buildtype='html') or 3 (buildtype='pdf' or 'latex')
-    lizt = [(k, v) for k, v in izip(['Sphinx', 'PdfLatex warning / errors',
-                                     'PdfLatex (full log file)'],
-                                    get_log_files_list(reportdirname, buildtype))]
-    return jsonify(lizt)
+    return jsonify(get_logs_(reportdirname, buildtype))
 
 
 @mainpage.route('/<reportdirname>/upload_file', methods=['POST'])
@@ -170,7 +204,7 @@ def upload_file(reportdirname):
     # this
     if not current_user.is_authenticated:
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
-        return abort(401)
+        abort(401)
 
     # check if the post request has the file part
     if 'file' not in request.files:
@@ -192,15 +226,17 @@ def login(reportdirname):
     """View to process login form data and login user in case.
     """
     email = request.form['email']
-    with session(current_app) as sess:
+    with dbsession(current_app) as sess:
         user = sess.query(User).filter(User.email == email).first()
 
     if not user:
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
-        return abort(401)
+        abort(401)
+
     matching_url = os.path.join(request.url_root, reportdirname)
     if not re.match(user.permission_regex, matching_url):
-        return abort(403)
+        abort(403)
+
     login_user(user, remember=False)
     return jsonify({})  # FIXME: what to return?
 
@@ -209,5 +245,7 @@ def login(reportdirname):
 def logout(reportdirname):
     """View to process login form data and login user in case.
     """
+    # writing to files because it raises
+    del session['last_build_exitcode']
     logout_user()
     return jsonify({})  # FIXME: what to return?

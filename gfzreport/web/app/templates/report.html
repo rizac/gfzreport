@@ -13,10 +13,11 @@
 			<div class="btn-group">
 				<button class="btn btn-primary"  ng-disabled="!modified" ng-click="save();" >Save</button>
 				<button ng-click="popups.addFig.show()" class="btn btn-primary">Add fig.</button>
-				<button ng-click="popups.commits.show()" ng-disabled="modified" class="btn btn-primary">Revisions</button>
+				<button ng-click="showCommits()" ng-disabled="modified" class="btn btn-primary">History</button>
 			</div>
+			Editor:
 			<div class="btn-group">
-				<button ng-click="aceEditor.execCommand('showSettingsMenu')" class='btn btn-xs btn-default'>Options</button>
+				<button ng-click="aceEditor.execCommand('showSettingsMenu')" class='btn btn-xs btn-default'>Settings</button>
 				<button ng-click="aceEditor.execCommand('showKeyboardShortcuts')" class='btn btn-xs btn-default'>Shortcuts</button>
 			</div>
 		</div>
@@ -45,7 +46,9 @@
 		</ul>
 		
 		<div id='top-right-div'>
-			<button ng-click="showLogs()" ng-show="!loading && editing && isLoggedIn" id="logs" class='btn btn-xs btn-warning'>Build info</button>
+			<button ng-click="showLogs()" ng-show="!loading && editing && isLoggedIn" id="logs" class='btn btn-xs'
+			ng-class="{'btn-success' : lastBuildExitcode==0, 'btn-warning' : lastBuildExitcode==1, 'btn-error' : lastBuildExitcode==2, 'btn-default' : lastBuildExitcode==-1}">
+			Last build info</button>
 			<button ng-click="popups.logIn.show()" ng-show="!loading && !isLoggedIn" id="loginout" class='btn btn-default'>
 			Log in
 			</button>
@@ -59,7 +62,9 @@
 			<div class=waitbar>
 				<div></div>
 			</div>
-			<div class="msg">Building report (it might take few minutes)</div>
+			<div class="msg">
+			Creating page (it might take few minutes)
+			</div>
 		</div>
 		
 		<!--  I might do this 
@@ -146,7 +151,7 @@ the parent div is optional (you can remove the whole block)
 			</div>
 		</form>
 		<label>
-			<input type=checkbox ng-model="popups.addFig.keepOpen"> Keep me open after 'Add' (I'm planning to add several figures)
+			<input type=checkbox ng-model="popups.addFig.keepOpen"> Keep me open (I'm planning to add several figures)
 		</label>
 	</div>
 	<div>
@@ -162,15 +167,18 @@ the parent div is optional (you can remove the whole block)
 		<button ng-click="popups.commits.hide()" class="close" data-dismiss="alert" aria-label="close">&times;</button>
 	</div>
 	<div>
-		<table>
+		<div ng-show="popups.commits.loading">Loading data, please wait...</div>
+		<table ng-show="!popups.commits.loading">
 		<tr ng-repeat="c in commits.data" >
 			<td>
 			<pre ng-class="{'bg-success' : currentCommit().hash==c.hash}">{% raw %}
-date: {{ c.date }}
-author: {{ c.author }} &lt;{{ c.email }}&gt;
-hash: {{ c.hash }}
-message: {{ c.msg }}
+Date: {{ c.date }}
+Author: {{ c.author }} &lt;{{ c.email }}&gt;
+Commit: {{ c.hash }}
+Notes: {{ c.notes }}
 {% endraw %}</pre>
+<!-- {% raw %}message: {{ c.msg }} NOT USED (message is always the same for the moment, keep it commented to remind that
+the field exists and can be used{% endraw %}-->
 			</td>
 			<td>
 				<button class="btn-sm btn-primary" ng-show="currentCommit().hash!=c.hash" 
@@ -190,10 +198,17 @@ message: {{ c.msg }}
 		<button ng-click="popups.logs.hide()" class="close" data-dismiss="alert" aria-label="close">&times;</button>
 	</div>
 	<div>
-		<div ng-show="popups.logs.loading">Loading logs, please wait...</div>
-		<div ng-repeat="(key, value) in logs">
-	  		<span class="danger">{% raw %}{{ key }}{% endraw %}</span>
-	  		<pre>{% raw %}{{ value }}{% endraw %}</pre>
+		<div ng-show="popups.logs.loading">Loading data, please wait...</div>
+		<label>
+			<input type='checkbox' ng-model='popups.logs.showFullLog'> Show full file(s) content
+		</label>
+		<div ng-show="!popups.logs.loading" ng-repeat="(key, value) in logs">
+	  		<div class='panel-title'>{% raw %}{{ key }}{% endraw %}</div>
+	  		<pre ng-if="!popups.logs.showFullLog"><!--  
+	  			--><div ng-if="value[1].length < 1">No error found</div><!-- 
+	  			--><div class="error" ng-repeat="val in value[1]" ng-if="value[1].length>0">{% raw %}{{ val }}{% endraw %}</div><!-- 
+	  		--></pre>
+	  		<pre ng-if="popups.logs.showFullLog" ng-repeat="val in value[0]">{% raw %}{{ val }}{% endraw %}</pre>
 		</div>
 	</div>
 	<div>

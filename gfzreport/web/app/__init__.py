@@ -56,6 +56,8 @@ def get_app(config_obj='gfzreport.web.config.BaseConfig', data_path=None,
     # Note: supply absolute module path. Apache complains tht a config is elsewhere defined
     # in the python path otherwise:
     app.config.from_object(config_obj)
+    app.config['REPORT_BASENAMES'] = {}  # will be populatedwhen querying pages
+
     app.config['DATA_PATH'] = data_path
     app.config['BUILD_PATH'] = os.path.abspath(os.path.join(app.config['DATA_PATH'], "build"))
     app.config['SOURCE_PATH'] = os.path.abspath(os.path.join(app.config['DATA_PATH'], "source"))

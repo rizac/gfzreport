@@ -1,9 +1,10 @@
 var app = angular.module('MyApp', []);
-app.controller('MyController', function ($scope, $http, $window) {
+app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	$scope._init = true; //basically telling setView to update the commits only the first time
 	$scope._VIEWS = ['html', 'pdf'];
 	$scope.view = null;  // the current view null for the moment
-
+	$scope.lastBuildExitcode = -1; //-1: already updated (no build): 0: Ok, 1: doc created with errors, 2:doc NOT created with errors
+	
 	// note: needsRefresh means: false: display what's in the iframe; true: request the server 
 	// (if the page has really to be refreshed - e.g.e built, is up to the server).
 	// Pdfs could be quite heavy so we don't want to download them all the time
@@ -22,13 +23,29 @@ app.controller('MyController', function ($scope, $http, $window) {
 				$scope.needsRefresh[_view] = false;
 				$scope.loading = false;
 				$scope._init = false; //if first time, notify that everything is loaded succesfully
+				$scope.fetchLastBuildExitcode();
 			});
 		};
 		$scope.frames[_view] = frame;
 	});
 
+	$scope.fetchLastBuildExitcode = function(){
+		$http.post(
+    		'last_build_exitcode',
+    		JSON.stringify({}),  // not used
+	    	{headers: { 'Content-Type': 'application/json' }}
+    	).then(
+			function(response){ // success callback
+	    		$scope.lastBuildExitcode = parseInt(response.data);
+			},
+	    	function(response){ // failure callback
+				$scope.lastBuildExitcode = -1;  //for safety
+			}
+    	);
+	};
 	
 	$scope.loading = false;
+	$scope.loadingMsgs = [];
 	$scope.modified = false;
 	$scope.editing = false;
 	
@@ -88,14 +105,6 @@ app.controller('MyController', function ($scope, $http, $window) {
 		    iframe.src = "content/edit";
 		}
 	};
-
-//	$scope.editorShowKeyboardShortcuts = function(){
-//		$scope.aceEditor.execCommand("showKeyboardShortcuts");
-//	};
-//	
-//	$scope.editorShowSettingsMenu = function(string){
-//		$scope.aceEditor.execCommand("showSettingsMenu");
-//	};
 	
 	$scope.editorToggleKeyboardShortcuts = function(string){
 		if ($scope.editorShowKeyboardShortcuts){
@@ -132,7 +141,12 @@ app.controller('MyController', function ($scope, $http, $window) {
 			function(response){ // success callback
 	    		$scope.modified = false;
 			  	$scope.aceEditor.session.getUndoManager().markClean();
-			  	$scope._setCommits(response.data || [], true); //true: do a check to see if we need to refresh the views (pdf, html)
+			  	if (response.data){
+			  		for (var i=0; i < $scope._VIEWS.length; i++){
+			  			$scope.needsRefresh[$scope._VIEWS[i]] = true;
+			  		}
+			  	}
+			  	//$scope._setCommits(response.data || [], true); //true: do a check to see if we need to refresh the views (pdf, html)
 	    	},
 	    	function(response){ // failure callback
 	    		console.log("failed saving");  //FIXME: handle failure
@@ -156,9 +170,12 @@ app.controller('MyController', function ($scope, $http, $window) {
 			return;
 		}
 		$scope.loading = true;
-		$scope.needsRefresh[view] = false; //due to current html page view design we need to add it now
-		//if we change the behaviour, then this line might be deleted cause in any case
-		//needsRefresh is set to false on iframe load (see above)
+		// this should update the progressbar, but it's currently not implemented:
+		// $scope.startBuildingListener();
+		// mark view as not dirty anymore. This is set also on iframe.onload but I stated
+		// (withoyt specifying WHY) that "due to current html page view design we need to add it now"
+		// (probably some angular update which otherwise needs $digest in iframe onload?)
+		$scope.needsRefresh[view] = false; 
 		var frame = $scope.frames[view]
 		// seems that sometimes browsers have cache, so, for safety:
 		var append = "?preventcache=" + Date.now()
@@ -168,7 +185,6 @@ app.controller('MyController', function ($scope, $http, $window) {
 		// iframe.contentWindow.location.reload(true);
 		// (http://stackoverflow.com/questions/13477451/can-i-force-a-hard-refresh-on-an-iframe-with-javascript)
 	};
-	
 	
 	/********************************************************************************************
 	 * POPUPS STUFF 
@@ -214,10 +230,10 @@ app.controller('MyController', function ($scope, $http, $window) {
 	};
 	
 	$scope.popups = {
-		'commits': new props(),  // if u want a title, set {'title': '...'} as dict arg (see below)
-		'logIn': new props(),
-		'addFig': new props({'label': '', 'keepOpen': false}),
-		'logs': new props({'title': 'Build log files', 'loading': false})
+		'commits': new props({'title': 'History (git commits)', 'loading': false}),
+		'logIn': new props({'title': 'Log in'}),
+		'addFig': new props({'label': '', 'keepOpen': false, 'title': 'Add figure'}),
+		'logs': new props({'title': 'Build log-files', 'loading': false, 'showFullLog': false})
 	};	
 	
 	$scope.exc = function(message, response){
@@ -234,48 +250,38 @@ app.controller('MyController', function ($scope, $http, $window) {
 	};
 	
 	/**
-	 * COMMITS POPUP callback(s) and data
+	 * COMMITS POPUP callback(s) and data. Commits are loaded in a $scope variable to
+	 * bind them to the view, and a selIndex to bind it to color the panel of the current commit
+	 * But for safety, they are loaded as new data every time we click on the commits/history button
 	 */
 	
 	$scope.commits = {data:[], selIndex: -1};
-	$scope.fetchCommits = function(){
+	$scope.showCommits = function(){
+		$scope.popups.commits.loading = true;
+		$scope.popups.commits.show();
+		$scope.commits = {data:[], selIndex: -1};
 		$http.post(
 			'get_commits',
 			JSON.stringify({}),
 			{headers: { 'Content-Type': 'application/json' }}
 		).then(
     		function(response){ // success callback
-    			$scope._setCommits(response.data || [], false);
+    			$scope.popups.commits.loading = false;
+    			$scope.commits.data = response.data || [];
+    			$scope.commits.selIndex = $scope.commits.data.length ? 0 : -1; //as returned from server `git` command (0=last)
     		},
     		function(response){ // failure callback
-    			console.log("failed getting commits");  //FIXME: handle failure (weel this should be silently ignored)
+    			$scope.popups.commits.errMsg = $scope.exc("Error", response);
     		}
 	    );
 	}
-	
-	$scope._setCommits = function(commitsArray, checkIfViewNeedRefresh){
-		// set commits is called from $scope.fetchCommits() and $scope.save. Both functions
-		// return an array of commits:
-		// $scope.fetchCommits is intended only to set $scope.commits.data and other stuff, e.g. when we want to display the commits popup
-		// $scope.save is intended to check if we are out of synchro and mark the views as dirty (need to refresh)
-		// the second argument 'checkIfNeedsRefresh' does this synchro check, if true
-		var cmts = $scope.commits;
-		if(checkIfViewNeedRefresh){
-			if (cmts.length != commitsArray.length || (!commitsArray.length) || (cmts[0] != commitsArray[0])){
-				for (var i=0; i < $scope._VIEWS.length; i++){
-					$scope.needsRefresh[$scope._VIEWS[i]] = true;
-				}
-			}
-		}
-		cmts.data = commitsArray;
-		cmts.selIndex = 0; //as returned from server `git` command (0=last)
-	};
 	
 	$scope.currentCommit = function(hash){
 		/**
 		 * This function is executed from the view (html) in the "commits popup" div.
 		 * Without argument, returns the current commit. With arguments, sets the
-		 * current commit, modifying the editor test accordingly
+		 * current commit, modifying the editor test accordingly. IT IS ASSUMED THAT 
+		 * showCommits HAS BEEN CALLED BEFORE THIS FUNCTION
 		 */
 		var cmts = $scope.commits;
 		if (hash === undefined){ // called with no argument, return current commit or null
@@ -307,7 +313,7 @@ app.controller('MyController', function ($scope, $http, $window) {
 	}
 
 	/**
-	 * LOGIN POPUP callback(s) and data
+	 * LOGIN/OUT POPUP(s) callback(s) and data
 	 */
 
 	$scope.isLoggedIn = false;
@@ -325,7 +331,7 @@ app.controller('MyController', function ($scope, $http, $window) {
     			$scope.isLoggedIn=true;
     			$scope.popups.logIn.hide();
     			//load commits now:
-    			$scope.fetchCommits();
+    			//$scope.fetchCommits();
     		},
     		function(response){ // failure callback
     			$scope.isLoggedIn=false; // for safety
@@ -341,18 +347,19 @@ app.controller('MyController', function ($scope, $http, $window) {
 	};
 
 	$scope.logOut = function(){
+		function doLogout(response){
+			$scope.isLoggedIn = false; //should hide editor if visible
+    		$scope.setView('html'); //if we are on the pdf, restore the html view. This forces a rebuild if needed
+    		for(var k in $scope.popups){ //hide all popups
+    			$scope.popups[k].hide();
+    		}
+		};
 		$http.post('logout', 
 			JSON.stringify({}),
 	    	{headers: { 'Content-Type': 'application/json' }}
 	    ).then(
-	    	function(response){ // success callback
-	    		$scope.isLoggedIn = false; //should hide editor if visible
-	    		$scope.setView('html'); //if we are on the pdf, restore the html view. This forces a rebuild if needed
-	   		},
-	   		function(response){ // failure callback
-	   			$scope.isLoggedIn=false; //should hide editor if visible
-	    		$scope.setView('html'); //if we are on the pdf, restore the html view. This forces a rebuild if needed
-	   		}
+    		doLogout, // success callback
+    		doLogout // failure callback (there might be a way to write doLogout only once like a 'finally' clause, too lazy to search for it)
     	);
 	};
 	
@@ -412,9 +419,12 @@ app.controller('MyController', function ($scope, $http, $window) {
 	
 	/**
 	 * LOGS POPUP callback(s) and data (note logs are the build logs (sphinx + pdflatex) not the login/out functionality!
+	 * Build logs are loaded in a $scope variable to
+	 * bind them to the view
+	 * But for safety, they are loaded as new data every time we click on the commits/history button
 	 */
 
-	$scope.logs = null;
+	$scope.logs = {};
 	$scope.showLogs = function(){
 		$scope.popups.logs.loading = true;
 		$scope.logs = {};
@@ -427,7 +437,6 @@ app.controller('MyController', function ($scope, $http, $window) {
     		function(response){ // success callback
     		   // response.data is a dict
     			$scope.popups.logs.loading = false;
-    			//stupid workaround to make
     			if (response.data){
     				for(var i in response.data){
     					$scope.logs[response.data[i][0]] = response.data[i][1];
@@ -449,26 +458,55 @@ app.controller('MyController', function ($scope, $http, $window) {
 });
 
 
-// EXPERIMENTAL (not workong): show keyboard shortcuts:
-//$scope.toggleKeyboardShortcuts = function(){
-//	var editor = $scope.aceEditor;
-//	if(editor && $scope.editing){
-//		ace.config.loadModule("ace/ext/keybinding_menu", function(module) {
-//            module.init(editor);
-//            editor.showKeyboardShortcuts()
-//        });
-//	}
-//}
+/* EXPERIMENTAL (not workong): show keyboard shortcuts:
+
+$scope.toggleKeyboardShortcuts = function(){
+	var editor = $scope.aceEditor;
+	if(editor && $scope.editing){
+		ace.config.loadModule("ace/ext/keybinding_menu", function(module) {
+            module.init(editor);
+            editor.showKeyboardShortcuts()
+        });
+	}
+}
+
+
+$scope.startBuildingListener = function(){
+	var terminate = false;
+	$scope.loadingMsgs = ['Building report (it might take few minutes)'];
+
+    var countUp = function() {
+    	$http.post(
+    		'building_info',
+    		JSON.stringify({}), // not used
+	    	{headers: { 'Content-Type': 'application/json' }}
+    	).then(
+			function(response){ // success callback
+				$scope.loadingMsgs = response.data;
+				if ($scope.loading && !terminate){
+					$timeout(countUp, 1000);
+				}
+				$scope.loadingMsgs = [];
+	    	},
+	    	function(response){ // failure callback. This is actually a safety case
+	    		terminate = true;
+				$scope.loadingMsgs = [];
+			}
+    	);
+    }
+	countUp();
+}
 
 
 
 // experimental: components. PLEASE REMOVE:
-//app.component("popup",{
-//	selector: '[popup]',
-//    template: "<button ng-click='$ctrl.showPopup=true'>{{$ctrl.name}}</button>" +
-//    		  "<div class='popup' ng-show='$ctrl.showPopup'><button ng-click='$ctrl.showPopup=false' class='close' data-dismiss='alert' aria-label='close'>&times;</button>" +
-//    		  "<div ng-transclude></div>" +
-//    		  "</div>",
-//    bindings: { name: '@', showPopup: '<' },
-//    transclude: true,
-//});
+app.component("popup",{
+	selector: '[popup]',
+    template: "<button ng-click='$ctrl.showPopup=true'>{{$ctrl.name}}</button>" +
+    		  "<div class='popup' ng-show='$ctrl.showPopup'><button ng-click='$ctrl.showPopup=false' class='close' data-dismiss='alert' aria-label='close'>&times;</button>" +
+    		  "<div ng-transclude></div>" +
+    		  "</div>",
+    bindings: { name: '@', showPopup: '<' },
+    transclude: true,
+});
+*/

@@ -126,6 +126,35 @@ div#loading_div .waitbar > div {
     animation-iteration-count: infinite;
 }
 
+label{ /* override bootstrap */
+	font-weight: normal !important;
+}
+
+.pre {  /* copied from bootstrap <pre> element */
+    display: block;
+    padding: 9.5px;
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.42857143;
+    color: #333;
+    word-break: break-all;
+    word-wrap: break-word;
+    background-color: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#logs_popup .panel-title{
+	margin-bottom: 10px;
+    margin-top: 15px;
+}
+
+#logs_popup .error {
+    color: #d9534f;  /* copied from bootstrap btn danger */
+    /*background-color: #f0ad4e;
+     border-color: #eea236; */
+}
+
 /* Safari 4.0 - 8.0 */
 @-webkit-keyframes waitbar {
     0%   {left:0px}

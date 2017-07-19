@@ -30,23 +30,23 @@ https://stackoverflow.com/questions/14141532/how-to-load-local-copy-of-bootstrap
 	</div>
 </div>
 </body>
-	<!-- load angular now (at the end) -->
-	<script src="{{ url_for('static', filename='js/myapp.js') }}"></script>
-	<!--
-	LOAD BOOTSTRAP FROM LOCAL COPY IF SERVICE IS DOWN:
-	 https://stackoverflow.com/questions/14141532/how-to-load-local-copy-of-bootstrap-css-when-the-cdn-server-is-down
-	and
-	https://stackoverflow.com/questions/19669786/check-if-element-is-visible-in-dom
-	(we have pure javascript no jquery here:) -->
-	<script>
-	if(document.getElementById("_bootstrapfallbacktest_______H;68_ft").offsetParent !== null){  //element is not hidden, load bootstrap
-		console.log('LOADING BOOTSTRAP from server');
-		local_bootstrap = document.createElement('link');
-        local_bootstrap.setAttribute("rel", "stylesheet");
-        local_bootstrap.setAttribute("type", "text/css");
-        local_bootstrap.setAttribute("media", "screen");
-        local_bootstrap.setAttribute("href", "{{ url_for('static', filename='css/bootstrap.3.3.7.min.css') }}");
-        document.getElementsByTagName("head")[0].appendChild(local_bootstrap);
-	}
-	</script>
+<!-- load angular now (at the end) -->
+<script src="{{ url_for('static', filename='js/myapp.js') }}"></script>
+<!--
+LOAD BOOTSTRAP FROM LOCAL COPY IF SERVICE IS DOWN:
+ https://stackoverflow.com/questions/14141532/how-to-load-local-copy-of-bootstrap-css-when-the-cdn-server-is-down
+and
+https://stackoverflow.com/questions/19669786/check-if-element-is-visible-in-dom
+(we have pure javascript no jquery here:) -->
+<script>
+if(document.getElementById("_bootstrapfallbacktest_______H;68_ft").offsetParent !== null){  //element is not hidden, load bootstrap
+	console.log('LOADING BOOTSTRAP from server');
+	local_bootstrap = document.createElement('link');
+       local_bootstrap.setAttribute("rel", "stylesheet");
+       local_bootstrap.setAttribute("type", "text/css");
+       local_bootstrap.setAttribute("media", "screen");
+       local_bootstrap.setAttribute("href", "{{ url_for('static', filename='css/bootstrap.3.3.7.min.css') }}");
+       document.getElementsByTagName("head")[0].appendChild(local_bootstrap);
+}
+</script>
 </html>
