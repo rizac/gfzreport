@@ -18,6 +18,8 @@ from contextlib import contextmanager
 from sphinx.util.pycompat import execfile_
 from sphinx.util.osutil import cd
 from datetime import datetime
+from cStringIO import StringIO
+import re
 
 _DEFAULT_BUILD_TYPE = 'latex'
 
@@ -49,7 +51,7 @@ def pdflatex(texfile, texfolder=None):
     # http://tex.stackexchange.com/questions/91592/where-to-find-official-and-extended-documentation-for-tex-latexs-commandlin
     # for -file-line-error, see:
     # https://tex.stackexchange.com/questions/27878/pdflatex-bash-script-to-supress-all-output-except-error-messages
-    popenargs = ['pdflatexx', "-interaction=nonstopmode", "-file-line-error", texfile]
+    popenargs = ['pdflatex', "-interaction=nonstopmode", "-file-line-error", texfile]
     kwargs = dict(cwd=texfolder, shell=False)
     try:
         # SIDE NOTE FOR DEVELOPERS: IF RUN FROM WITHIN ECLIPSE (AND POTENTIALLY ANY
@@ -79,6 +81,9 @@ def pdflatex(texfile, texfolder=None):
 #                 ret[absfile] = os.stat(absfile)[8]
 #
 #     return ret
+def log_err_regexp():
+    """Returns a regexp to parse the log file in order to catch lines denoting errors"""
+    return re.compile(".+?:[0-9]+:\\s*ERROR\\s*:.+", re.IGNORECASE)
 
 
 def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
@@ -121,28 +126,83 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
     sphinxbuild = 'latex' if build == 'pdf' else build
     argv = ["", sourcedir, outdir, "-b", sphinxbuild] + list(other_sphinxbuild_options)
 
-    with checkfilechanged(outdir, master_doc, sphinxbuild) as checker:
-        listener('Building %s report' % sphinxbuild, None, 1, steps)
-        res = sphinx_build_main(argv)
+    # with the option "-file-line-error", the pdflatex errors are of the form:
+    re_pdflatex = re.compile(r"(.+?:[0-9]+:)\s*(.+)")
+    # whereas the sphinx errors are of the form:
+    # ".+?:[0-9]+:\\s*ERROR\\s*:.+"
+    # Use re_pdflatex to convert pdflatex errors to sphinx errors in order to normalize them
+    ret = 0
+    c_errors = False  # errors is a boolean setting whether we have compilation errors.
+    # we might have compilation errors for ae.g. a bad directive, or a pdflatex warning.
+    # compilation errors do not mean that the document was not created successfully, it's for
+    # warning the user that not "everything" was perfect
+    with capturestderr(outdir) as new_stderr:
+        new_stderr.write("*** Sphinx (rst to %s) ***\n\n" % sphinxbuild)
+        with checkfilechanged(outdir, master_doc, sphinxbuild) as checker:
+            # Note: check file changed NEVER raises as it gets exceptions and prints them to stderr
+            # with the sphinx error format. Thus ret_sphinx will ALWAYS be a value
+            listener('Building %s report' % sphinxbuild, None, 1, steps)
+            ret = sphinx_build_main(argv)
 
-    res1 = res2 = 0  # results for pdflatex (if set)
-    if checker.modified and build == 'pdf':
-        texfilepath = checker.filepath
-        with checkfilechanged(outdir, master_doc, build) as checker:
-            start_ = datetime.utcnow()
-            listener('Running pdflatex (1st step)', None, 2, steps)
-            duration_ = datetime.utcnow() - start_
-            res1 = pdflatex(texfilepath, None)
-        if checker.modified:
-            listener('Running pdflatex (2nd step)', datetime.utcnow() + duration_, 3, steps)
+        if checker.modified and ret == 0:
+            # if return value is zero, we might have errors from the sphinx stderr
+            # To make it compliant with pdflatex, set ret_sphinx = 1 (note that if
+            reg = log_err_regexp()
+            for _ in reg.finditer(new_stderr.getvalue()):
+                c_errors = True
+                break
+        elif ret != 0:
+            # if the return value is non-zero, set ret = 2 this will return immediately
+            # With sphinx, we do not rely on file modified cause sphinx writes a new output
+            # only if something has to be updated. With pdflatex, we are sure that output will be
+            # overridden but we cannot rely on a non-zero exit code because the document might have
+            # been created anyway
+            ret = 2
+
+        if ret == 0 and build == 'pdf':
+            texfilepath = checker.filepath
             with checkfilechanged(outdir, master_doc, build) as checker:
-                res2 = pdflatex(texfilepath, None)
+                listener('Running pdflatex (1st step)', None, 2, steps)
+                start_ = datetime.utcnow()
+                pdflatex(texfilepath, None)
+                duration_ = datetime.utcnow() - start_
 
-    if not checker.modified:
-        res = 2
-    elif (res != 0 or res1 != 0 or res2 != 0):
-        res = 1
-    return res
+            if not checker.modified:
+                ret = 2
+
+            if ret == 0:
+                listener('Running pdflatex (2nd step)', datetime.utcnow() + duration_, 3, steps)
+                with checkfilechanged(outdir, master_doc, build) as checker:
+                    ret_pdflatex = pdflatex(texfilepath, None)
+                if not checker.modified:
+                    ret = 2
+                else:
+                    if not c_errors:
+                        c_errors = ret_pdflatex != 0
+                    # write pdflatex.log to our log file, changing the pdflatex error lines
+                    # to sphinx error line format:
+                    pdflogfile = os.path.splitext(checker.filepath)[0] + ".log"
+                    if os.path.isfile(pdflogfile):
+                        new_stderr.write("*** Pdflatex (latex to pdf) ***\n")  # second newline
+                        # appended in the first line read (see below)
+                        with open(pdflogfile, 'r') as fopen:
+                            for line in fopen:
+                                line = line.strip()
+                                m = re_pdflatex.match(line)
+                                if m and len(m.groups()) == 2:
+                                    line = "%s ERROR: %s" % (m.group(1), m.group(2))
+                                new_stderr.write("\n%s" % line)
+
+    if ret == 0 and c_errors:
+        ret = 1
+
+    if ret == 2:
+        sys.stdout.write("\nERROR: Failed to create the document")
+    elif ret == 1:
+        sys.stdout.write("\nOK: Document successfully created (with compilation errors)")
+    else:
+        sys.stdout.write("\nOK: Document successfully created (no compilation errors)")
+    return ret
 
 
 def run(sourcedir, outdir, build=_DEFAULT_BUILD_TYPE, *other_sphinxbuild_options):
@@ -201,10 +261,15 @@ class checkfilechanged(object):
         if os.path.isfile(self.filepath):
             self.mtime = os.stat(self.filepath).st_mtime
         self._modified = False
+        self._raised = False
 
     @property
     def modified(self):
         return self._modified
+
+    @property
+    def isfile(self):
+        return os.path.isfile(self.filepath)
 
     def __enter__(self):
         return self
@@ -212,7 +277,8 @@ class checkfilechanged(object):
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is not None:  # we raised an exception
             # python exception: Although is neither a sphinx error nor a pdflatex error,
-            # Format the exception as a sphinx exception:
+            # we format all the exception as a sphinx exception (same for pdflatex errors,
+            # by parsing its log,see above)
             fname = os.path.split(traceback.tb_frame.f_code.co_filename)[1]
             sys.stderr.write("%s:%d: ERROR: %s: %s" % (fname, traceback.tb_lineno,
                                                        str(exc_value.__class__.__name__),
@@ -226,6 +292,40 @@ class checkfilechanged(object):
         # (i.e., prevent it from being propagated), it should return a true value
         return True
 
+
+def get_logfilename():
+    """Returns the name of the gfzreport sphinx log file, which wraps and contains sphinx stderr
+    and pdflatex log file (if pdf is the build type set).
+    This name should be a file name clearly not in conflict with any sphinx additional file, so
+    be careful when changing it (for the moment, it's a name most likely not used and clearly
+    understandable)"""
+    return "__.gfzreport.__.log"
+
+
+@contextmanager
+def capturestderr(outdir):
+    '''Captures standard error to a StrinIO and writes it to a file. Used in `build_report`
+    '''
+    # set the stderr to a StringIO. Yield, and after that get the sphinx log file path
+    # The sphinx log file directory might not yet exist if this is the first build
+    # After yielding, check if the sphinx logfile dir exists. If yes, write the content
+    # of the captured stderr to that file
+    # Restore the old stderr and exit
+    stderr = sys.stderr
+    new_stderr = StringIO()
+    sys.stderr = new_stderr
+    try:
+        yield new_stderr  # allow code to be run with the redirected stdout/stderr
+    finally:
+        # write to file, if the build was succesfull we should have the
+        # directory in place:
+        fileout = os.path.join(outdir, get_logfilename())
+        if os.path.isdir(os.path.dirname(fileout)):
+            with open(fileout, 'w') as _:
+                _.write(new_stderr.getvalue())
+            sys.stdout.write("\nLog file written to '%s'" % fileout)
+        # restore stderr. buffering and flags such as CLOEXEC may be different
+        sys.stderr = stderr
 
 # use a commandline ability to forward to sphinx-build with some pre- and post-processing on
 # the --build argument:

@@ -3,46 +3,54 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	$scope._init = true; //basically telling setView to update the commits only the first time
 	$scope._VIEWS = ['html', 'pdf'];
 	$scope.view = null;  // the current view null for the moment
-	$scope.lastBuildExitcode = -1; //-1: already updated (no build): 0: Ok, 1: doc created with errors, 2:doc NOT created with errors
-	
+
 	// note: needsRefresh means: false: display what's in the iframe; true: request the server 
 	// (if the page has really to be refreshed - e.g.e built, is up to the server).
 	// Pdfs could be quite heavy so we don't want to download them all the time
 	$scope.needsRefresh = {};
 	$scope.frames = {'edit': document.getElementById("edit_iframe")};
+	$scope.buildExitcode = {};  //same keys as needsRefresh (the views) mapped to an int representing the last build exit code
 
 	// setting up frames and needsRefresh. The two obects above have $scope._VIEWS as keys.
 	// Note that we avoid closure with forEach
 	// http://stackoverflow.com/questions/750486/javascript-closure-inside-loops-simple-practical-example
 	$scope._VIEWS.forEach(function(_view) {
 		$scope.needsRefresh[_view] = true;
+		$scope.buildExitcode[_view] = -1;
 		var frame = document.getElementById(_view + "_iframe");  // e.g. 'html_iframe'
 		// add listener on load complete:
 		frame.onload = function() {
 			$scope.$apply(function() {
+				if ($scope.needsRefresh[_view]){
+					$scope.fetchBuildExitcode(_view);
+				}
 				$scope.needsRefresh[_view] = false;
 				$scope.loading = false;
 				$scope._init = false; //if first time, notify that everything is loaded succesfully
-				$scope.fetchLastBuildExitcode();
+				
 			});
 		};
 		$scope.frames[_view] = frame;
 	});
-
-	$scope.fetchLastBuildExitcode = function(){
+	
+	$scope.fetchBuildExitcode = function(_view){
 		$http.post(
     		'last_build_exitcode',
-    		JSON.stringify({}),  // not used
+    		JSON.stringify({'buildtype': _view}),
 	    	{headers: { 'Content-Type': 'application/json' }}
     	).then(
 			function(response){ // success callback
-	    		$scope.lastBuildExitcode = parseInt(response.data);
+	    		$scope.buildExitcode[_view] = parseInt(response.data);
 			},
 	    	function(response){ // failure callback
-				$scope.lastBuildExitcode = -1;  //for safety
+				$scope.buildExitcode[_view] = -1;  //for safety
 			}
     	);
 	};
+	//this is used in ng-class to get the current view exit code
+	$scope.getCurrentViewExitcode = function(){
+		return $scope.buildExitcode[$scope.view];
+	}
 	
 	$scope.loading = false;
 	$scope.loadingMsgs = [];
@@ -170,12 +178,6 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 			return;
 		}
 		$scope.loading = true;
-		// this should update the progressbar, but it's currently not implemented:
-		// $scope.startBuildingListener();
-		// mark view as not dirty anymore. This is set also on iframe.onload but I stated
-		// (withoyt specifying WHY) that "due to current html page view design we need to add it now"
-		// (probably some angular update which otherwise needs $digest in iframe onload?)
-		$scope.needsRefresh[view] = false; 
 		var frame = $scope.frames[view]
 		// seems that sometimes browsers have cache, so, for safety:
 		var append = "?preventcache=" + Date.now()
@@ -340,6 +342,8 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
     				msg = "Email not registered."
     			}else if (response.status == 403){
     				msg = "Email registered but not authorized to access this URL.";
+    			}else if (response.status == 409){  // conflict: another guy is editing
+    				msg = response.data.message || "Another user (unkwnown) is editing this report";
     			}
     			$scope.popups.logIn.errMsg = $scope.exc(msg, response);
     		}
@@ -424,10 +428,10 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	 * But for safety, they are loaded as new data every time we click on the commits/history button
 	 */
 
-	$scope.logs = {};
+	$scope.logs = [];  // a two element array: first is the text with the full log, second with errors only (if any)
 	$scope.showLogs = function(){
 		$scope.popups.logs.loading = true;
-		$scope.logs = {};
+		$scope.logs = ['Log file not found', 'Log file not found'];
 		$scope.popups.logs.show();
 		$http.post(
 			'get_logs', 
@@ -437,10 +441,8 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
     		function(response){ // success callback
     		   // response.data is a dict
     			$scope.popups.logs.loading = false;
-    			if (response.data){
-    				for(var i in response.data){
-    					$scope.logs[response.data[i][0]] = response.data[i][1];
-    				}
+    			if (response.data[0] || response.data[1]){
+    				$scope.logs = response.data;
     			}
     		},
     		function(response){ // failure callback

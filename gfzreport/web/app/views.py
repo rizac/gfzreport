@@ -14,13 +14,14 @@ from flask_login import current_user, login_required
 # from gfzreport.web.app import app
 from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
-    get_fig_directive, get_sourcedir, get_buildfile, get_logs_
+    get_fig_directive, get_sourcedir, get_buildfile, get_logs_, lastbuildexitcode
 from flask_login.utils import login_user, logout_user
 import re
 from gfzreport.web.app.models import User, session as dbsession
 from gfzreport.sphinxbuild.main import get_master_doc
 import threading
 from multiprocessing.pool import ThreadPool
+from datetime import datetime
 
 # http://flask.pocoo.org/docs/0.12/patterns/appfactories/#basic-factories:
 mainpage = Blueprint('main_page', __name__)  # , template_folder='templates')
@@ -78,9 +79,10 @@ def get_report_type(reportdirname, pagetype):
 
     if pagetype in ('html', 'pdf'):
         ret = build_report(reportdirname, pagetype, current_user, binfo, force=False)
-        session['last_build_exitcode'] = ret
+        # session['last_build_exitcode'] = ret
         if ret == 2:
-            abort(500)  # FIXME: better handling!!
+            return render_template("buildfailed.html", pagetype=pagetype)
+
         # binfo('Serving page', None, 0, 0)
         reportfilename = get_buildfile(reportdirname, pagetype)
         response = send_from_directory(os.path.dirname(reportfilename),
@@ -96,19 +98,10 @@ def get_report_type(reportdirname, pagetype):
         return response
 
 
-# @mainpage.route('/<reportdirname>/building_info', methods=['POST'])
-# def get_building_info(reportdirname):
-#     ret = []
-#     if current_user.is_authenticated and 'buildinginfo' in session:
-#         # calculate the remaining time in the second element, instead of the start time:
-#         ret = session['buildinginfo'].tojson()
-#     return jsonify(ret)
 @mainpage.route('/<reportdirname>/last_build_exitcode', methods=['POST'])
-def get_building_info(reportdirname):
-    try:
-        ret = session['last_build_exitcode']
-    except:
-        ret = -1
+def get_last_build_exitcode(reportdirname):
+    buildtype = request.get_json()['buildtype']
+    ret = lastbuildexitcode(reportdirname, buildtype)
     return jsonify(ret)
 
 
@@ -233,9 +226,28 @@ def login(reportdirname):
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
         abort(401)
 
-    matching_url = os.path.join(request.url_root, reportdirname)
-    if not re.match(user.permission_regex, matching_url):
+    sourcepath = get_sourcedir(reportdirname)
+    if not user.is_authorized(sourcepath):
         abort(403)
+
+    try:
+        sourcepath = os.path.abspath(get_sourcedir(reportdirname))
+        # writing to files because it raises
+        with dbsession(current_app) as sess:
+            dbuser = sess.query(User).filter((User.login_date != None) &
+                                             (User.editing_path == sourcepath)).first()
+            if dbuser:
+                response = jsonify({'message': """User '%s' (logged in on %s) is currently editing
+ the same report, or he/she simply forgot to log out. This report is not editable until he/she logs
+ out""" % (dbuser.gitname, dbuser.login_date)})
+                response.status_code = 409  # conflict. Note that angular seems to understand
+                # from the response status if this has to be forwarded as error (this is the case)
+                # or not. The message field will be available as response.data.message
+                return response
+    except Exception as exc:
+        response = jsonify({'message': "%s. Please contact the administrator" % str(exc)})
+        response.status_code = 500
+        return response  # prevent loging in case of exception
 
     login_user(user, remember=False)
     return jsonify({})  # FIXME: what to return?
@@ -245,7 +257,20 @@ def login(reportdirname):
 def logout(reportdirname):
     """View to process login form data and login user in case.
     """
-    # writing to files because it raises
-    del session['last_build_exitcode']
-    logout_user()
+    try:
+        # writing to files because it raises
+        with dbsession(current_app) as sess:
+            dbuser = sess.query(User).filter(User.id == current_user.id).first()
+            if dbuser:
+                dbuser.login_date = datetime.utcnow()
+                # should be already abspath, however for safety (we will use the path for comparison
+                # with other users logging in, so better be safe):
+                dbuser.editing_path = None
+                dbuser.login_date = None
+                sess.commit()
+    except:
+        pass  # FIXME: better handling. The idea is that
+    finally:
+        logout_user()
+
     return jsonify({})  # FIXME: what to return?

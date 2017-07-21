@@ -52,7 +52,7 @@ from itertools import count
 from werkzeug.utils import secure_filename
 from contextlib import contextmanager
 from flask import current_app as app
-from gfzreport.sphinxbuild.main import _run_sphinx, get_master_doc
+from gfzreport.sphinxbuild.main import _run_sphinx, get_master_doc, get_logfilename, log_err_regexp
 import re
 from datetime import datetime, timedelta
 from math import ceil
@@ -135,8 +135,8 @@ def get_buildfile(reportdirname, buildtype):
                         ('.tex' if buildtype == 'latex' else "." + buildtype))
 
 
-def get_sphinxlogfile(reportdirname, buildtype):
-    return os.path.join(get_builddir(reportdirname, buildtype), '_sphinx_stderr.log')
+def get_logfile(reportdirname, buildtype):
+    return os.path.join(get_builddir(reportdirname, buildtype), get_logfilename())
 
 
 def gitcommit(reportdirname, user=None):
@@ -203,37 +203,61 @@ def build_report(reportdirname, buildtype, user, buildinginfo=None, force=False)
     if not needs_build(reportdirname, buildtype, user):
         if not force:
             return -1
-    # sphinx puts warnings/ errors on the stderr
-    # (http://www.sphinx-doc.org/en/stable/config.html#confval-keep_warnings)
-    # capture it:
-    with capturestderr(reportdirname, buildtype) as newstderr:
-        sourcedir = get_sourcedir(reportdirname)
-        builddir = get_builddir(reportdirname, buildtype)
 
-        # this in principle never raises, but prints to stderr:
-        ret = _run_sphinx(sourcedir, builddir, master_doc(reportdirname),
-                          buildtype, buildinginfo, '-E')
+    sourcedir = get_sourcedir(reportdirname)
+    builddir = get_builddir(reportdirname, buildtype)
+    # _run_sphinx should never raise as a context manager catches exceptions printing to stderr,
+    # which is temporary set to a StringIO. The StringIO will be written to our out directory
+    # See get_logs
+    ret = _run_sphinx(sourcedir, builddir, master_doc(reportdirname), buildtype, buildinginfo, '-E')
 
-    # pdflatex returns 1 in case of errors BUT document written. Toachieve the same with
-    # sphinx, we need to check the ouptut for a ".*:###: ERROR: .*" message. If such a line
-    # exists, and ret is zero, connvert it to 1 to be consistent with pdflatex output
-    if buildtype != 'pdf' and ret == 0:
-        reg = _ERR_REG[buildtype]
-        for _ in reg.finditer(newstderr.getvalue()):
-            ret = 1
-            break
+#     # sphinx puts warnings/ errors on the stderr
+#     # (http://www.sphinx-doc.org/en/stable/config.html#confval-keep_warnings)
+#     # capture it:
+#     with capturestderr(reportdirname, buildtype) as newstderr:
+#         sourcedir = get_sourcedir(reportdirname)
+#         builddir = get_builddir(reportdirname, buildtype)
+# 
+#         newstderr.write("\n~~~Sphinx (rst to %s)~~~\n" %
+#                         ('latex' if buildtype == 'pdf' else buildtype))
+# 
+#         # this in principle never raises, but prints to stderr:
+#         ret = _run_sphinx(sourcedir, builddir, master_doc(reportdirname),
+#                           buildtype, buildinginfo, '-E')
+# 
+#         # our sphinx wrapper, when run with 'pdf' as build, returns 1 if pdflatex did NOT return 0
+#         # BUT the pdf has been written. To achieve the same with
+#         # sphinx, we need to check the ouptut for a ".*:###: ERROR: .*" message. If such a line
+#         # exists, and ret == 0, set ret = 1 to be consistent with pdflatex output
+#         if buildtype != 'pdf' and ret == 0:
+#             reg = _ERR_REG[buildtype]
+#             for _ in reg.finditer(newstderr.getvalue()):
+#                 ret = 1
+#                 break
+#         elif buildtype == 'pdf' and ret != 2:
+#             # we built the pdf and we wrote a new file:
+#             # copy the pdf log file content into the newstderr
+#             # In any other case, skip this. This includes the case where we wanted the pdf
+#             # but the pdf was NOT written: AVOIDS returning the old pdflatex log which might be
+#             # present
+#             pdflatexlog = get_buildfile(reportdirname, "pdf")
+#             fle, _ = os.path.splitext(pdflatexlog)
+#             pdflatexlog = fle + ".log"
+#             if os.path.isfile(pdflatexlog):
+#                 newstderr.writeline("\n~~~Pdflatex (latex to pdf)~~~\n")
+#                 with open(pdflatexlog, 'w') as fopen:
+#                     newstderr.write(fopen.read())
 
-    # write to the last git commit the returned status. Note that in git we need to override completely
-    # the notes, so in order to override only relevant stuff, first read the notes, if any:
+    # write to the last git commit the returned status. Note that in git we need to override
+    # completely the notes, so in order to override only relevant stuff, first read the notes,
+    # if any:
     args = gitkwargs(reportdirname)
     notes = subprocess.check_output(["git", "log", "-1", "--pretty=format:%N"], **args).strip()
     # IMPORTANT: do NOT quote pretty format values (e.g.: "--pretty=format:%N", AVOID
     # "--pretty=format:'%N'"), otherwise the quotes
     # will appear in the output (if value has spaces, we did not test it,
     # so better avoid it)
-    if notes:  # sometimes an empty string quoted is returned
-        # we don't bother too much (shlex is suggested, too much effort) and we consider quoted
-        # empty strings as empty strings
+    if notes:
         notes_dict = json.loads(notes)
     else:
         notes_dict = {}
@@ -255,6 +279,41 @@ def build_report(reportdirname, buildtype, user, buildinginfo=None, force=False)
 #         mark_build_updated(reportdirname, buildtype)  # for safety, mark mtime of dest file
 
 #    return ret
+
+
+def lastbuildexitcode(reportdirname, buildtype):
+    """This function takes the last git commit and parses its 'Notes' trying to guess the buid
+    exit code we stored in there. It's a hacky way to get the exit code but when the user logs in
+    exploiting an information that we anyway wrote on the git directory is the better way
+    :return: the exit code, -1 (unkwnown), 0 (ok, no errors), 1 (ok, compilation errors), 2 faile
+    (no file created)
+    """
+    args = gitkwargs(reportdirname)
+    notes = subprocess.check_output(["git", "log", "-1", "--pretty=format:%N"], **args).strip()
+    ret = -1  # everything not in 0, 1, 2
+    if not notes:
+        return ret
+    notes_dict = json.loads(notes)
+    if 'Report generation' not in notes_dict:
+        return ret
+    notes_dict = notes_dict['Report generation']
+    if buildtype not in notes_dict:
+        return ret
+    msg = notes_dict[buildtype]
+    # here the point: we might parse the string and get the exit code, but we might change the
+    # string msg in the future. Let's try to be sufficiently flexible for accomodating new string
+    # msg types in the future. The idea is that the exit code is any string defined by a
+    # number followed and preceeded by a var length of spaces (from 0 to inf), and this string
+    # MUST NOT be followed nor preceeded by a word character or a space character:
+    # '345' is recognized as exit code
+    # "my 345 cats" is NOT recognized
+    # "my 345: cats" is NOT recognized
+    # "my (345)cats" IS recognized
+    try:
+        reg = re.compile(r"(?<![\w\s])\s*\d+\s*(?![\w\s])")
+        return int(reg.search(msg).group().strip())
+    except (AttributeError, ValueError):
+        return ret
 
 
 def master_doc(reportdirname):
@@ -318,29 +377,29 @@ def is_build_updated(reportdirname, buildtype):
 #     return is_build_updated(reportdirname, buildtype)
 
 
-@contextmanager
-def capturestderr(reportdirname, buildtype):
-    '''Captures standard error to a StrinIO and writes it to a file. Used in `build_report`
-    '''
-    # set the stderr to a StringIO. Yield, and after that get the sphinx log file path
-    # The sphinx log file directory might not yet exist if this is the first build
-    # After yielding, check if the sphinx logfile dir exists. If yes, write the content
-    # of the captured stderr to that file
-    # Restore the old stderr and exit
-    stderr = sys.stderr
-    new_stderr = StringIO()
-    sys.stderr = new_stderr
-    try:
-        yield new_stderr  # allow code to be run with the redirected stdout/stderr
-    finally:
-        # write to file, if the build was succesfull we should have the
-        # directory in place:
-        fileout = get_sphinxlogfile(reportdirname, buildtype)
-        if os.path.isdir(os.path.dirname(fileout)):
-            with open(fileout, 'w') as _:
-                _.write(new_stderr.getvalue())
-        # restore stderr. buffering and flags such as CLOEXEC may be different
-        sys.stderr = stderr
+# @contextmanager
+# def capturestderr(reportdirname, buildtype):
+#     '''Captures standard error to a StrinIO and writes it to a file. Used in `build_report`
+#     '''
+#     # set the stderr to a StringIO. Yield, and after that get the sphinx log file path
+#     # The sphinx log file directory might not yet exist if this is the first build
+#     # After yielding, check if the sphinx logfile dir exists. If yes, write the content
+#     # of the captured stderr to that file
+#     # Restore the old stderr and exit
+#     stderr = sys.stderr
+#     new_stderr = StringIO()
+#     sys.stderr = new_stderr
+#     try:
+#         yield new_stderr  # allow code to be run with the redirected stdout/stderr
+#     finally:
+#         # write to file, if the build was succesfull we should have the
+#         # directory in place:
+#         fileout = get_sphinxlogfile(reportdirname, buildtype)
+#         if os.path.isdir(os.path.dirname(fileout)):
+#             with open(fileout, 'w') as _:
+#                 _.write(new_stderr.getvalue())
+#         # restore stderr. buffering and flags such as CLOEXEC may be different
+#         sys.stderr = stderr
 
 #     fileout = get_sphinxlogfile(reportdirname, buildtype)
 #     with open(fileout, 'w') as new_stderr:
@@ -351,6 +410,8 @@ def capturestderr(reportdirname, buildtype):
 #             # restore stderr. buffering and flags such as CLOEXEC may be different
 #             sys.stderr = stderr
 
+# the regular expression which will be matched against EACH LINE of the .log files to
+# capture lines with errors / warnings
 _ERR_REG = {
     'html': re.compile(".+?:[0-9]+:\\s*ERROR\\s*:.+"),
     'latex': re.compile(".+?:[0-9]+:\\s*ERROR\\s*:.+"),
@@ -375,6 +436,8 @@ def save_sourcefile(reportdirname, unicode_text, user):
 
 def get_commits(reportdirname):
     def prettify(jsonstr):
+        if not jsonstr:
+            return jsonstr
         return json.dumps(json.loads(jsonstr), indent=4).replace('"', "").replace("{", "").replace("}", "")
     try:
         commits = []
@@ -395,11 +458,9 @@ def get_commits(reportdirname):
 
         for commit in cmts.split("\n"):
             if commit:
-                clist = commit.split(sep)
+                clist = [_.rstrip() for _ in commit.split(sep)]
                 # parse notes by removing curly brackets and quotes (")
-                if clist[-1]:
-                    clist[-1] = prettify(clist[-1]).strip()
-                    # clist[-1].replace('"', "").replace("{", "").replace("}")
+                clist[-1] = prettify(clist[-1]).rstrip()
                 commits.append({'hash': clist[0], 'author': clist[1], 'date': clist[2],
                                 'email': clist[3], 'msg': clist[4], 'notes': clist[-1]})
         return commits
@@ -462,47 +523,70 @@ def get_fig_directive(reportdirname, fig_filepath, fig_label=None, fig_caption=N
 
 
 def get_logs_(reportdirname, buildtype):
-    '''Returns an array of:
-    sphinx log file content (if buildtype='html') or
-    sphinx log file content, pdflatex log file errors, pdflatex log file content (if buildtype
-    is 'latex' or 'pdf')
-    pdflatex log file errors is a substring of the pdflatex log file content, extracted
-    via the pdflatex option that prints errors in the format .*:[0-9]:.*
-    '''
-    # the returned object is quite cumbersome but allows an easy implementation with angular
-    # basically it is a one or two element array of elements in this form
-    # [compiler_name, [log_file_content, list_of_lof_errors]]
-    # For compatibility, log_file_cintent is in turn a list of a single element, the real log
-    # file content
+    """Returns two utf8 text arrays: the first, with the full gfxreport log file,
+    the second, with the only the errors (if any)
+    Returns two empty strings if file not found
+    """
+#     '''Returns an array of:
+#     sphinx log file content (if buildtype='html') or
+#     sphinx log file content, pdflatex log file errors, pdflatex log file content (if buildtype
+#     is 'latex' or 'pdf')
+#     pdflatex log file errors is a substring of the pdflatex log file content, extracted
+#     via the pdflatex option that prints errors in the format .*:[0-9]:.*
+#     '''
+#     the returned object is quite cumbersome but allows an easy implementation with angular
+#     basically it is a one or two element array of elements in this form
+#     [compiler_name, [log_file_content, list_of_lof_errors]]
+#     For compatibility, log_file_cintent is in turn a list of a single element, the real log
+#     file content
 
-    def getlogs(srcfile, reg):
-        '''reads a log and returns the structur used in the frontend'''
-        if not os.path.isfile(srcfile):
-            msg = 'No log file found. Please check your .rst syntax or contact the administrator'
-            return msg, [msg]
-        with open(srcfile, 'r') as fopen:
-            fullog = fopen.read().decode('utf8')
-        errs = []
-        for m in reg.finditer(fullog):
-            errs.append(m.group().strip())
-#         if not errs:
-#             errs = ['No error found']
-        return fullog, errs
+#     def getlogs(srcfile, reg):
+#         '''reads a log and returns the structur used in the frontend'''
+#         if not os.path.isfile(srcfile):
+#             msg = 'No log file found. Please check your .rst syntax or contact the administrator'
+#             return msg, [msg]
+#         with open(srcfile, 'r') as fopen:
+#             fullog = fopen.read().decode('utf8')
+#         errs = []
+#         for m in reg.finditer(fullog):
+#             errs.append(m.group().strip())
+# #         if not errs:
+# #             errs = ['No error found']
+#         return fullog, errs
+# 
+#     sphinxlogfile = get_sphinxlogfile(reportdirname, buildtype)
+#     sphinxbuildtype = 'latex' if buildtype == 'pdf' else buildtype
+#     sphinxlog, sphinxerrs = getlogs(sphinxlogfile, _ERR_REG[sphinxbuildtype])
+#     ret = [['Sphinx (rst to %s)' % sphinxbuildtype, [[sphinxlog], sphinxerrs]]]
+# 
+#     if buildtype == 'pdf':
+#         pdflatexlog = get_buildfile(reportdirname, "pdf")
+#         fle, _ = os.path.splitext(pdflatexlog)
+#         pdflatexlog = fle + ".log"
+#         pdflog, pdferrs = getlogs(pdflatexlog, _ERR_REG['pdf'])
+#         ret.append(['Pdflatex (latex to pdf)', [[pdflog], pdferrs]])
+# 
+#     return ret
 
-    sphinxlogfile = get_sphinxlogfile(reportdirname, buildtype)
-    sphinxbuildtype = 'latex' if buildtype == 'pdf' else buildtype
-    sphinxlog, sphinxerrs = getlogs(sphinxlogfile, _ERR_REG[sphinxbuildtype])
-    ret = [['Sphinx (rst to %s)' % sphinxbuildtype, [[sphinxlog], sphinxerrs]]]
-
-    if buildtype == 'pdf':
-        pdflatexlog = get_buildfile(reportdirname, "pdf")
-        fle, _ = os.path.splitext(pdflatexlog)
-        pdflatexlog = fle + ".log"
-        pdflog, pdferrs = getlogs(pdflatexlog, _ERR_REG['pdf'])
-        ret.append(['Pdflatex (latex to pdf)', [[pdflog], pdferrs]])
-
-    return ret
-
+    logfile = get_logfile(reportdirname, buildtype)
+    logfilecontent = []
+    logfileerrors = []
+    NOERRFOUND = '   No error found'
+    if os.path.isfile(logfile):
+        logerrreg = log_err_regexp()
+        with open(logfile) as fopen:
+            for line in fopen:
+                logfilecontent.append(line)
+                line = line.strip()
+                if line.startswith("*** Sphinx ") or line.startswith("*** Pdflatex "):
+                    logfileerrors.append(line)
+                    logfileerrors.append(NOERRFOUND)
+                elif logerrreg.match(line):
+                    if logfileerrors[-1] == NOERRFOUND:
+                        del logfileerrors[-1]
+                    # if it's the first error, remove the last line 'No error found'
+                    logfileerrors.append(line)
+    return "\n".join(logfilecontent).decode('utf8'), "\n".join(logfileerrors).decode('utf8')
 
 # this is a class NOT USED for the moment which might be passed to 
 # _run_sphinx in build_report. But for that, we might need to launch the build in a separate

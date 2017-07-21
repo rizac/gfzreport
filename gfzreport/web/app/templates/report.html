@@ -1,4 +1,12 @@
 {% extends "base.html" %}
+{% set use_angular = true %}
+{% set body_class = '' %}
+
+{% block extrahead %}
+	<!-- load angular (with fallback to local copy) -->
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.6/angular.min.js"></script>
+	<script>window.angular || document.write("<script src=\"{{ url_for('static', filename='js/angular.1.5.6.min.js') }}\"><\/script>")</script>
+{% endblock %}
 
 {%- block header %}
 {{ super() }}
@@ -47,8 +55,8 @@
 		
 		<div id='top-right-div'>
 			<button ng-click="showLogs()" ng-show="!loading && editing && isLoggedIn" id="logs" class='btn btn-xs'
-			ng-class="{'btn-success' : lastBuildExitcode==0, 'btn-warning' : lastBuildExitcode==1, 'btn-error' : lastBuildExitcode==2, 'btn-default' : lastBuildExitcode==-1}">
-			Last build info</button>
+			ng-class="{'btn-success' : getCurrentViewExitcode()==0, 'btn-warning' : getCurrentViewExitcode()==1, 'btn-danger' : getCurrentViewExitcode()==2, 'btn-default' : getCurrentViewExitcode()==-1}">
+			Build-log</button>
 			<button ng-click="popups.logIn.show()" ng-show="!loading && !isLoggedIn" id="loginout" class='btn btn-default'>
 			Log in
 			</button>
@@ -202,14 +210,8 @@ the field exists and can be used{% endraw %}-->
 		<label>
 			<input type='checkbox' ng-model='popups.logs.showFullLog'> Show full file(s) content
 		</label>
-		<div ng-show="!popups.logs.loading" ng-repeat="(key, value) in logs">
-	  		<div class='panel-title'>{% raw %}{{ key }}{% endraw %}</div>
-	  		<pre ng-if="!popups.logs.showFullLog"><!--  
-	  			--><div ng-if="value[1].length < 1">No error found</div><!-- 
-	  			--><div class="error" ng-repeat="val in value[1]" ng-if="value[1].length>0">{% raw %}{{ val }}{% endraw %}</div><!-- 
-	  		--></pre>
-	  		<pre ng-if="popups.logs.showFullLog" ng-repeat="val in value[0]">{% raw %}{{ val }}{% endraw %}</pre>
-		</div>
+		<pre ng-if="popups.logs.showFullLog">{% raw %}{{ logs[0] }}{% endraw %}</pre>
+		<pre class='error' ng-if="!popups.logs.showFullLog">{% raw %}{{ logs[1] }}{% endraw %}</pre>
 	</div>
 	<div>
 		<div>{% raw %}{{ popups.logs.errMsg }}{% endraw %}</div>
@@ -236,4 +238,9 @@ the field exists and can be used{% endraw %}-->
 	</div>	
 </div>
 
+{% endblock %}
+
+{% block afterbody %}
+	<!-- load angular app now (at the end) -->
+	<script src="{{ url_for('static', filename='js/myapp.js') }}"></script>
 {% endblock %}

@@ -3,6 +3,13 @@ body, html{
 	padding: 0;
 }
 
+.gfz-bg {
+    background-image: url(../img/GFZ_Poster_Muster_pur_en_pdf.png);
+    background-repeat: no-repeat;
+    background-position: center top;
+    background-attachment: fixed;
+}
+
 .col-container{
 	display: flex;
 	flex-direction: column;
@@ -149,10 +156,15 @@ label{ /* override bootstrap */
     margin-top: 15px;
 }
 
-#logs_popup .error {
+.error {
     color: #d9534f;  /* copied from bootstrap btn danger */
     /*background-color: #f0ad4e;
      border-color: #eea236; */
+}
+
+.error-bg {
+    background-color: #d9534f;  /* copied from bootstrap btn danger */
+    color: #ffffff;
 }
 
 /* Safari 4.0 - 8.0 */
@@ -241,7 +253,10 @@ div.popup{
 div.popup > div:nth-of-type(1){
 	align-items: baseline;
 	margin-bottom:10px;
-	font-weight:
+	background-color: #f2f5fa;
+    padding: 5px;
+    padding-top: 1px;
+    border-radius: 2px;
 }
 div.popup > div:nth-of-type(3){
 	align-items: flex-end; /*baseline;*/
@@ -254,7 +269,6 @@ div.popup > div:nth-of-type(3) > div:nth-of-type(1){
 	color: #d40;
 }
 div.popup > div:nth-of-type(1) > div:nth-of-type(1){ /* title div (top panel) */
-    font-weight: bold;
     font-size: initial;
 }
 div.popup > div:nth-of-type(1) > button{ /* close button (top panel) */

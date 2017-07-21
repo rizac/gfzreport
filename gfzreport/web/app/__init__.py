@@ -15,6 +15,7 @@ from sqlalchemy import create_engine, MetaData, Table
 #     get_fig_directive, get_log_files_list
 
 from gfzreport.web.app.models import Base, User, session
+import json
 
 # from flask import url_for
 # from flask import request
@@ -123,8 +124,8 @@ def initdb(app):
 
 
 def initdbusers(app):
-    """Initializes the users according to the defaultusers in the /tmp directory, if any
-    Users will be updated/ added /removed according to the defaultusers.txt file
+    """Initializes the users according to the json uers file
+    Users will be updated/ added /removed according to the file
     """
     dbpath = _dbpath(app)
     if not dbpath:
@@ -133,24 +134,36 @@ def initdbusers(app):
     if not os.path.isfile(file_):
         return
     with session(app) as sess:
-        emails = []
+        jsonfile_emails = []
+        jsonlines = []
         with open(file_, "r") as opn:
-            for lne in opn:
-                lne = lne.strip()
-                if lne and lne[0] != '#':
-                    email, perm = shlex.split(lne)
-                    emails.append(email)
-                    user = sess.query(User).filter(User.email == email).first()
-                    if user and user.permission_regex != perm:
-                        user.permission_regex = perm
-                        sess.add(user)  # do we need it?
-                    elif not user:
-                        sess.add(User(email=email, permission_regex=perm))
-        sess.commit()  # commit once now
+            for line in opn:
+                if not line.strip().startswith('#'):
+                    jsonlines.append(line)
+        users = json.loads("\n".join(jsonlines))
+        docommit = False
+        for jsonuser in users:
+            user = User(**jsonuser)
+            email = user.email
+            if not email or '@' not in email[1:-1]:
+                continue
+            jsonfile_emails.append(email)
+            dbuser = sess.query(User).filter(User.email == email).first()
+            if dbuser and user.path_restriction_reg != dbuser.path_restriction_reg:
+                dbuser.path_restriction_reg = user.path_restriction_reg
+                sess.commit()  # need to commit now otherwise dbuser instance might be replaced?
+            elif not dbuser:  # new user
+                docommit = True
+                sess.add(user)
+        if docommit:
+            sess.commit()  # commit once now
+            docommit = False
         # now delete unused users:
-        if emails:
-            emails = set(emails)
-            for user in sess.query(User):
-                if user.email not in emails:
-                    sess.delete(user)
-        sess.commit()  # commit once now
+        if jsonfile_emails:
+            jsonfile_emails = set(jsonfile_emails)
+            for dbuser in sess.query(User):
+                if dbuser.email not in jsonfile_emails:
+                    docommit = True
+                    sess.delete(dbuser)
+        if docommit:
+            sess.commit()  # commit once now

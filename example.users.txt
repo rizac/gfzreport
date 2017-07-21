@@ -1,6 +1,16 @@
-# simple text file which sets up users and permissions. Put an email and a regex (quoted)
-# where the email identifies the user and the regex will match the given url to assess if the user
-# has permissions for the given url. re.match will be used to match the given expression,
-# so use ^ and $ if needed 
-user1@mysite.com ".*"
-user2@myite.com "/abc*$"
+# simple json file which sets up users and permissions
+# (REMEBER TO QUOTE STRINGS WITH " AS THAT IS VALID JSON, NOT ')
+# First of all, note that comments are not json standard. HOWEVER, any line
+# starting with # will be removed from the parser implemented in this program.
+# Specify below an array of users. Each array element:
+#	- MUST BE A dict
+#	- MUST contain a valid email (@ must be in email, neither in first nor last position)
+# Any other field defined in models.py is optional. path_restriction_reg, if missing, will default to ".*", i.e.
+# will give free access to the given user to all server paths. Otherwise, the regexp will be matched
+# using re.search, which matches if the regex pattern matches ANY portion of a given path
+# (so use ^ and $ if a match from the beginning or until the end is needed)
+
+[
+	{'email': 'user1@mysite.com'},
+	{'email': 'user2@mysite.com', 'path_restriction_reg': "/abc*$"},
+]

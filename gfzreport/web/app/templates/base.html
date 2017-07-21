@@ -3,35 +3,37 @@
 <head>
 	<meta charset="utf-8">
 	<title>{{ title }}</title>
-
 	<!-- load bootstrap css (with fallback to local copy, see at the end of the document. For info:
 	https://stackoverflow.com/questions/14141532/how-to-load-local-copy-of-bootstrap-css-when-the-cdn-server-is-down -->
 	<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" media="screen">
-	
 	<link rel="stylesheet" href="{{ url_for('static', filename='css/webapp.css') }}">
-	
-	<!-- load angular (with fallback to local copy) -->
-	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.6/angular.min.js"></script>
-	<script>window.angular || document.write("<script src=\"{{ url_for('static', filename='js/angular.1.5.6.min.js') }}\"><\/script>")</script>
+	{% block extrahead %}{% endblock %}
 </head>
+{% if body_class %}
+<body class="{{ body_class }}">
+{% else %}
 <body>
-<!-- Div for checking bootsrap was loaded (see end of the document and
-https://stackoverflow.com/questions/14141532/how-to-load-local-copy-of-bootstrap-css-when-the-cdn-server-is-down): -->
-<div id="_bootstrapfallbacktest_______H;68_ft" class='hidden'></div>
-<div class='container col-container' id='MyApp' ng-app="MyApp" ng-controller="MyController">
-	<div class='pos-top row-container'>
-		{% block header %}{% endblock %}
+{% endif %}
+	<!-- Div for checking bootsrap was loaded (see end of the document and
+	https://stackoverflow.com/questions/14141532/how-to-load-local-copy-of-bootstrap-css-when-the-cdn-server-is-down): -->
+	<div id="_bootstrapfallbacktest_______H;68_ft" class='hidden'></div>
+	{% if use_angular %}
+	<div class='container col-container' id='main-div' ng-app="MyApp" ng-controller="MyController">
+	{% else %}
+	<div class='container col-container' id='main-div'>
+	{% endif %}
+		<div class='pos-top row-container'>
+			{% block header %}{% endblock %}
+		</div>
+		<div class='pos-center row-container'>
+			{% block center %}{% endblock %}
+		</div>
+		<div class='pos-bottom row-container'>
+			{% block footer %}{% endblock %}
+		</div>
 	</div>
-	<div class='pos-center row-container'>
-		{% block center %}{% endblock %}
-	</div>
-	<div class='pos-bottom row-container'>
-		{% block footer %}{% endblock %}
-	</div>
-</div>
 </body>
-<!-- load angular now (at the end) -->
-<script src="{{ url_for('static', filename='js/myapp.js') }}"></script>
+{% block afterbody %}{% endblock %}
 <!--
 LOAD BOOTSTRAP FROM LOCAL COPY IF SERVICE IS DOWN:
  https://stackoverflow.com/questions/14141532/how-to-load-local-copy-of-bootstrap-css-when-the-cdn-server-is-down
@@ -40,7 +42,7 @@ https://stackoverflow.com/questions/19669786/check-if-element-is-visible-in-dom
 (we have pure javascript no jquery here:) -->
 <script>
 if(document.getElementById("_bootstrapfallbacktest_______H;68_ft").offsetParent !== null){  //element is not hidden, load bootstrap
-	console.log('LOADING BOOTSTRAP from server');
+	// console.log('LOADING BOOTSTRAP from server');
 	local_bootstrap = document.createElement('link');
        local_bootstrap.setAttribute("rel", "stylesheet");
        local_bootstrap.setAttribute("type", "text/css");

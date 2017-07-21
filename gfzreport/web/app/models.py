@@ -9,6 +9,8 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.orm.session import sessionmaker
 from contextlib import contextmanager
+from sqlalchemy.event import listen
+import re
 
 Base = declarative_base()
 
@@ -20,28 +22,38 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=True)
     email = Column(String, unique=True)
-    permission_regex = Column(String, nullable=False)
+    path_restriction_reg = Column(String, nullable=True)
     password = Column(String, nullable=True)  # not used for the moment
     # this should set on the db if the user is logged in by setting the datetime of the login.
     # NULL means: not logged in
     # It might be used to warn about concurrent editing on the same page
     login_date = Column(DateTime, nullable=True)  # not used for the moment
-    login_baseurl = Column(String, nullable=True)  # not used for the moment
+    editing_path = Column(String, nullable=True)  # not used for the moment
     # this should store json as string if we want to set the user settings on the editor
     settings_json = Column(String, nullable=True)  # not used for the moment
 
     @property
     def asgitauthor(self):
         '''returns the string used to identify this user as git author'''
-        frmt = "{name} <{email}>"
+        return "{name} <{email}>".format(name=self.gitname, email=self.email)
+
+    @property
+    def gitname(self):
+        '''Returns the name attribute, if not None, or the portion of the email
+        before '@'. If the email does not contain '@', return the whole email'''
         name = self.name
-        if not name:
+        if name is None:
             idx = self.email.find('@')
             if idx == -1:
-                idx = None
+                self.email
             name = self.email[None:idx]
+        return name
 
-        return frmt.format(name=name, email=self.email)
+    def is_authorized(self, sourcepath):
+        if self.path_restriction_reg is None:
+            return True
+        # here we should check if self
+        return True if re.search(self.path_restriction_reg, sourcepath) else False
 
     # mandatory flask-login properties:
     # See:

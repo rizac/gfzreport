@@ -1,9 +1,15 @@
 {% extends "base.html" %}
+{% set use_angular = false %}
+{% set body_class = 'gfz-bg' %}
+
 {%- block center %}
 {{ super() }}
-		<ul>
-		{%- for rep in reports %}
-			<li><a href="{{rep}}">{{rep}}</a>
-		{% endfor %}
-		</ul>
+		<div style='align-items:center;display: flex;flex-direction: column;justify-content: center; position:fixed; top:0;bottom:0;left:0;right:0'>
+			<h2>Reports</h2>
+			<div style='padding:15px; max-width:90vw; max-height:90vh; overflow:auto; background-color:transparent'>
+				{%- for rep in reports %}
+				<a class='btn btn-primary' style='margin-bottom:10px; display:block' href="{{rep}}">{{rep}}</a>
+				{% endfor %}
+			</div>
+		</div>
 {% endblock %}

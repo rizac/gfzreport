@@ -9,19 +9,19 @@ from click.testing import CliRunner
 import os
 
 from gfzreport.templates.network.main import main as network_reportgen_main
-from gfzreport.sphinxbuild.main import main as sphinxbuild_main
+from gfzreport.sphinxbuild.main import main as sphinxbuild_main, get_logfilename
 from datetime import datetime
 import shutil
-from gfzreport.web.app import get_app, initdbusers
+from gfzreport.web.app import get_app, initdbusers, initdb
 from mock import patch
 from io import BytesIO
 import re
 
-from gfzreport.web.app.core import _run_sphinx as _reportbuild_run_orig, get_sphinxlogfile
+from gfzreport.web.app.core import _run_sphinx as _reportbuild_run_orig
 import tempfile
 from urllib2 import URLError
 import json
-
+from gfzreport.web.app import models
 
 
 # global paths defined once
@@ -96,12 +96,12 @@ class Test(unittest.TestCase):
         # the users txt file, and a config that will be loaded
         # 
         with open(os.path.join(os.getcwd(), 'users.txt'), 'w') as opn:
-            opn.write("""
-user1_ok@example.com ".*"
-user2_no@example.com "/ZE_2012"
-user3_no@example.com ".*/ZE2012$"
-user4_ok@example.com ".*/ZE2012$"
-            """)
+            opn.write("""[
+{"email": "user1_ok@example.com", "path_restriction_reg": ".*"},
+{"email": "user2_no@example.com", "path_restriction_reg": "/ZE_2012"},
+{"email": "user3_no@example.com", "path_restriction_reg": ".*/ZE2012$"},
+{"email": "user4_ok@example.com", "path_restriction_reg": ".*/ZE2012$"}
+]""")
 
         with open(os.path.join(os.getcwd(), 'users.txt'), 'r') as opn:
             _ = opn.read()
@@ -134,6 +134,39 @@ user4_ok@example.com ".*/ZE2012$"
     def tearDown(self):
         pass
 
+    def get_buildir(self, buildtype):
+        '''returns the buil directory. buildype can be 'pdf', 'latex' or 'html' (in the two
+        first cases, the path is the same)'''
+        return os.path.join(self.source, 'build', 'ZE_2012', 'latex' if buildtype=='pdf' else buildtype)
+
+
+    def test_change_users_settings_file(self):
+        with models.session(self.app) as session:
+            users = session.query(models.User).all()
+
+        # assert user with total
+        for u in users:
+            if u.email == "user1_ok@example.com":
+                assert u.path_restriction_reg == ".*"
+
+        assert len(users) == 4
+        with open(os.path.join(self.source, 'users.txt'), 'w') as opn:
+            opn.write("""[
+{"email": "user1_ok@example.com"},
+{"email": "user2_no@example.com", "path_restriction_reg": "/ZE_2012"}
+]""")
+        initdbusers(self.app)
+
+        with models.session(self.app) as session:
+            users2 = session.query(models.User).all()
+
+        assert len(users2) == 2
+        # check that we updated user1:
+        with models.session(self.app) as session:
+            users = session.query(models.User).all()
+            for u in users:
+                if u.email == "user1_ok@example.com":
+                    assert u.path_restriction_reg is None
 
     @patch('gfzreport.web.app.core._run_sphinx', side_effect = _reportbuild_run_orig)
     def test_report_views(self, mock_reportbuild_run):
@@ -165,13 +198,13 @@ user4_ok@example.com ".*/ZE2012$"
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert mock_reportbuild_run.call_count == 1
-            logfile = os.path.join(os.getcwd(), 'build',  'ZE_2012', 'html', '_sphinx_stderr.log')
+            logfile = os.path.join(os.getcwd(), 'build',  'ZE_2012', 'html', get_logfilename())
             with open(logfile, 'r') as opn:
                 logfilecontent = opn.read()
 
             #stupid test, we shouldhave warnings concerning images not found, check we have something
             # printed out
-            assert len(logfilecontent) > 0
+            assert len(logfilecontent) > 0 and "WARNING" in logfilecontent
             g = 9
 
         mock_reportbuild_run.reset_mock()
@@ -225,7 +258,7 @@ user4_ok@example.com ".*/ZE2012$"
             assert mock_reportbuild_run.call_count == 0
 
             # now try to login:
-            # with a non-registered email
+            # with a registered email
             res = app.post("/ZE_2012/login", data={'email' :'user1_ok@example.com'})
             assert res.status_code == 200
             # thus, we DO access the pdf creation:
@@ -265,13 +298,15 @@ user4_ok@example.com ".*/ZE2012$"
             # content. The files are two: the sphinx log and the pdf log. So assert:
             _data = json.loads(res.data)
             assert len(_data) == 2
-            sphinxlog, sphinxerrs = _data[0][1][0], _data[0][1][1]
-            pdflatexlog, pdflatexerrs = _data[1][1][0], _data[1][1][1]
-            assert len(sphinxlog)==1 and len(pdflatexlog)==1
-            assert sphinxerrs == ['No error found']
-            assert any('Missing number, treated as zero' in _ for _ in pdflatexerrs)
-            
-            
+            # first string is the whole log file, must be greater than the second one (errors only):
+            assert len(_data[0]) > len(_data[1])
+            errlogcontent = _data[1]
+            # sphinx build (rst to latex) was successfull:
+            assert 'No error found' in errlogcontent[:errlogcontent.find('Pdflatex')]
+            # pdflatex gave some error(s): if we fix this in the future, it might have no errors,
+            # in case check errlogcontent and assert something else or comment out the following assertion:
+            assert "ERROR:" in errlogcontent[errlogcontent.find('Pdflatex'):]
+
             mock_reportbuild_run.reset_mock()
             # test that we do not call mock_reportbuild_run
             # once again:
@@ -285,31 +320,51 @@ user4_ok@example.com ".*/ZE2012$"
             # If needed UNCOMMENT NEXT LINE AND reset url mock side effect (in case used afterwards)?
             # self.mock_urlopen.side_effect = se
             
-        # first re-set the db:
 
-#         mock_reportbuild_run.reset_mock()
-#         # now test the page content is not re-built:
-#         with self.app.test_request_context():
-#             # If we add routes with the slash at the end, we should 
-#             # add follow_redirect=True to app.get. See
-#             # http://flask.pocoo.org/docs/0.11/quickstart/#routing
-#             res = app.get("/ZE_2012/content/html")
-#             # few stupid asserts, the main test is not raising
-#             # we should ahve an html page:
-#             assert mock_reportbuild_run.call_count == 0
-#             
-#         
-#         mock_reportbuild_run.reset_mock()
-#         # now test the page content is not re-built:
-#         with self.app.test_request_context():
-#             # If we add routes with the slash at the end, we should 
-#             # add follow_redirect=True to app.get. See
-#             # http://flask.pocoo.org/docs/0.11/quickstart/#routing
-#             res = app.get("/ZE_2012/content/html")
-#             # few stupid asserts, the main test is not raising
-#             # we should ahve an html page:
-#             assert mock_reportbuild_run.call_count == 0
+    @patch('gfzreport.web.app.core._run_sphinx', side_effect = _reportbuild_run_orig)
+    @patch('gfzreport.sphinxbuild.main.pdflatex', side_effect = Exception('!wow!'))
+    def test_report_views_build_failed(self, mock_pdflatex, mock_reportbuild_run):
+        
+        # test the page pdf. We are unauthorized, so this should give us error:
+        with self.app.test_request_context():
+            app = self.app.test_client()
+
+            # login:
+            # now try to login:
+            # with a registered email and good write permission
+            res = app.post("/ZE_2012/login", data={'email' :'user1_ok@example.com'})
+            assert res.status_code == 200
+            # thus, we DO access the pdf creation:
+
+            # but w need to setup urlread for the arcgis image, because we mocked it
+            # (FIXME: we mocked in gfzreport.templates.network.core.utils.urllib2.urlopen,
+            # why is it mocked in map module?!!!)
+            # we setup an URLError if 'geofon' is not in url (which is the case for
+            # arcgis query). This way, the map is generated with drawcostallines
+            # and the pdf is created
+            se = self.mock_urlopen.side_effect
+            self.mock_urlopen.side_effect = _get_urlopen_sideeffect(None, URLError('wat'))
+            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
+            # status code is still 200, as we redirect to the error page
+            assert res.status_code == 200
+            # raw check: the title of the error page. If we change it in the future, fix this test accordingly:
+            assert "Build failed" in res.data
+            # if we try to get the log:
+            logfile = os.path.join(self.get_buildir('pdf'), get_logfilename())
+            with open(logfile) as fopen:
+                logcontent = fopen.read()
             
+            assert "!wow!" in logcontent   # the exception message (see mock above)
+            # but if we get the commits, we registered that pdflatex was wrong:
+            res = app.post("/ZE_2012/get_commits",
+                           content_type='application/json')
+
+            assert res.status_code == 200
+            commitz = json.loads(res.data)
+            commit = commitz[0]
+            assert commit['email'] == 'user1_ok@example.com'
+            assert "pdf: Failed (exit code: 2)" in commit['notes']
+
 
 
 if __name__ == "__main__":

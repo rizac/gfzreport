@@ -8,7 +8,7 @@ import sys
 import glob
 from click.testing import CliRunner
 from gfzreport.templates.network.main import main as network_reportgen_main
-from gfzreport.sphinxbuild.main import main as sphinxbuild_main
+from gfzreport.sphinxbuild.main import main as sphinxbuild_main, get_logfilename
 import shutil
 from contextlib import contextmanager
 from obspy.core.inventory.inventory import read_inventory
@@ -179,11 +179,13 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
                 assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
                 assert result.exit_code == 0
             else:
-                # but no report:
+                # in the other cases no report:
                 assert not os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
-                assert "ValueError: invalid PNG header" in result.output
-                assert result.exit_code != 0
-                
+                with open(os.path.join(outdir, get_logfilename())) as fopen:
+                    logcontent = fopen.read()
+                assert "ValueError: invalid PNG header" in logcontent
+                assert result.exit_code == 2
+
 
         # Now re-set our mock library to return an exception (the mock_url
         # is intended to distinguish if 'geofon' is in the url or not, provide 
@@ -191,31 +193,40 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
         # Our map module will handle silently the error by returning a map
         # with coastal lines drawn
         setupurlread(mock_urlopen, URLError('wat?'), URLError('wat?'))
-        
+
         # and re-run:
         runner = CliRunner()
+        args_ = [os.path.join(outpath, "ZE_2014"),
+                 os.path.join(outpath, "build"), "-b", ""]
+        # for pdf, we expect an exit code of 1 cause there are still things
+        # to fix. However, the pdf prints out pparently ok
+        for buildtype, expected_ext, exp_exitcode in [("", '.tex',0),
+                                                      ("latex", '.tex',0),
+                                                      ("pdf", '.pdf', 1),
+                                                      ("html", '.html', 0),
+                                                      ]:
+            btype = 'latex' if not buildtype else buildtype
+            outdir = os.path.join(args_[1], btype)
+            indir = os.path.join(outpath, "ZE_2014")
+            args_ = [indir, outdir]
+            if buildtype:
+                args_.extend(['-b', buildtype])
+ 
+            # if buildtype is html, WE CREATED THE FILE. This is an interesting test
+            # as sphinx DOES NOT MODIFY THE FILE BUT IS SUCCESSFUL. THEREFORE, ANY WRAPPER WE
+            # MIGHT IMPLEMENT THAT RELIES ON THE FILE MODIFIED FOR SUCCESS IS WRONG
+            # assert that we do have this particular case
+            if buildtype == 'html':
+                assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext)) 
 
-        with runner.isolated_filesystem():
-            args_ = [os.path.join(outpath, "ZE_2014"),
-                     os.path.join(outpath, "build"), "-b", ""]
-            # for pdf, we expect an exit code of 1 cause there are still things
-            # to fix. However, the pdf prints out pparently ok
-            for buildtype, expected_ext, exp_exitcode in [("", '.tex',0), ("latex", '.tex',0), ("pdf", '.pdf',1),
-                                            ("html", '.html',0)]:
-                btype = 'latex' if not buildtype else buildtype
-                outdir = os.path.join(args_[1], btype)
-                indir = os.path.join(outpath, "ZE_2014")
-                args_ = [indir, outdir]
-                if buildtype:
-                    args_.extend(['-b', buildtype])
-                
-                result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
-                assert os.path.isdir(outdir)
-                if not os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext)):
-                    sdf = 9
-                assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
-                # assert "ValueError: invalid PNG header" in result.output
-                assert result.exit_code == exp_exitcode
+            result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
+            assert os.path.isdir(outdir)
+            assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
+            # assert "ValueError: invalid PNG header" in result.output
+            if result.exit_code == 2:
+                with open(os.path.join(outdir, get_logfilename())) as fopen:
+                    logcontent = fopen.read()
+            assert result.exit_code == exp_exitcode
         
     # check if we deleted the temop dir:
     assert not os.path.isdir(outpath)

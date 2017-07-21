@@ -8,7 +8,7 @@ import sys
 import glob
 from click.testing import CliRunner
 from gfzreport.templates.network.main import main as network_reportgen_main
-from gfzreport.sphinxbuild.main import main as sphinxbuild_main
+from gfzreport.sphinxbuild.main import main as sphinxbuild_main, get_logfilename
 import shutil
 from contextlib import contextmanager
 from obspy.core.inventory.inventory import read_inventory
@@ -139,9 +139,6 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
             _opn.write(_tmp_rst_text)
 
         # run sphinx and see the output code:
-        stderr = sys.stderr
-        new_stderr = StringIO()
-        sys.stderr = new_stderr
         with runner.isolated_filesystem():
             btype = 'html'
             args_ = [RSTDIR,
@@ -149,15 +146,13 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
             result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
 #             outdir = os.path.join(args_[1], btype)
 #             indir = RSTDIR
-#             with open(os.path.join(args_[1], "report.html"), "r") as _opn:
-#                 _report_out = _opn.read()
+            with open(os.path.join(args_[1], get_logfilename()), "r") as _opn:
+                _log_out = _opn.read()
 
             # SPHINX IS OK WITH UNKNOWN DIRECTIVE TYPES, SHIT!
-            assert 'Unknown directive type "bridfigure"' in result.output
-            assert result.exit_code == 0
-        new_stderr.close()
-        sys.stderr = stderr
-
+            assert 'Unknown directive type "bridfigure"' in _log_out
+            assert result.exit_code == 1
+        
         # TRY TO MISALIGN A INDENTATION
         # change a directive to something it does not exist (mock typo)
         _tmp_rst_text = rst_text.replace("   :align: center", ":align: center")
@@ -166,9 +161,6 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
         with open(os.path.join(RSTDIR, "report.rst"), "w") as _opn:
             _opn.write(_tmp_rst_text)
         # run sphinx and see the output code:
-        stderr = sys.stderr
-        new_stderr = StringIO()
-        sys.stderr = new_stderr
         with runner.isolated_filesystem():
             btype = 'html'
             args_ = [RSTDIR,
@@ -176,14 +168,12 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
             result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
 #             outdir = os.path.join(args_[1], btype)
 #             indir = RSTDIR
-#             with open(os.path.join(args_[1], "report.html"), "r") as _opn:
-#                 _report_out = _opn.read()
+            with open(os.path.join(args_[1], get_logfilename()), "r") as _opn:
+                _log_out = _opn.read()
 
             # SPHINX IS OK WITH UNKNOWN DIRECTIVE TYPES, SHIT!
-            assert 'Exception occurred:' in result.output
-            assert result.exit_code != 0
-        new_stderr.close()
-        sys.stderr = stderr
+            assert 'Exception occurred:' in _log_out
+            assert result.exit_code == 2
         
 #         with runner.isolated_filesystem():
 #             args_ = [os.path.join(outpath, "ZE_2014"),
