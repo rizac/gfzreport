@@ -21,43 +21,24 @@ from gfzreport.templates.network.core import get_noise_pdfs_content, gen_title,\
     get_net_desc, geofonstations_df, otherstations_df, get_map_df, get_figdirective_vars
 from gfzreport.sphinxbuild.map import parse_margins
 from gfzreport.sphinxbuild.core.extensions import mapfigure
-from gfzreport.templates.utils import cp_template_tree, makedirs, copyfiles
+from gfzreport.templates.utils import cp_template_tree, makedirs, copyfiles, validate_outdir
 
 
-class click_stuff(object):
-
-    @staticmethod
-    def validate_outdir(ctx, param, value):
-        """Creates outdir if it does not exist. If its parent does not exist, raises, as this
-        might most likely due to typos
-        """
-        if not os.path.isdir(value):
-            if not os.path.isdir(os.path.dirname(value)):
-                raise click.BadParameter('"%s" parent dir does not exist' % value)
-            try:
-                os.mkdir(value)
-                if not os.path.isdir(value):
-                    raise Exception()
-            except Exception:
-                raise click.BadParameter('Unable to mkdir "%s"' % value)
-        return value
-
-    @staticmethod
-    def validate_margins(ctx, param, value):
-        """Does a check on the outdir: when it's None, it returns the dir specified in
-        ```reportgen.network.www.config.SOURCE_PATH```
-        """
-        try:
-            return parse_margins(value)
-        except:
-            raise click.BadParameter("invalid value for '%s': '%s'"
-                                     % (param.human_readable_name, str(value)))
+def _validate_margins(ctx, param, value):
+    """Does a check on the outdir: when it's None, it returns the dir specified in
+    ```reportgen.network.www.config.SOURCE_PATH```
+    """
+    try:
+        return parse_margins(value)
+    except:
+        raise click.BadParameter("invalid value for '%s': '%s'"
+                                 % (param.human_readable_name, str(value)))
 
 
 @click.command()
 @click.argument('network')
 @click.argument('start_after')  # , type=int)
-@click.option('-a', '--area_margins', default=None,  callback=click_stuff.validate_margins,
+@click.option('-a', '--area_margins', default=None,  callback=_validate_margins,
               help=("The search margins (in degrees) relative to the bounding box calculated "
                     "from the network station locations. The new square area (bbox + margins) "
                     "will be used to search for non-network stations to be displayed on the "
@@ -70,7 +51,7 @@ class click_stuff(object):
                     "or a single value that will be applied to all directions. "
                     "Negative values will shrink the box, positive will "
                     "expand it"))
-@click.option('-o', '--out_path', default=None, callback=click_stuff.validate_outdir,
+@click.option('-o', '--out_path', default=None, callback=validate_outdir,
               help=("The output path. The destination directory "
                     "will be a directory in this path with name [NETWORK]_[STATION]. "
                     "The destination directory must *not* exist, or the program will exit. "

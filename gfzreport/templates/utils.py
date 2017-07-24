@@ -18,6 +18,23 @@ import errno
 import click
 
 
+def validate_outdir(ctx, param, value):
+    """Function to be passed as callback arguments for click options denoting an output directory.
+    Creates outdir if it does not exist. If its parent does not exist, raises, as this
+    might most likely due to typos
+    """
+    if not os.path.isdir(value):
+        if not os.path.isdir(os.path.dirname(value)):
+            raise click.BadParameter('"%s" parent dir does not exist' % value)
+        try:
+            os.mkdir(value)
+            if not os.path.isdir(value):
+                raise Exception()
+        except Exception:
+            raise click.BadParameter('Unable to mkdir "%s"' % value)
+    return value
+
+
 def makedirs(path):
     """Same as os.makedirs except that it silently exits if the path already exists
     Raises OSError in case the directory cannot be created"""

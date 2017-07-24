@@ -272,25 +272,25 @@ def test_netgen_ok_sphinxbuild_ok(mock_urlopen, mock_get_dcs):
 
         runner = CliRunner()
 
-        with runner.isolated_filesystem():
-            args_ = [os.path.join(outpath, "ZE_2014"),
-                     os.path.join(outpath, "build"), "-b", ""]
-            for buildtype, expected_ext in {"": '.tex', "latex": '.tex', "pdf": '.pdf',
-                                            "html": '.html'}.iteritems():
-                btype = 'latex' if not buildtype else buildtype
-                outdir = os.path.join(args_[1], btype)
-                indir = os.path.join(outpath, "ZE_2014")
-                args_ = [indir, outdir]
-                if buildtype:
-                    args_.extend(['-b', buildtype])
-                if buildtype != 'latex':
-                    # if buildtype is latex, we already executed a build with no buyild arg
-                    # which defaults to latex, so the dir exists
-                    assert not os.path.isdir(outdir)
-                
-                result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
-                assert os.path.isdir(outdir)
-                assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
+        #with runner.isolated_filesystem():
+        args_ = [os.path.join(outpath, "ZE_2014"),
+                 os.path.join(outpath, "build"), "-b", ""]
+        for buildtype, expected_ext in {"": '.tex', "latex": '.tex', "pdf": '.pdf',
+                                        "html": '.html'}.iteritems():
+            btype = 'latex' if not buildtype else buildtype
+            outdir = os.path.join(args_[1], btype)
+            indir = os.path.join(outpath, "ZE_2014")
+            args_ = [indir, outdir]
+            if buildtype:
+                args_.extend(['-b', buildtype])
+            if buildtype != 'latex':
+                # if buildtype is latex, we already executed a build with no buyild arg
+                # which defaults to latex, so the dir exists
+                assert not os.path.isdir(outdir)
+            
+            result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
+            assert os.path.isdir(outdir)
+            assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
                 
 
         

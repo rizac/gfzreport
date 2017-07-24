@@ -11,7 +11,7 @@ import os
 
 class BaseConfig(object):
     DEBUG = False
-    UPLOAD_ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+    UPLOAD_ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
     UPLOAD_DIR_BASENAME = "_www_uploaded_files"  # in principle, you don't need t change this
     DB_DIR = None
     # flask-login settings:

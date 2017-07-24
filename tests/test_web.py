@@ -98,7 +98,7 @@ class Test(unittest.TestCase):
         with open(os.path.join(os.getcwd(), 'users.txt'), 'w') as opn:
             opn.write("""[
 {"email": "user1_ok@example.com", "path_restriction_reg": ".*"},
-{"email": "user2_no@example.com", "path_restriction_reg": "/ZE_2012"},
+{"email": "user2_ok@example.com", "path_restriction_reg": "/ZE_2012"},
 {"email": "user3_no@example.com", "path_restriction_reg": ".*/ZE2012$"},
 {"email": "user4_ok@example.com", "path_restriction_reg": ".*/ZE2012$"}
 ]""")
@@ -173,7 +173,7 @@ class Test(unittest.TestCase):
         with self.app.test_request_context():
             app = self.app.test_client()
             res = app.get("/")
-            m = re.compile(r"ZE_2012</a>\s*</ul>", re.DOTALL | re.MULTILINE).search(res.data)
+            m = re.compile(r">ZE_2012</a>", re.DOTALL | re.MULTILINE).search(res.data)
             assert m
 
         with self.app.test_request_context():
@@ -258,11 +258,37 @@ class Test(unittest.TestCase):
             assert mock_reportbuild_run.call_count == 0
 
             # now try to login:
-            # with a registered email
+            # with another non registered email
+            res = app.post("/ZE_2012/login", data={'email' :'user2_ok@example.com'})
+            assert res.status_code == 200
+            
+            # check that the current user has the fields written
+            with models.session(self.app) as session:
+                user = session.query(models.User).filter(models.User.email == 'user2_ok@example.com').first()
+                assert user.editing_path is not None
+                assert user.login_date is not None
+
+            # now try to login with another user:
+            res = app.post("/ZE_2012/login", data={'email' :'user1_ok@example.com'})
+            assert res.status_code == 409
+
+            # now logout
+            res = app.post("/ZE_2012/logout")
+            # check that the current user has the fields written
+            with models.session(self.app) as session:
+                user = session.query(models.User).filter(models.User.email == 'user2_ok@example.com').first()
+                assert user.editing_path is None
+                assert user.login_date is None
+
+            # and re-login with user1:
             res = app.post("/ZE_2012/login", data={'email' :'user1_ok@example.com'})
             assert res.status_code == 200
-            # thus, we DO access the pdf creation:
 
+            # trying to re-login with the same user has no effect:
+            res = app.post("/ZE_2012/login", data={'email' :'user1_ok@example.com'})
+            assert res.status_code == 200
+
+            
             # but w need to setup urlread for the arcgis image, because we mocked it
             # (FIXME: we mocked in gfzreport.templates.network.core.utils.urllib2.urlopen,
             # why is it mocked in map module?!!!)

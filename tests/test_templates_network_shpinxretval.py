@@ -139,19 +139,19 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
             _opn.write(_tmp_rst_text)
 
         # run sphinx and see the output code:
-        with runner.isolated_filesystem():
-            btype = 'html'
-            args_ = [RSTDIR,
-                     os.path.join(outpath, "build"), "-b", btype]
-            result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
+        # with runner.isolated_filesystem():
+        btype = 'html'
+        args_ = [RSTDIR,
+                 os.path.join(outpath, "build"), "-b", btype]
+        result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
 #             outdir = os.path.join(args_[1], btype)
 #             indir = RSTDIR
-            with open(os.path.join(args_[1], get_logfilename()), "r") as _opn:
-                _log_out = _opn.read()
+        with open(os.path.join(args_[1], get_logfilename()), "r") as _opn:
+            _log_out = _opn.read()
 
-            # SPHINX IS OK WITH UNKNOWN DIRECTIVE TYPES, SHIT!
-            assert 'Unknown directive type "bridfigure"' in _log_out
-            assert result.exit_code == 1
+        # SPHINX IS OK WITH UNKNOWN DIRECTIVE TYPES, SHIT!
+        assert 'Unknown directive type "bridfigure"' in _log_out
+        assert result.exit_code == 1
         
         # TRY TO MISALIGN A INDENTATION
         # change a directive to something it does not exist (mock typo)
@@ -161,20 +161,22 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
         with open(os.path.join(RSTDIR, "report.rst"), "w") as _opn:
             _opn.write(_tmp_rst_text)
         # run sphinx and see the output code:
-        with runner.isolated_filesystem():
-            btype = 'html'
-            args_ = [RSTDIR,
-                     os.path.join(outpath, "build"), "-b", btype]
-            result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
+        # with runner.isolated_filesystem():
+        btype = 'html'
+        args_ = [RSTDIR,
+                 os.path.join(outpath, "build"), "-b", btype]
+        result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
 #             outdir = os.path.join(args_[1], btype)
 #             indir = RSTDIR
-            with open(os.path.join(args_[1], get_logfilename()), "r") as _opn:
-                _log_out = _opn.read()
+        with open(os.path.join(args_[1], get_logfilename()), "r") as _opn:
+            _log_out = _opn.read()
 
-            # SPHINX IS OK WITH UNKNOWN DIRECTIVE TYPES, SHIT!
-            assert 'Exception occurred:' in _log_out
-            assert result.exit_code == 2
+        # SPHINX IS OK WITH UNKNOWN DIRECTIVE TYPES, SHIT!
         
+        
+        assert result.exit_code == 2
+        assert 'Exception occurred:' in _log_out
+            
 #         with runner.isolated_filesystem():
 #             args_ = [os.path.join(outpath, "ZE_2014"),
 #                      os.path.join(outpath, "build"), "-b", ""]

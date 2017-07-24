@@ -4,27 +4,52 @@ Created on Apr 3, 2016
 @author: riccardo
 '''
 import os
-from itertools import izip
+from datetime import datetime
 
 from flask.templating import render_template
-from flask import abort, send_from_directory, request, jsonify, Blueprint, current_app, session  # redirect, url_for
-
-from flask_login import current_user, login_required
+from flask import abort, send_from_directory, request, jsonify, Blueprint, current_app, \
+    session  # redirect, url_for
+from flask_login import current_user
+from flask_login.utils import login_user, logout_user
 
 # from gfzreport.web.app import app
 from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
     get_fig_directive, get_sourcedir, get_buildfile, get_logs_, lastbuildexitcode
-from flask_login.utils import login_user, logout_user
-import re
 from gfzreport.web.app.models import User, session as dbsession
-from gfzreport.sphinxbuild.main import get_master_doc
-import threading
-from multiprocessing.pool import ThreadPool
-from datetime import datetime
+
 
 # http://flask.pocoo.org/docs/0.12/patterns/appfactories/#basic-factories:
 mainpage = Blueprint('main_page', __name__)  # , template_folder='templates')
+
+
+# define a custom exception that will be forwarded as a response with a given message
+# parameter. This is the exception that we control, i.e. that we deliberately raise
+# For info see (code mostly copied from there):
+# http://flask.pocoo.org/docs/0.12/patterns/apierrors/
+class AppError(Exception):
+    status_code = 400
+
+    def __init__(self, message, status_code=None, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        if status_code is not None:
+            self.status_code = status_code
+        self.payload = payload  # what is this for? see link above
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv
+
+
+@mainpage.errorhandler(AppError)
+def handle_invalid_usage(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
+
+# Now we can raise AppError with our given message
 
 
 @mainpage.route('/')
@@ -42,12 +67,10 @@ def index():
 @mainpage.route('/<reportdirname>/')
 def get_report(reportdirname):
     # what if the user moved from a link to another and it had permission for the first but not
-    # for this one? logout user. This is harsh, but a more detailed implementation would require
-    # to copy code from login_user and match against the regexp, and if not redirect to an
-    # unauthorized page. As the case where the user jumps from report to another is quite rare,
-    # let's be strict and sure:
-    if current_user.is_authenticated:
-        logout_user()
+    # for this one? Well, it turns out that we do not need to care about it,
+    # (probably due to login_user(...remember=False), but doc is inconistent:
+    # https://flask-login.readthedocs.io/en/latest/#flask_login.login_user VS
+    # https://flask-login.readthedocs.io/en/latest/#remember-me)
 
     # return the normal way
     return render_template("report.html",
@@ -71,20 +94,26 @@ def get_report_type(reportdirname, pagetype):
         abort(401)
 
     if pagetype == 'edit':
-        return render_template("editor.html", source_data=get_sourcefile_content(reportdirname))
+        return render_template("editor.html", source_data=get_sourcefile_content(current_app,
+                                                                                 reportdirname))
 
     binfo = None  # NOT USED. it might be something like
     # session['buildinginfo'] = BuildingInfo("Building page")
     # but this functionality is not implemented yet
 
     if pagetype in ('html', 'pdf'):
-        ret = build_report(reportdirname, pagetype, current_user, binfo, force=False)
+        try:
+            ret = build_report(current_app, reportdirname, pagetype, current_user, binfo, force=False)
+        except Exception as exc:
+            # raises if gitcommit raises
+            raise AppError(str(exc), 500)
+
         # session['last_build_exitcode'] = ret
         if ret == 2:
             return render_template("buildfailed.html", pagetype=pagetype)
 
         # binfo('Serving page', None, 0, 0)
-        reportfilename = get_buildfile(reportdirname, pagetype)
+        reportfilename = get_buildfile(current_app, reportdirname, pagetype)
         response = send_from_directory(os.path.dirname(reportfilename),
                                        os.path.basename(reportfilename))
         if pagetype == 'pdf':
@@ -101,7 +130,7 @@ def get_report_type(reportdirname, pagetype):
 @mainpage.route('/<reportdirname>/last_build_exitcode', methods=['POST'])
 def get_last_build_exitcode(reportdirname):
     buildtype = request.get_json()['buildtype']
-    ret = lastbuildexitcode(reportdirname, buildtype)
+    ret = lastbuildexitcode(current_app, reportdirname, buildtype)
     return jsonify(ret)
 
 
@@ -119,7 +148,7 @@ def get_report_static_file(reportdirname, pagetype, static_file_path):
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
         abort(401)
     if pagetype in ('html', 'pdf'):
-        filepath = os.path.join(get_builddir(reportdirname, pagetype), static_file_path)
+        filepath = os.path.join(get_builddir(current_app, reportdirname, pagetype), static_file_path)
         return send_from_directory(os.path.dirname(filepath), os.path.basename(filepath))
 
 
@@ -134,7 +163,15 @@ def save_report(reportdirname):
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
         abort(401)
     unicode_text = request.get_json()['source_text']
-    result = save_sourcefile(reportdirname, unicode_text, current_user)
+    try:
+        result = save_sourcefile(current_app, reportdirname, unicode_text, current_user)
+    except Exception as exc:
+        # raises if gitcommit raises
+        appendix = ("This is an unexpected server error: we suggest you to select the editor "
+                    "text and copy it to keep your changes, log out and log in again. "
+                    "If the problem persists, please contact the administrator")
+        raise AppError("%s. %s" % (str(exc), appendix), 500)
+
     # note that (editable_page.html) we do not actually make use of the returned response value
     return jsonify(result)  # which converts to a Response
 
@@ -150,7 +187,7 @@ def get_commits_list(reportdirname):  # dont use get_commits otherwise it overri
         # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
         abort(401)
 
-    commits = get_commits(reportdirname)
+    commits = get_commits(current_app, reportdirname)
     # note that (editable_page.html) we do not actually make use of the returned response value
     return jsonify(commits)  # which converts to a Response
 
@@ -167,7 +204,7 @@ def get_source_rst(reportdirname):
         abort(401)
 
     commit_hash = request.get_json()['commit_hash']
-    return jsonify(get_sourcefile_content(reportdirname, commit_hash, as_js=False))
+    return jsonify(get_sourcefile_content(current_app, reportdirname, commit_hash, as_js=False))
 
 
 @mainpage.route('/<reportdirname>/get_logs', methods=['POST'])
@@ -185,7 +222,7 @@ def get_logs(reportdirname):
         abort(401)
 
     buildtype = request.get_json()['buildtype']
-    return jsonify(get_logs_(reportdirname, buildtype))
+    return jsonify(get_logs_(current_app, reportdirname, buildtype))
 
 
 @mainpage.route('/<reportdirname>/upload_file', methods=['POST'])
@@ -201,17 +238,24 @@ def upload_file(reportdirname):
 
     # check if the post request has the file part
     if 'file' not in request.files:
-        raise ValueError('No file part')
+        raise AppError('No file part')
     upfile = request.files['file']
+
+    for txt in ('label', 'caption'):
+        if txt not in request.form:
+            raise AppError("'%s' not specified")
+
     # if user does not select file, browser also
     # submit a empty part without filename
-    filepath = secure_upload_filepath(reportdirname, upfile.filename)
-    upfile.save(filepath)
-    if os.path.isfile(filepath):
-        return jsonify(get_fig_directive(reportdirname, filepath,
-                                         request.form['label'], request.form['caption']))
-    else:
-        raise ValueError('Error while saving "%s"' % upfile.filename)
+    try:
+        filepath = secure_upload_filepath(current_app, reportdirname, upfile)
+    except ValueError as vexc:
+        raise AppError(str(vexc), 400)
+    except Exception as exc:
+        raise AppError(str(exc), 500)
+
+    return jsonify(get_fig_directive(current_app, reportdirname, filepath,
+                                     request.form['label'], request.form['caption']))
 
 
 @mainpage.route("/<reportdirname>/login", methods=["POST"])
@@ -222,34 +266,31 @@ def login(reportdirname):
     with dbsession(current_app) as sess:
         user = sess.query(User).filter(User.email == email).first()
 
-    if not user:
-        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
-        abort(401)
+        if not user:
+            # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+            raise AppError("'%s' not registered" % email, 401)
 
-    sourcepath = get_sourcedir(reportdirname)
-    if not user.is_authorized(sourcepath):
-        abort(403)
+        sourcepath = os.path.abspath(get_sourcedir(current_app, reportdirname))
+        if not user.is_authorized(sourcepath):
+            raise AppError("'%s' registered but not authorized to access this report" % email, 403)
 
-    try:
-        sourcepath = os.path.abspath(get_sourcedir(reportdirname))
-        # writing to files because it raises
-        with dbsession(current_app) as sess:
-            dbuser = sess.query(User).filter((User.login_date != None) &
-                                             (User.editing_path == sourcepath)).first()
-            if dbuser:
-                response = jsonify({'message': """User '%s' (logged in on %s) is currently editing
- the same report, or he/she simply forgot to log out. This report is not editable until he/she logs
- out""" % (dbuser.gitname, dbuser.login_date)})
-                response.status_code = 409  # conflict. Note that angular seems to understand
-                # from the response status if this has to be forwarded as error (this is the case)
-                # or not. The message field will be available as response.data.message
-                return response
-    except Exception as exc:
-        response = jsonify({'message': "%s. Please contact the administrator" % str(exc)})
-        response.status_code = 500
-        return response  # prevent loging in case of exception
+        dbuser = sess.query(User).filter((User.email != email) &
+                                         (User.login_date != None) &  # @IgnorePep8
+                                         (User.editing_path == sourcepath)).first()
+        if dbuser:
+            msg = ("'%s' registered but conflict detected: user '%s' (logged in on %s) is "
+                   "currently editing the same report "
+                   "(or forgot to log out)") % (email, dbuser.gitname, dbuser.login_date)
+            raise AppError(msg, 409)  # 409: conflict
 
-    login_user(user, remember=False)
+        login_user(user, remember=False)
+
+        # now write data to the db (user active on current page).
+        # THIS IS AFTER LOGIN so if login failed we do not write anything
+        user.login_date = datetime.utcnow()
+        user.editing_path = sourcepath
+        sess.commit()
+
     return jsonify({})  # FIXME: what to return?
 
 
@@ -262,14 +303,13 @@ def logout(reportdirname):
         with dbsession(current_app) as sess:
             dbuser = sess.query(User).filter(User.id == current_user.id).first()
             if dbuser:
-                dbuser.login_date = datetime.utcnow()
                 # should be already abspath, however for safety (we will use the path for comparison
                 # with other users logging in, so better be safe):
                 dbuser.editing_path = None
                 dbuser.login_date = None
                 sess.commit()
     except:
-        pass  # FIXME: better handling. The idea is that
+        pass  # FIXME: better handling?
     finally:
         logout_user()
 

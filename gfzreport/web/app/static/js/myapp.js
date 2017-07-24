@@ -57,14 +57,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	$scope.modified = false;
 	$scope.editing = false;
 	
-	$scope.aceEditor = null;  //this will be set to an object after we init editing the first time
-	// therefore do not bound angular properties to editor properties. For instance, if the editor wrap is on
-	// the check box below:
-	// <input type="checkbox" ng-checked="aceEditoraceEditor.getSession().getUseWrapMode()" ... >
-	// will NOT be selected when the editor shows up.
-	// What to do: bound  angular properties to $cope variables (the usual way) and update the variables
-	// "manually" when the editor relative property changes. We use a dict to store these options:
-	$scope.editorOptions = {wrap:false};
+	$scope.aceEditor = null;  //NOTE: this will be set to an object after we init editing the first time
 	$scope.toggleEdit = function(){
 		$scope.editing = !$scope.editing;
 		if ($scope.editing && !$scope.aceEditor){
@@ -157,11 +150,16 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 			  	//$scope._setCommits(response.data || [], true); //true: do a check to see if we need to refresh the views (pdf, html)
 	    	},
 	    	function(response){ // failure callback
-	    		console.log("failed saving");  //FIXME: handle failure
+	    		$scope.showError(response);
 			}
     	);
     };
 
+    $scope.showError = function(response){
+    	$scope.popups.errDialog.show();
+    	// show first the popup, cause show() cancels the error message by default
+    	$scope.popups.errDialog.errMsg = $scope.exc(response);
+    };
     
 	$scope.setView = function(view){  // value can be 'html' or 'pdf
 		if($scope.loading){
@@ -232,24 +230,39 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	};
 	
 	$scope.popups = {
+		'errDialog': new props({'title': 'Error', 'errMsg': ''}),
 		'commits': new props({'title': 'History (git commits)', 'loading': false}),
 		'logIn': new props({'title': 'Log in'}),
-		'addFig': new props({'label': '', 'keepOpen': false, 'title': 'Add figure'}),
-		'logs': new props({'title': 'Build log-files', 'loading': false, 'showFullLog': false})
+		'addFig': new props({'label': '', 'keepOpen': false, 'title': 'Add figure', 'insertAtCursor': false}),
+		'logs': new props({'title': 'Build info (log-file)', 'loading': false, 'showFullLog': false})
 	};	
 	
-	$scope.exc = function(message, response){
+	$scope.exc = function(response){
 		/**
-		 * handle http exception by returning message + response (response converted as text)
+		 * handle http exception by returning a formatted string message
 		 */
+		var msg = "";
+		if (response.data && response.data.message){  // most exceptions are sent from the client with this field
+			// if it's an unknown exception, this should be empty
+			msg = response.data.message;
+		}
 		// if there is no connection status seems to be -1 and statusText empty, so try to help:
 		var status = response.status;
 		var statusText = response.statusText;
 		if(status == -1 && !statusText){
 			statusText = "No internet connection?";
 		}
-		return message + " (" + status + ": " + statusText + ")";
+		if (msg){
+			return msg + " (" + status + ": " + statusText + ")";
+		}else{
+			return "Error (" + status + ": " + statusText + ")";
+		}
+		
 	};
+	
+	/**
+	 * Error popup: Skip: it's everything already defined in popups and in the view (html)
+	 */
 	
 	/**
 	 * COMMITS POPUP callback(s) and data. Commits are loaded in a $scope variable to
@@ -273,7 +286,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
     			$scope.commits.selIndex = $scope.commits.data.length ? 0 : -1; //as returned from server `git` command (0=last)
     		},
     		function(response){ // failure callback
-    			$scope.popups.commits.errMsg = $scope.exc("Error", response);
+    			$scope.popups.commits.errMsg = $scope.exc(response);
     		}
 	    );
 	}
@@ -309,7 +322,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 				}
     		},
     		function(response){ // failure callback
-    			$scope.popups.commits.errMsg = $scope.exc(msg, response);
+    			$scope.popups.commits.errMsg = $scope.exc(response);
     		}
     	);
 	}
@@ -337,15 +350,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
     		},
     		function(response){ // failure callback
     			$scope.isLoggedIn=false; // for safety
-    			var msg = response.statusText;
-    			if (response.status == 401){
-    				msg = "Email not registered."
-    			}else if (response.status == 403){
-    				msg = "Email registered but not authorized to access this URL.";
-    			}else if (response.status == 409){  // conflict: another guy is editing
-    				msg = response.data.message || "Another user (unkwnown) is editing this report";
-    			}
-    			$scope.popups.logIn.errMsg = $scope.exc(msg, response);
+    			$scope.popups.logIn.errMsg = $scope.exc(response);
     		}
     	);
 	};
@@ -382,6 +387,8 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 		// a "native-way" that pass the all (eventually) selected files from the user.
 		var files = elm.querySelector('#flupld_').files;
 		formData.append('file', files[0]);
+		
+		var insertAtCursor = $scope.popups.addFig.insertAtCursor;
 		// post and see if it worked
 		$http.post(
 			'upload_file',
@@ -393,20 +400,32 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	    		var text = response.data;
 	    		var editor = $scope.aceEditor;
 	    		var edSession = editor.session;
-	    		// detect position of end:
-	    		var row = edSession.getLength() - 1
-	    		var column = edSession.getLine(row).length // or simply Infinity
+	    		var prevRowCount = edSession.getLength();
+	    		if (insertAtCursor){
+	    			// insert where the cursor is, at the beginning of the line
+	    			var cursor = editor.selection.getCursor();
+	    			var row = cursor.row;
+	    			//var column = cursor.column;
+	    		}else{
+	    			// detect position of end:
+	    			var row = prevRowCount;
+	    			//var column = edSession.getLine(row).length // or simply Infinity
+	    		}
+	    		var textToInsert = "\n\n" + text + "\n\n";
 	    		edSession.insert({
-	    		   row: edSession.getLength(),
+	    		   row: row,
 	    		   column: 0
-	    		}, "\n\n" + text + "\n\n");
+	    		}, textToInsert);
 	    		// select added text:
 	    		var edSelection = editor.selection;
-	    		edSelection.setSelectionAnchor(row+1, 0);
-	    		var row = edSession.getLength() - 1
-	    		var column = edSession.getLine(row).length // or simply Infinity
-	    		edSelection.selectTo(row, column);
-	    		
+	    		edSelection.setSelectionAnchor(row, 0);
+	    		//var row = edSession.getLength() - 1
+	    		//var column = edSession.getLine(row).length // or simply Infinity
+	    		var rowsAdded = edSession.getLength() - prevRowCount;
+	    		if (rowsAdded > 0){
+	    			var newRowIndex = row + rowsAdded -1;
+	    			edSelection.selectTo(newRowIndex, edSession.getLine(newRowIndex).length);
+	    		}
 	    		// editor.selection.moveCursorTo(row+1, 0, false);
 	    		// editor.selection.selectFileEnd();
 	    		editor.renderer.scrollSelectionIntoView();
@@ -416,7 +435,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	    		}
 	    	},
 	    	function(response){ // failure callback
-	    		$scope.popups.addFig.errMsg = $scope.exc("Error", response);
+	    		$scope.popups.addFig.errMsg = $scope.exc(response);
 	    	}
 	    );
 	}
@@ -446,7 +465,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
     			}
     		},
     		function(response){ // failure callback
-    			$scope.popups.logs.errMsg = $scope.exc("Error", response);
+    			$scope.popups.logs.errMsg = $scope.exc(response);
     		}
     	);
 	}

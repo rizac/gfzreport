@@ -18,6 +18,10 @@ except ImportError:
     from bs4 import BeautifulSoup
 
 
+# let alone the abstract, here a list of allowed fields for the html. Default: show authors only
+_ALLOWED_FIELDS = set(['author', 'authors'])
+
+
 class HTMLTranslator(whtml.SmartyPantsHTMLTranslator):
 
     imgre = re.compile(r"\s*<\s*img\s+(.*)\s*/\s*>", re.IGNORECASE)
@@ -83,8 +87,15 @@ class HTMLTranslator(whtml.SmartyPantsHTMLTranslator):
 #         whtml.SmartyPantsHTMLTranslator.__init__(self, *args, **kwds)
 
     def visit_field(self, node):
+#         if node.children[0].rawsource == "abstract":
+#             self.abstract_reminder_text = node.children[1].rawsource
+#             raise SkipNode()
+# 
+#         whtml.SmartyPantsHTMLTranslator.visit_field(self, node)
         if node.children[0].rawsource == "abstract":
             self.abstract_reminder_text = node.children[1].rawsource
+            raise SkipNode()
+        elif node.children[0].rawsource not in _ALLOWED_FIELDS:
             raise SkipNode()
 
         whtml.SmartyPantsHTMLTranslator.visit_field(self, node)

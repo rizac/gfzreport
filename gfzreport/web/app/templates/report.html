@@ -18,11 +18,9 @@
 	<div class="pos-top row-container">
 		<div class=pos-center>
 			<!-- EDITOR BUTTONS: -->
-			<div class="btn-group">
-				<button class="btn btn-primary"  ng-disabled="!modified" ng-click="save();" >Save</button>
-				<button ng-click="popups.addFig.show()" class="btn btn-primary">Add fig.</button>
-				<button ng-click="showCommits()" ng-disabled="modified" class="btn btn-primary">History</button>
-			</div>
+			<button class="btn btn-primary"  ng-disabled="!modified" ng-click="save();" >Save</button>
+			<button ng-click="popups.addFig.show()" class="btn btn-primary">Add fig.</button>
+			<button ng-click="showCommits()" ng-disabled="modified" class="btn btn-primary">History</button>
 			Editor:
 			<div class="btn-group">
 				<button ng-click="aceEditor.execCommand('showSettingsMenu')" class='btn btn-xs btn-default'>Settings</button>
@@ -45,7 +43,7 @@
 		<ul class="nav nav-tabs pos-center">
 	  		<li ng-repeat="v in ['html', 'pdf']" ng-class="{'active' : view==v}">
 	  			<a href ng-click='setView(v)' ng-show='v=="html" || isLoggedIn'>
-	  				{% raw %}{{ v + (view==v && needsRefresh[v] ? ' (Click to refresh)' : '') }}{% endraw %}
+	  				{% raw %}{{ v + (view==v && needsRefresh[v] && !_init ? ' (Click to refresh)' : '') }}{% endraw %}
 	  			</a>
 	  		</li>
 	  		<li ng-show="!editing && isLoggedIn">
@@ -56,7 +54,7 @@
 		<div id='top-right-div'>
 			<button ng-click="showLogs()" ng-show="!loading && editing && isLoggedIn" id="logs" class='btn btn-xs'
 			ng-class="{'btn-success' : getCurrentViewExitcode()==0, 'btn-warning' : getCurrentViewExitcode()==1, 'btn-danger' : getCurrentViewExitcode()==2, 'btn-default' : getCurrentViewExitcode()==-1}">
-			Build-log</button>
+			Build info</button>
 			<button ng-click="popups.logIn.show()" ng-show="!loading && !isLoggedIn" id="loginout" class='btn btn-default'>
 			Log in
 			</button>
@@ -105,7 +103,7 @@ IMPLEMENTING A NEW POPUP: ======================================================
 	ANY OTHER RELEVANT PROPERTY SHOULD BE ATTACHED TO THE $scope for CONSISTENCY
 2) Set a button somewhere with ng-click="popups.mypopup.show()", or any function that calls internally $scope.popups.mypopup.show() 
 3) Implement here the skeleton:
-<div class="popup">
+<div class="alert popup" ng-show="popups.mypopup.visible">
 	<div>
     	<div>{{ popups.mypopup.title }}</div>
     	<button ng-click="popups.mypopup.hide()" class="close" data-dismiss="alert" aria-label="close">&times;</button>
@@ -118,6 +116,8 @@ IMPLEMENTING A NEW POPUP: ======================================================
 </div>
 
 NOTES:
+ALL SUB DIVS ARE OPTIONAL, it depends what the popup should do: it cna be a simple messgae displayer, 
+or a more complex modal dialog with interactions. See examples below.
 [1] inside the div create your custom components / forms/ whatever you want: 
  - forms, bindings to the popups.mypopup properties or to the main $scope, etcetera
 [2] This is the button attached to some $scope function via ng-click. If the popup has no submit functionality,
@@ -126,6 +126,17 @@ the parent div is optional (you can remove the whole block)
 ===================================================================================================
 -->
 {% endraw %}
+
+<!-- err msg popup: -->
+<div id='err_msg_popup' class="alert popup error-bg" ng-show="popups.errDialog.visible" ng-cloak>
+	<div>
+		<div>{% raw %}{{ popups.errDialog.title }}{% endraw %}</div>
+		<button ng-click="popups.errDialog.hide()" class="close" data-dismiss="alert" aria-label="close">&times;</button>
+	</div>
+	<div class="">
+		{% raw %}{{ popups.errDialog.errMsg }}{% endraw %}
+	</div>
+</div> 
 
 <!-- image upload popup: -->
 <div id='upload_img_popup' class="alert popup" ng-show="popups.addFig.visible" ng-cloak>
@@ -137,7 +148,7 @@ the parent div is optional (you can remove the whole block)
 		<form method=post enctype=multipart/form-data id=upload-file>
 			<div class='form-group'>
   				<label for="flbl_">Label</label>
-  					<span> to reference the figure in the document 
+  					<span class='inline-help'> to reference the figure in the document 
   						<span ng-show="popups.addFig.label && popups.addFig.label.indexOf(' ')==-1">type  
   							<code>{% raw %}{{ ':numref:`' + popups.addFig.label + '`' }}{% endraw %}</code>
   						</span>
@@ -145,22 +156,35 @@ the parent div is optional (you can remove the whole block)
 				<input ng-model="popups.addFig.label" id="flbl_" type=text name=label class=form-control>
   			</div>
   			<div class='form-group'>
-  				<label for="flupld_">Image</label> <span> note: file might be renamed on server</span>
+  				<label for="flupld_">Image</label> <span class='inline-help'> (file might be renamed on server)</span>
 				<input id="flupld_" type=file name=file class=form-control>
   			</div>
   			<div class='form-group'>
    				<label for="figcapt_">Caption</label>
  				<textarea id="figcapt_" type=text name=caption class=form-control></textarea>
  			</div>
-     		<div class='form-group'>
-				The figure markup block will be added at the end of the document: you can always cut/paste it
+ 			<div class='form-group'>
+ 				<label>Insert generated rst text (<i>figure markup block</i>) at:</label>
+ 				<div>
+	 				<label for="addifg_iac_false">
+	 				&nbsp;<input id='addifg_iac_false' type='radio' ng-model="popups.addFig.insertAtCursor" ng-value=false class=form-control/>
+	 				document end</label>
+	 				<label for="addifg_iac_true">
+	 				&nbsp;<input id='addifg_iac_true' type='radio' ng-model="popups.addFig.insertAtCursor" ng-value=true class=form-control/>
+	 				where I am <span  class='inline-help'>(i.e. at cursor line start. You know what you are doing, isn't it?)</span></label>
+ 				</div>
+ 			</div>
+     		<div class='form-group inline-help'>
+				The <i>figure markup block</i> can always be cut/pasted 
 				anywhere <i>including</i> the first and last empty lines <i>which are part of the block</i>.
 				You can also change the caption and label later in the document.
 			</div>
 		</form>
-		<label>
-			<input type=checkbox ng-model="popups.addFig.keepOpen"> Keep me open (I'm planning to add several figures)
-		</label>
+		<div style='text-align:right'>
+			<label>
+				<input type=checkbox ng-model="popups.addFig.keepOpen"> Keep me open (I'm planning to add several figures)
+			</label>
+		</div>
 	</div>
 	<div>
 		<div>{% raw %}{{ popups.addFig.errMsg }}{% endraw %}</div>
@@ -208,7 +232,7 @@ the field exists and can be used{% endraw %}-->
 	<div>
 		<div ng-show="popups.logs.loading">Loading data, please wait...</div>
 		<label>
-			<input type='checkbox' ng-model='popups.logs.showFullLog'> Show full file(s) content
+			<input type='checkbox' ng-model='popups.logs.showFullLog'> Show full file content
 		</label>
 		<pre ng-if="popups.logs.showFullLog">{% raw %}{{ logs[0] }}{% endraw %}</pre>
 		<pre class='error' ng-if="!popups.logs.showFullLog">{% raw %}{{ logs[1] }}{% endraw %}</pre>

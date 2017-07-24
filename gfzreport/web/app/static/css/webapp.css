@@ -41,6 +41,11 @@ div.container{
 DECORATION STUFF:-----------------------------------------------------------------
 */
 
+.inline-help{
+	color: #aaa;
+	font-size:smaller;
+}
+
 /* make borders and visually consistent with bootstrap tabs: */
 
 iframe{
@@ -163,8 +168,8 @@ label{ /* override bootstrap */
 }
 
 .error-bg {
-    background-color: #d9534f;  /* copied from bootstrap btn danger */
-    color: #ffffff;
+    background-color: #d9534f !important;  /* copied from bootstrap btn danger */
+    color: #ffffff !important;
 }
 
 /* Safari 4.0 - 8.0 */
@@ -253,8 +258,8 @@ div.popup{
 div.popup > div:nth-of-type(1){
 	align-items: baseline;
 	margin-bottom:10px;
-	background-color: #f2f5fa;
-    padding: 5px;
+	/* background-color: #f2f5fa; */
+    padding-bottom: 5px;
     padding-top: 1px;
     border-radius: 2px;
 }

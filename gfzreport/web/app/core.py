@@ -46,39 +46,35 @@ import os
 import sys
 import subprocess
 from subprocess import CalledProcessError
-# from cStringIO import StringIO
+import shutil
+from datetime import datetime, timedelta
+import json
+import re
 from cStringIO import StringIO
 from itertools import count
 from werkzeug.utils import secure_filename
-from contextlib import contextmanager
-from flask import current_app as app
+
 from gfzreport.sphinxbuild.main import _run_sphinx, get_master_doc, get_logfilename, log_err_regexp
-import re
-from datetime import datetime, timedelta
-from math import ceil
-import threading
-from multiprocessing.pool import ThreadPool
-import json
 
 
-def gitkwargs(reportdirname):
+def gitkwargs(app, reportdirname):
     '''returns the dict to be passed as keyword arguments to any 
     subprocess.check_output or subprocess.call function
     invoking git. Basically, it changed the cwd of the subprocess and set shell=True.
     For any other common customization, edit keyword arguments here'''
-    return dict(cwd=get_sourcedir(reportdirname), shell=False)
+    return dict(cwd=get_sourcedir(app, reportdirname), shell=False)
 
 
-def get_sourcefile_content(reportdirname, commit_hash='HEAD', as_js=True):
+def get_sourcefile_content(app, reportdirname, commit_hash='HEAD', as_js=True):
     """
         Reads the source rst from the sphinx source file. If the argument is True, returns
         javascript formatted string (e.g., with newlines replaced by "\n" etcetera)
         :return: a UNICODE string denoting the source rst file (decoded with 'utf8')
     """
-    filename = get_sourcefile(reportdirname)
+    filename = get_sourcefile(app, reportdirname)
 
     if not commit_hash == 'HEAD':
-        kwargs = gitkwargs(reportdirname)
+        kwargs = gitkwargs(app, reportdirname)
         content = subprocess.check_output(['git', 'show',
                                            '%s:%s' % (commit_hash,
                                                       os.path.basename(filename))], **kwargs)
@@ -117,29 +113,42 @@ def get_reports(basedir):
     return ret
 
 
-def get_sourcedir(reportdirname):
+def get_sourcedir(app, reportdirname):
     return os.path.join(app.config['SOURCE_PATH'], reportdirname)
 
 
-def get_sourcefile(reportdirname):
-    return os.path.join(get_sourcedir(reportdirname), master_doc(reportdirname) + ".rst")
+def get_sourcefile(app, reportdirname):
+    return os.path.join(get_sourcedir(app, reportdirname), master_doc(app, reportdirname) + ".rst")
 
 
-def get_builddir(reportdirname, buildtype):
+def get_builddir(app, reportdirname, buildtype):
     return os.path.join(app.config['BUILD_PATH'],
                         reportdirname, 'latex' if buildtype == 'pdf' else buildtype)
 
 
-def get_buildfile(reportdirname, buildtype):
-    return os.path.join(get_builddir(reportdirname, buildtype), master_doc(reportdirname) +
+def get_buildfile(app, reportdirname, buildtype):
+    return os.path.join(get_builddir(app, reportdirname, buildtype),
+                        master_doc(app, reportdirname) +
                         ('.tex' if buildtype == 'latex' else "." + buildtype))
 
 
-def get_logfile(reportdirname, buildtype):
-    return os.path.join(get_builddir(reportdirname, buildtype), get_logfilename())
+def get_logfile(app, reportdirname, buildtype):
+    return os.path.join(get_builddir(app, reportdirname, buildtype), get_logfilename())
 
 
-def gitcommit(reportdirname, user=None):
+def get_updloaddir(app, reportdirname, tmp=True, mkdir=True):
+    basedir = os.path.join(app.config['BUILD_PATH'], reportdirname) if tmp else \
+        get_sourcedir(app, reportdirname)
+    upload_dir = os.path.join(basedir, app.config['UPLOAD_DIR_BASENAME'])
+    if not os.path.isdir(upload_dir) and mkdir:
+        os.makedirs(upload_dir)
+        if not os.path.isdir(upload_dir):
+            raise Exception("Unable to create upload directory '%s/%s'"
+                            % (os.path.basename(upload_dir), os.path.basename(basedir)))
+    return upload_dir
+
+
+def gitcommit(app, reportdirname, user=None):
     """Issues a git commit and returns True if there where files untracked/modified
     which where added to the commit. False if the working directory was clean
     :pqram author: ignored if the path does not have uncommitted changes. Otherwise,
@@ -150,8 +159,8 @@ def gitcommit(reportdirname, user=None):
     (https://stackoverflow.com/questions/11579311/git-commit-as-different-user-without-email-or-only-email)
     if None or evaluates to False, no author argument will be provided for the commit
     """
-    args = gitkwargs(reportdirname)
-    gitcwd = args.get("cwd", os.getcwd())  # that's used only for printing
+    args = gitkwargs(app, reportdirname)
+    gitcwd = args.get("cwd", os.getcwd())  # that's used only for exc messages (see below)
 
     # user might be an AnonymousUserMixin user, i.e. what flask-login sets as default
     # In this case, it has no asgitauthor method
@@ -196,62 +205,26 @@ def gitcommit(reportdirname, user=None):
     return True
 
 
-def build_report(reportdirname, buildtype, user, buildinginfo=None, force=False):
+def build_report(app, reportdirname, buildtype, user, buildinginfo=None, force=False):
     """Builds the given report according to the specified network. Returns
     the tuple reportfile (string), hasChanged (boolean)"""
     # we return reportfile, exit_status, has_changed
-    if not needs_build(reportdirname, buildtype, user):
+    if not needs_build(app, reportdirname, buildtype, user):
         if not force:
             return -1
 
-    sourcedir = get_sourcedir(reportdirname)
-    builddir = get_builddir(reportdirname, buildtype)
+    sourcedir = get_sourcedir(app, reportdirname)
+    builddir = get_builddir(app, reportdirname, buildtype)
     # _run_sphinx should never raise as a context manager catches exceptions printing to stderr,
     # which is temporary set to a StringIO. The StringIO will be written to our out directory
     # See get_logs
-    ret = _run_sphinx(sourcedir, builddir, master_doc(reportdirname), buildtype, buildinginfo, '-E')
-
-#     # sphinx puts warnings/ errors on the stderr
-#     # (http://www.sphinx-doc.org/en/stable/config.html#confval-keep_warnings)
-#     # capture it:
-#     with capturestderr(reportdirname, buildtype) as newstderr:
-#         sourcedir = get_sourcedir(reportdirname)
-#         builddir = get_builddir(reportdirname, buildtype)
-# 
-#         newstderr.write("\n~~~Sphinx (rst to %s)~~~\n" %
-#                         ('latex' if buildtype == 'pdf' else buildtype))
-# 
-#         # this in principle never raises, but prints to stderr:
-#         ret = _run_sphinx(sourcedir, builddir, master_doc(reportdirname),
-#                           buildtype, buildinginfo, '-E')
-# 
-#         # our sphinx wrapper, when run with 'pdf' as build, returns 1 if pdflatex did NOT return 0
-#         # BUT the pdf has been written. To achieve the same with
-#         # sphinx, we need to check the ouptut for a ".*:###: ERROR: .*" message. If such a line
-#         # exists, and ret == 0, set ret = 1 to be consistent with pdflatex output
-#         if buildtype != 'pdf' and ret == 0:
-#             reg = _ERR_REG[buildtype]
-#             for _ in reg.finditer(newstderr.getvalue()):
-#                 ret = 1
-#                 break
-#         elif buildtype == 'pdf' and ret != 2:
-#             # we built the pdf and we wrote a new file:
-#             # copy the pdf log file content into the newstderr
-#             # In any other case, skip this. This includes the case where we wanted the pdf
-#             # but the pdf was NOT written: AVOIDS returning the old pdflatex log which might be
-#             # present
-#             pdflatexlog = get_buildfile(reportdirname, "pdf")
-#             fle, _ = os.path.splitext(pdflatexlog)
-#             pdflatexlog = fle + ".log"
-#             if os.path.isfile(pdflatexlog):
-#                 newstderr.writeline("\n~~~Pdflatex (latex to pdf)~~~\n")
-#                 with open(pdflatexlog, 'w') as fopen:
-#                     newstderr.write(fopen.read())
+    ret = _run_sphinx(sourcedir, builddir, master_doc(app, reportdirname), buildtype,
+                      buildinginfo, '-E')
 
     # write to the last git commit the returned status. Note that in git we need to override
     # completely the notes, so in order to override only relevant stuff, first read the notes,
     # if any:
-    args = gitkwargs(reportdirname)
+    args = gitkwargs(app, reportdirname)
     notes = subprocess.check_output(["git", "log", "-1", "--pretty=format:%N"], **args).strip()
     # IMPORTANT: do NOT quote pretty format values (e.g.: "--pretty=format:%N", AVOID
     # "--pretty=format:'%N'"), otherwise the quotes
@@ -275,20 +248,226 @@ def build_report(reportdirname, buildtype, user, buildinginfo=None, force=False)
     # git notes add HEAD --force -m "-Build report exit code: 1 (Successfull with  warnings/errors)"
 
     return ret
-#     if ret != 2:  # file is newly created or modified
-#         mark_build_updated(reportdirname, buildtype)  # for safety, mark mtime of dest file
-
-#    return ret
 
 
-def lastbuildexitcode(reportdirname, buildtype):
+def master_doc(app, reportdirname):
+    '''returns the master doc defined in the sphinx config, which acts as basename
+    (without extension) for all source and dest files'''
+    # Lazily create the variable if not stored. Remember that the variable is obtained
+    # by parsing conf.py (copying code from sphinx) and might be relatively expensive.
+    # Store the master_doc in a dict so to have the correct master_cod for any given reportdirname
+    # and avoid conflicts (in principle. all the same string 'report', but it needs not to)
+    try:
+        dic = app.config['REPORT_BASENAMES']
+    except KeyError:
+        dic = {}
+        app.config['REPORT_BASENAMES'] = dic
+
+    try:
+        return dic[reportdirname]
+    except KeyError:
+        mdoc = get_master_doc(os.path.join(get_sourcedir(app, reportdirname), "conf.py"))
+        dic[reportdirname] = mdoc
+        return mdoc
+
+
+def needs_build(app, reportdirname, buildtype, user, commit_if_needed=False):
+    """
+        Returns True if the git repo has uncommitted changes or the source rst file last
+        modification time (LMT) is greater or equal than the destination file LMT
+        (see `is_build_updated`).
+        Calls `git` (via the `subprocess` module)
+        :param reportdirname: the report dirrecotory name. Its full path will be retrieved
+        via app config settings
+        :param user: The User currently authenticated. It is up to the view restrict the access
+        if the user is not authenticated, this is not checked here
+        :param commit_if_needed: does what it says. If True (False by default) and no error is
+        raised, then needs_build called again with the same arguments returns False.
+        :raise: ValueError if git complains
+    """
+    committed = gitcommit(app, reportdirname, user)
+    if committed:  # working directory was not clean
+        return True
+    # nothing to commit but we might have an outdated build dir. Check file last modification time:
+    return not is_build_updated(app, reportdirname, buildtype)
+
+
+def is_build_updated(app, reportdirname, buildtype):
+    '''Returns True if the built file exists and its modification time is greater
+    than the rst source file'''
+    sourcefile = get_sourcefile(app, reportdirname)
+    destfile = get_buildfile(app, reportdirname, buildtype)
+    return os.path.isfile(destfile) and os.stat(sourcefile).st_mtime < os.stat(destfile).st_mtime
+
+
+def save_sourcefile(app, reportdirname, unicode_text, user):
+    """Save the source rst file and returns `get_commits()`
+    :param user: the current User. It is up to the view check if the User is authenticated.
+    This is not checked here
+    :return: True if git commit was issued, False if nothing to commit
+    """
+    # raise ValueError('Intentional error!')
+    filepath = get_sourcefile(app, reportdirname)
+
+    with open(filepath, 'w') as fopen:
+        fopen.write(unicode_text.encode('utf8'))
+
+    # copy uploaded files, if any:
+    srcdir = get_updloaddir(app, reportdirname, tmp=True, mkdir=False)
+    if os.path.isdir(srcdir):
+        destdir = get_updloaddir(app, reportdirname, tmp=False, mkdir=True)
+        for fle in os.listdir(srcdir):
+            filesrc = os.path.join(srcdir, fle)
+            filedest = os.path.join(destdir, fle)
+            shutil.copy2(filesrc, filedest)
+        shutil.rmtree(srcdir)
+    # return True if commits where saved, False if 'nothing to commit'
+    return gitcommit(app, reportdirname, user)
+
+
+def get_commits(app, reportdirname):
+    def prettify(jsonstr):
+        if not jsonstr:
+            return jsonstr
+        return json.dumps(json.loads(jsonstr), indent=4).replace('"', "").replace("{", "").replace("}", "")
+    try:
+        commits = []
+        args = gitkwargs(app, reportdirname)
+
+        # get a separator which is most likely not present in each key:
+        # please no spaces in sep!
+        # Note according to git log, we could provide also %n for newlines in the command
+        # maybe implement later ...
+        sep = "_;<!>;_"
+        pretty_format_arg = "%H{0}%an{0}%ad{0}%ae{0}%s{0}%N".format(sep)
+        cmts = subprocess.check_output(["git", "log",
+                                        "--pretty=format:%s" % (pretty_format_arg)], **args)
+        # IMPORTANT: do NOT quote pretty format values (e.g.: "--pretty=format:%N", AVOID
+        # "--pretty=format:'%N'"), otherwise the quotes
+        # will appear in the output (if value has spaces, we did not test it,
+        # so better avoid it)
+
+        for commit in cmts.split("\n"):
+            if commit:
+                clist = [_.rstrip() for _ in commit.split(sep)]
+                # parse notes by removing curly brackets and quotes (")
+                clist[-1] = prettify(clist[-1]).rstrip()
+                commits.append({'hash': clist[0], 'author': clist[1], 'date': clist[2],
+                                'email': clist[3], 'msg': clist[4], 'notes': clist[-1]})
+        return commits
+    except (OSError, CalledProcessError):
+        return []
+
+
+def secure_upload_filepath(app, reportdirname, upfile):
+    '''saves the given file name. Raises ValueError for client side errors (4xx) and general
+    exception otherwise. Returns the file path where the file will be saved AFTER
+    saving the report (`save_sourcefile`). The file is saved inside the build directory
+    under the folder app.config['UPLOAD_DIR_BASENAME']
+    '''
+    filename = upfile.filename
+    if filename == '':
+        raise ValueError('No selected file')
+    if not allowed_upload_file(app, filename):
+        raise ValueError("Cannot save '%s': invalid extension" % filename)
+    s_filename = secure_filename(filename)
+
+    # copy file to app.config['UPLOAD_DIR_BASENAME'] in the build dir (dest). This is a tmp
+    # directory whose content will be moved inside the source dir when saving. this prevents
+    # git to see the directory tree changed also when we insert a figure and we do not save the rst
+
+    upload_dir_tmp = get_updloaddir(app, reportdirname, tmp=True, mkdir=True)
+    upload_dir_src = get_updloaddir(app, reportdirname, tmp=False, mkdir=False)
+
+    now = datetime.utcnow()
+    newfilename = s_filename
+    tdelta = timedelta(microseconds=1)
+    # assure file does not exist (for safety):
+    while True:
+        filepath1 = os.path.join(upload_dir_src, newfilename)
+        filepath2 = os.path.join(upload_dir_tmp, newfilename)
+        if not os.path.exists(filepath1) and not os.path.exists(filepath2):
+            break
+        f, e = os.path.splitext(s_filename)
+        now += tdelta
+        newfilename = "%s_%s%s" % (f, now.isoformat(), e)
+
+    upfile.save(filepath2)
+    if not os.path.isfile(filepath2):
+        raise Exception("Unable to save '%s/%s'" % (os.path.basename(os.path.dirname(filepath2)),
+                                                    os.path.basename(filepath2)))
+    # return the path relative to the source directory. THIS FILE DOES NOT YET EXISTS,
+    # WE NEED TO SAVE THE REPORT TO MOVE THE FILE SAVED TO filepath!
+    return filepath1
+
+
+def allowed_upload_file(app, filename):
+    return os.path.splitext(filename)[1][1:].lower() in app.config['UPLOAD_ALLOWED_EXTENSIONS']
+
+
+def get_fig_directive(app, reportdirname, fig_filepath, fig_label=None, fig_caption=None):
+    """Returns the figure directive text from a given report directory name identifying the
+    current report, a figure filepath, optional label and caption
+    :param reportdirname: (string) the basename of the directory identifying the report
+    name.
+    :param fig_filepath: (string) the path of the figure to be displayed. This method does not
+    check for existence of the file. The directive will have a file path relative to the Rst file
+    (whose path is set according to the current Flask app configuration)
+    :param fig_label:  (string or None) an optional label for referncing the figure via
+    sphinx `:numerf:`. None, empty or only space strings will be ignored (no label)
+    :param fig_caption:  (string or None) an optional caption. Indentation will be automatically
+    added to the caption in the directive. None, empty or only space strings will be ignored
+    (no label)
+    """
+    if fig_caption:  # indent:
+        fig_caption = fig_caption.strip()
+        if fig_caption:
+            fig_caption = fig_caption.replace("\n", "\n   ")
+    if fig_label:  # newlines:
+        fig_label = fig_label.strip()
+        if fig_label:
+            fig_label = ".. _%s:\n\n" % fig_label
+    fname = os.path.relpath(fig_filepath, get_sourcedir(app, reportdirname))
+    return "%s.. figure:: ./%s\n\n   %s" % (fig_label, fname, fig_caption)
+
+
+def get_logs_(app, reportdirname, buildtype):
+    """Returns two utf8 text arrays: the first, with the full gfxreport log file,
+    the second, with the only the errors (if any)
+    Returns two empty strings if file not found
+    """
+    logfile = get_logfile(app, reportdirname, buildtype)
+    FILENOTFOUND = 'Log file not found'
+    logfilecontent = [FILENOTFOUND]
+    logfileerrors = [FILENOTFOUND]
+    NOERRFOUND = '   No error found'
+    if os.path.isfile(logfile):
+        del logfileerrors[-1]
+        del logfilecontent[-1]
+        logerrreg = log_err_regexp()
+        with open(logfile) as fopen:
+            for line in fopen:
+                line = line.strip()
+                logfilecontent.append(line)
+                if line.startswith("*** Sphinx ") or line.startswith("*** Pdflatex "):
+                    logfileerrors.append(line)
+                    logfileerrors.append(NOERRFOUND)
+                elif logerrreg.match(line):
+                    if logfileerrors[-1] == NOERRFOUND:
+                        del logfileerrors[-1]
+                    # if it's the first error, remove the last line 'No error found'
+                    logfileerrors.append(line)
+    return "\n".join(logfilecontent).decode('utf8'), "\n".join(logfileerrors).decode('utf8')
+
+
+def lastbuildexitcode(app, reportdirname, buildtype):
     """This function takes the last git commit and parses its 'Notes' trying to guess the buid
     exit code we stored in there. It's a hacky way to get the exit code but when the user logs in
     exploiting an information that we anyway wrote on the git directory is the better way
     :return: the exit code, -1 (unkwnown), 0 (ok, no errors), 1 (ok, compilation errors), 2 faile
     (no file created)
     """
-    args = gitkwargs(reportdirname)
+    args = gitkwargs(app, reportdirname)
     notes = subprocess.check_output(["git", "log", "-1", "--pretty=format:%N"], **args).strip()
     ret = -1  # everything not in 0, 1, 2
     if not notes:
@@ -316,308 +495,12 @@ def lastbuildexitcode(reportdirname, buildtype):
         return ret
 
 
-def master_doc(reportdirname):
-    '''returns the master doc defined in the sphinx config, which acts as basename
-    (without extension) for all source and dest files'''
-    # Lazily create the variable if not stored. Remember that the variable is obtained
-    # by parsing conf.py (copying code from sphinx) and might be relatively expensive.
-    # Store the master_doc in a dict so to have the correct master_cod for any given reportdirname
-    # and avoid conflicts (in principle. all the same string 'report', but it needs not to)
-    try:
-        dic = app.config['REPORT_BASENAMES']
-    except KeyError:
-        dic = {}
-        app.config['REPORT_BASENAMES'] = dic
-
-    try:
-        return dic[reportdirname]
-    except KeyError:
-        mdoc = get_master_doc(os.path.join(get_sourcedir(reportdirname), "conf.py"))
-        dic[reportdirname] = mdoc
-        return mdoc
-
-
-def needs_build(reportdirname, buildtype, user, commit_if_needed=False):
-    """
-        Returns True if the git repo has uncommitted changes or the source rst file last
-        modification time (LMT) is greater or equal than the destination file LMT
-        (see `is_build_updated`).
-        Calls `git` (via the `subprocess` module)
-        :param reportdirname: the report dirrecotory name. Its full path will be retrieved
-        via app config settings
-        :param user: The User currently authenticated. It is up to the view restrict the access
-        if the user is not authenticated, this is not checked here
-        :param commit_if_needed: does what it says. If True (False by default) and no error is
-        raised, then needs_build called again with the same arguments returns False.
-        :raise: ValueError if git complains
-    """
-    committed = gitcommit(reportdirname, user)
-    if committed:  # working directory was not clean
-        return True
-    # nothing to commit but we might have an outdated build dir. Check file last modification time:
-    return not is_build_updated(reportdirname, buildtype)
-
-
-def is_build_updated(reportdirname, buildtype):
-    '''Returns True if the built file exists and its modification time is greater
-    than the rst source file'''
-    sourcefile = get_sourcefile(reportdirname)
-    destfile = get_buildfile(reportdirname, buildtype)
-    return os.path.isfile(destfile) and os.stat(sourcefile).st_mtime < os.stat(destfile).st_mtime
-
-
-# def mark_build_updated(reportdirname, buildtype):
-#     # sets the modification time of the build file greater than the current source rst file,
-#     # if not already. For safety.
-#     if is_build_updated(reportdirname, buildtype):
-#         return True
-#     destfile = get_buildfile(reportdirname, buildtype)
-#     os.utime(destfile, None)  # set to current time, which should be surely greater than
-#     # sourcefile mtime. If not, we will run again later the build, too bad but not tragic
-#     return is_build_updated(reportdirname, buildtype)
-
-
-# @contextmanager
-# def capturestderr(reportdirname, buildtype):
-#     '''Captures standard error to a StrinIO and writes it to a file. Used in `build_report`
-#     '''
-#     # set the stderr to a StringIO. Yield, and after that get the sphinx log file path
-#     # The sphinx log file directory might not yet exist if this is the first build
-#     # After yielding, check if the sphinx logfile dir exists. If yes, write the content
-#     # of the captured stderr to that file
-#     # Restore the old stderr and exit
-#     stderr = sys.stderr
-#     new_stderr = StringIO()
-#     sys.stderr = new_stderr
-#     try:
-#         yield new_stderr  # allow code to be run with the redirected stdout/stderr
-#     finally:
-#         # write to file, if the build was succesfull we should have the
-#         # directory in place:
-#         fileout = get_sphinxlogfile(reportdirname, buildtype)
-#         if os.path.isdir(os.path.dirname(fileout)):
-#             with open(fileout, 'w') as _:
-#                 _.write(new_stderr.getvalue())
-#         # restore stderr. buffering and flags such as CLOEXEC may be different
-#         sys.stderr = stderr
-
-#     fileout = get_sphinxlogfile(reportdirname, buildtype)
-#     with open(fileout, 'w') as new_stderr:
-#         sys.stderr = new_stderr
-#         try:
-#             yield  # allow code to be run with the redirected stdout/stderr
-#         finally:
-#             # restore stderr. buffering and flags such as CLOEXEC may be different
-#             sys.stderr = stderr
-
-# the regular expression which will be matched against EACH LINE of the .log files to
-# capture lines with errors / warnings
-_ERR_REG = {
-    'html': re.compile(".+?:[0-9]+:\\s*ERROR\\s*:.+"),
-    'latex': re.compile(".+?:[0-9]+:\\s*ERROR\\s*:.+"),
-    'pdf': re.compile(".+?:[0-9]+:.+")
-}
-
-
-def save_sourcefile(reportdirname, unicode_text, user):
-    """Save the source rst file and returns `get_commits()`
-    :param user: the current User. It is up to the view check if the User is authenticated.
-    This is not checked here
-    :return: True if git commit was issued, False if nothing to commit
-    """
-    filepath = get_sourcefile(reportdirname)
-
-    with open(filepath, 'w') as fopen:
-        fopen.write(unicode_text.encode('utf8'))
-
-    # return True if commits where saved, False if 'nothing to commit'
-    return gitcommit(reportdirname, user)
-
-
-def get_commits(reportdirname):
-    def prettify(jsonstr):
-        if not jsonstr:
-            return jsonstr
-        return json.dumps(json.loads(jsonstr), indent=4).replace('"', "").replace("{", "").replace("}", "")
-    try:
-        commits = []
-        args = gitkwargs(reportdirname)
-
-        # get a separator which is most likely not present in each key:
-        # please no spaces in sep!
-        # Note according to git log, we could provide also %n for newlines in the command
-        # maybe implement later ...
-        sep = "_;<!>;_"
-        pretty_format_arg = "%H{0}%an{0}%ad{0}%ae{0}%s{0}%N".format(sep)
-        cmts = subprocess.check_output(["git", "log",
-                                        "--pretty=format:%s" % (pretty_format_arg)], **args)
-        # IMPORTANT: do NOT quote pretty format values (e.g.: "--pretty=format:%N", AVOID
-        # "--pretty=format:'%N'"), otherwise the quotes
-        # will appear in the output (if value has spaces, we did not test it,
-        # so better avoid it)
-
-        for commit in cmts.split("\n"):
-            if commit:
-                clist = [_.rstrip() for _ in commit.split(sep)]
-                # parse notes by removing curly brackets and quotes (")
-                clist[-1] = prettify(clist[-1]).rstrip()
-                commits.append({'hash': clist[0], 'author': clist[1], 'date': clist[2],
-                                'email': clist[3], 'msg': clist[4], 'notes': clist[-1]})
-        return commits
-    except (OSError, CalledProcessError):
-        return []
-
-
-def secure_upload_filepath(reportdirname, filename):
-    if filename == '':
-        raise ValueError('No selected file')
-    if allowed_upload_file(filename):
-        s_filename = secure_filename(filename)
-        # create upload dir if it does not exists:
-        upload_dir = os.path.join(app.config['SOURCE_PATH'], reportdirname,
-                                  app.config['UPLOAD_DIR_BASENAME'])
-        if not os.path.isdir(upload_dir):
-            os.makedirs(upload_dir)
-            if not os.path.isdir(upload_dir):
-                raise ValueError(("Unable to create upload directory $SOURCE_PATH/"
-                                  "%s/%s") % (reportdirname, app.config['UPLOAD_DIR_BASENAME']))
-        # assure file does not exist:
-        for cnt in count(start=1):
-            filepath = os.path.join(upload_dir, s_filename)
-            if not os.path.exists(filepath):
-                break
-            f, e = os.path.splitext(s_filename)
-            s_filename = "%s_%d%s" % (f, cnt, e)
-        return filepath
-    raise ValueError("Cannot save '%s': invalid extension" % filename)
-
-
-def allowed_upload_file(filename):
-    return os.path.splitext(filename)[1][1:].lower() in app.config['UPLOAD_ALLOWED_EXTENSIONS']
-
-
-def get_fig_directive(reportdirname, fig_filepath, fig_label=None, fig_caption=None):
-    """Returns the figure directive text from a given report directory name identifying the
-    current report, a figure filepath, optional label and caption
-    :param reportdirname: (string) the basename of the directory identifying the report
-    name.
-    :param fig_filepath: (string) the path of the figure to be displayed. This method does not
-    check for existence of the file. The directive will have a file path relative to the Rst file
-    (whose path is set according to the current Flask app configuration)
-    :param fig_label:  (string or None) an optional label for referncing the figure via
-    sphinx `:numerf:`. None, empty or only space strings will be ignored (no label)
-    :param fig_caption:  (string or None) an optional caption. Indentation will be automatically
-    added to the caption in the directive. None, empty or only space strings will be ignored
-    (no label)
-    """
-    if fig_caption:  # indent:
-        fig_caption = fig_caption.strip()
-        if fig_caption:
-            fig_caption = fig_caption.replace("\n", "\n   ")
-    if fig_label:  # newlines:
-        fig_label = fig_label.strip()
-        if fig_label:
-            fig_label = ".. _%s:\n\n" % fig_label
-    fname = os.path.relpath(fig_filepath, get_sourcedir(reportdirname))
-    return "%s.. figure:: ./%s\n\n   %s" % (fig_label, fname, fig_caption)
-
-
-def get_logs_(reportdirname, buildtype):
-    """Returns two utf8 text arrays: the first, with the full gfxreport log file,
-    the second, with the only the errors (if any)
-    Returns two empty strings if file not found
-    """
-#     '''Returns an array of:
-#     sphinx log file content (if buildtype='html') or
-#     sphinx log file content, pdflatex log file errors, pdflatex log file content (if buildtype
-#     is 'latex' or 'pdf')
-#     pdflatex log file errors is a substring of the pdflatex log file content, extracted
-#     via the pdflatex option that prints errors in the format .*:[0-9]:.*
-#     '''
-#     the returned object is quite cumbersome but allows an easy implementation with angular
-#     basically it is a one or two element array of elements in this form
-#     [compiler_name, [log_file_content, list_of_lof_errors]]
-#     For compatibility, log_file_cintent is in turn a list of a single element, the real log
-#     file content
-
-#     def getlogs(srcfile, reg):
-#         '''reads a log and returns the structur used in the frontend'''
-#         if not os.path.isfile(srcfile):
-#             msg = 'No log file found. Please check your .rst syntax or contact the administrator'
-#             return msg, [msg]
-#         with open(srcfile, 'r') as fopen:
-#             fullog = fopen.read().decode('utf8')
-#         errs = []
-#         for m in reg.finditer(fullog):
-#             errs.append(m.group().strip())
-# #         if not errs:
-# #             errs = ['No error found']
-#         return fullog, errs
-# 
-#     sphinxlogfile = get_sphinxlogfile(reportdirname, buildtype)
-#     sphinxbuildtype = 'latex' if buildtype == 'pdf' else buildtype
-#     sphinxlog, sphinxerrs = getlogs(sphinxlogfile, _ERR_REG[sphinxbuildtype])
-#     ret = [['Sphinx (rst to %s)' % sphinxbuildtype, [[sphinxlog], sphinxerrs]]]
-# 
-#     if buildtype == 'pdf':
-#         pdflatexlog = get_buildfile(reportdirname, "pdf")
-#         fle, _ = os.path.splitext(pdflatexlog)
-#         pdflatexlog = fle + ".log"
-#         pdflog, pdferrs = getlogs(pdflatexlog, _ERR_REG['pdf'])
-#         ret.append(['Pdflatex (latex to pdf)', [[pdflog], pdferrs]])
-# 
-#     return ret
-
-    logfile = get_logfile(reportdirname, buildtype)
-    logfilecontent = []
-    logfileerrors = []
-    NOERRFOUND = '   No error found'
+def _logiter(app, reportdirname, buildtype):
+    ''' returns an iterator over each line of the log file of a given buildtype'''
+    logfile = get_logfile(app, reportdirname, buildtype)
     if os.path.isfile(logfile):
         logerrreg = log_err_regexp()
         with open(logfile) as fopen:
             for line in fopen:
-                logfilecontent.append(line)
                 line = line.strip()
-                if line.startswith("*** Sphinx ") or line.startswith("*** Pdflatex "):
-                    logfileerrors.append(line)
-                    logfileerrors.append(NOERRFOUND)
-                elif logerrreg.match(line):
-                    if logfileerrors[-1] == NOERRFOUND:
-                        del logfileerrors[-1]
-                    # if it's the first error, remove the last line 'No error found'
-                    logfileerrors.append(line)
-    return "\n".join(logfilecontent).decode('utf8'), "\n".join(logfileerrors).decode('utf8')
-
-# this is a class NOT USED for the moment which might be passed to 
-# _run_sphinx in build_report. But for that, we might need to launch the build in a separate
-# thread RETURNING immediately from within the caller view, and then , after
-# setting this object in a session variable and implement a progressbar forntend side
-# querying the progress of the build.
-# When finished, frontend side we should query for the page. Too much effort for the moment
-# class BuildingInfo(object):
-# 
-#     def __init__(self, msg=None, estimated_end=None, step=0, steps=0):
-#         self.__call__(msg, estimated_end, step, steps)
-# 
-#     def __call__(self, msg, estimated_end, step, steps):
-#         self.msg = msg
-#         self.estimated_end = estimated_end
-#         self.step = step
-#         self.steps = steps
-#         return self
-# 
-#     def tojson(self):
-#         arr = []
-#         if not self.msg:
-#             return arr
-#         if self.steps > 0 and self.step > 0:
-#             arr.append("Step %d of %d: " % (self.step, self.steps))
-#         arr.append(self.msf)
-#         if self.estimated_end is not None:
-#             ers = self.estimated_end - datetime.utcnow()
-#             if ers > 0:
-#                 arr.append("Remaining time (estimation): %s" %
-#                            str(timedelta(seconds=int(ceil(ers)))))
-#         return arr
-
-
+                yield line
