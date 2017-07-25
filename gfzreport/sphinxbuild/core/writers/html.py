@@ -1,6 +1,8 @@
 '''
 Class extending sphinx.writers.html.SmartyPantsHTMLTranslator
-It overrides images as pdf using iframes instead of img tags
+ - It overrides images as pdf using iframes instead of img tags (NOT TESTED)
+ - Sets which fields should be visible in the html (by default, author/authors only)
+ - Makes the abstract field a centered div at the beginning of the document (if an abstract is set)
 Created on Mar 18, 2016
 
 @author: riccardo
@@ -62,16 +64,6 @@ class HTMLTranslator(whtml.SmartyPantsHTMLTranslator):
 
             self.body[-1] = newtag
 
-#             new_str = replace(self.body[-1], '')
-#             # replace img tag just added via a regexp:
-#             matchobj = HTMLTranslator.imgre.match(self.body[-1])
-#             if matchobj and len(matchobj.groups()) == 1:
-#                 self.body[-1] = ("<iframe {0}>"
-#                                  "</iframe>").format(matchobj.group(1).strip())
-#                 return
-#
-#             raise ValueError("%s not matching, expected <img>" % self.body[-1])
-
     def depart_image(self, node):
         self.do_and_replace(node, whtml.SmartyPantsHTMLTranslator.depart_image)
 
@@ -82,16 +74,7 @@ class HTMLTranslator(whtml.SmartyPantsHTMLTranslator):
         if self.is_pdf_node(node):
             self.body = self.body[:oldlen]
 
-#     def __init__(self, *args, **kwds):
-#         # call super method:
-#         whtml.SmartyPantsHTMLTranslator.__init__(self, *args, **kwds)
-
     def visit_field(self, node):
-#         if node.children[0].rawsource == "abstract":
-#             self.abstract_reminder_text = node.children[1].rawsource
-#             raise SkipNode()
-# 
-#         whtml.SmartyPantsHTMLTranslator.visit_field(self, node)
         if node.children[0].rawsource == "abstract":
             self.abstract_reminder_text = node.children[1].rawsource
             raise SkipNode()

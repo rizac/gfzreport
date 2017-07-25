@@ -110,7 +110,7 @@ def otherstations_df(geofonstations_df, margins_in_deg):
     # use standard python process pool thread:
     # see second post here:
     # https://stackoverflow.com/questions/16181121/a-very-simple-multithreading-parallel-url-fetching-without-queue
-    timeout = 180
+    timeout = 240
 
     def fetch_inv(tup):
         querystr = 'unknown url'

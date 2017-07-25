@@ -219,13 +219,34 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
     if ret == 0 and c_errors:
         ret = 1
 
-    if ret == 2:
-        sys.stdout.write("\nERROR: Failed to create the document")
-    elif ret == 1:
-        sys.stdout.write("\nOK: Document successfully created (with compilation errors)")
-    else:
-        sys.stdout.write("\nOK: Document successfully created (no compilation errors)")
+    finalize(new_stderr, ret, outdir)
     return ret
+
+
+def exitstatus2str(exitstatus):
+    '''Returns the string representation of a particular report exit status
+    :param exitstatus: 0, 1 or 2
+    '''
+    return ("Build successful, no compilation error{}" if exitstatus == 0 else
+            "Build successful, with compilation errors{}" if exitstatus == 1 else
+            "Build failed{}" if exitstatus == 2 else
+            "Build result unknown: exit status undefined {}"
+            ).format(" (exit status: %s)" % str(exitstatus))
+
+
+def finalize(stderr, exitstatus, outdir):
+    '''finalizes the build result writing log file and printing to stdout the final result'''
+    msg = exitstatus2str(exitstatus)
+    msg = "Build %s" % (msg[:1].lower() + msg[1:])
+    sys.stdout.write("\n%s%s" % ('ERROR: ' if exitstatus == 2 else '', msg))
+
+    fileout = os.path.join(outdir, get_logfilename())
+    if os.path.isdir(os.path.dirname(fileout)):
+        with open(fileout, 'w') as _:
+            _.write(msg)
+            _.write('\n%s\n\n' % ('*' * len(msg)))
+            _.write(stderr.getvalue())
+        sys.stdout.write("\n(Log file written to '%s')" % fileout)
 
 
 def run(sourcedir, outdir, build=_DEFAULT_BUILD_TYPE, *other_sphinxbuild_options):
@@ -340,13 +361,6 @@ def capturestderr(outdir):
     try:
         yield new_stderr  # allow code to be run with the redirected stdout/stderr
     finally:
-        # write to file, if the build was succesfull we should have the
-        # directory in place:
-        fileout = os.path.join(outdir, get_logfilename())
-        if os.path.isdir(os.path.dirname(fileout)):
-            with open(fileout, 'w') as _:
-                _.write(new_stderr.getvalue())
-            sys.stdout.write("\nLog file written to '%s'" % fileout)
         sys.stderr = stderr  # restore stderr:
 
 

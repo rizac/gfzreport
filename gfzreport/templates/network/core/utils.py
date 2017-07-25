@@ -183,11 +183,11 @@ def iterdcurl(**query_args):
     query_args['format'] = 'post'
     query = get_query('http://geofon.gfz-potsdam.de/eidaws/routing/1/query', **query_args)
 
-    urlo = urllib2.urlopen(query)
+    url_open = urllib2.urlopen(query)
     try:
-        dc_result = urlo.read().decode('utf8') or u''
+        dc_result = url_open.read().decode('utf8') or u''
     finally:
-        urlo.close()
+        url_open.close()
 
     # 1) parse dc_result string and assume any new line starting with http:// is a valid station
     # query url
@@ -207,13 +207,14 @@ def iterdcurl(**query_args):
     del query_args['service']
     query_args['format'] = 'text'
     query_args['level'] = 'station'
-    query = get_query('http://geofon.gfz-potsdam.de/eidaws/routing/1/query', **query_args)
+    query = get_query(iris_url, **query_args)
+    url_open = urllib2.urlopen(query)
     try:
-        dc_result = urlo.read(1)
+        dc_result = url_open.read(1)
         if dc_result:
             yield iris_url
     finally:
-        urlo.close()
+        url_open.close()
     # (fix bug in eida routing service when querying without network arguments):
 
 

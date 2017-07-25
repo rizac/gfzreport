@@ -70,7 +70,7 @@
   	% 2) title page
   	% custom make title:
   	% print background picture:
-	\tikz[remember picture,overlay] \node[opacity=1,inner sep=0pt] at (current page.center){\includegraphics[width=\paperwidth]{GFZ_Poster_Muster_pur_en_pdf.pdf}};
+	\tikz[remember picture,overlay] \node[opacity=1,inner sep=0pt] at (current page.center){\includegraphics[width=\paperwidth]{Cover_STR-Data_en_DH.front.pdf}};
 	% make title text (preformatted, choose width and y of the title box as
 	% arguments):
 	\maketitletext{.8\linewidth}{20em}

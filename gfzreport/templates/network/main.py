@@ -190,7 +190,8 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
                 # raise Error if no files are in the folder (Sphinx complains afterwards for bad
                 # formed code, e.g. csv tables with no content):
                 if not os.listdir(dst__):
-                    raise IOError("No files copied. Please check '%s'" % src__)
+                    raise IOError(("No files copied. Argument does not exist "
+                                   "or does not match any file: '%s'") % src__)
 
         print("Rendering report template with jinja2")
         try:

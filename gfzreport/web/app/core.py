@@ -54,7 +54,8 @@ from cStringIO import StringIO
 from itertools import count
 from werkzeug.utils import secure_filename
 
-from gfzreport.sphinxbuild.main import _run_sphinx, get_master_doc, get_logfilename, log_err_regexp
+from gfzreport.sphinxbuild.main import _run_sphinx, get_master_doc, get_logfilename, log_err_regexp,\
+    exitstatus2str
 
 
 def gitkwargs(app, reportdirname):
@@ -236,12 +237,8 @@ def build_report(app, reportdirname, buildtype, user, buildinginfo=None, force=F
         notes_dict = {}
     if 'Report generation' not in notes_dict:
         notes_dict['Report generation'] = {}
-    notes_dict['Report generation'][buildtype] = \
-        ("Successful, no compilation errors{}" if ret == 0
-         else "Successful, with compilation errors{}" if ret == 1 else
-         "Failed{}" if ret == 2 else \
-         "Unknown exit code, please contact the administrator{}"
-         ).format(" (exit code: %s)" % str(ret))
+    notes_dict['Report generation'][buildtype] = exitstatus2str(ret)
+
     # write back to the notes, overriding it:
     subprocess.call(['git', 'notes', 'add', 'HEAD', '--force', '-m',
                      json.dumps(notes_dict)], **args)
@@ -436,70 +433,50 @@ def get_logs_(app, reportdirname, buildtype):
     the second, with the only the errors (if any)
     Returns two empty strings if file not found
     """
-    logfile = get_logfile(app, reportdirname, buildtype)
     FILENOTFOUND = 'Log file not found'
     logfilecontent = [FILENOTFOUND]
     logfileerrors = [FILENOTFOUND]
     NOERRFOUND = '   No error found'
-    if os.path.isfile(logfile):
-        del logfileerrors[-1]
-        del logfilecontent[-1]
-        logerrreg = log_err_regexp()
-        with open(logfile) as fopen:
-            for line in fopen:
-                line = line.strip()
-                logfilecontent.append(line)
-                if line.startswith("*** Sphinx ") or line.startswith("*** Pdflatex "):
-                    logfileerrors.append(line)
-                    logfileerrors.append(NOERRFOUND)
-                elif logerrreg.match(line):
-                    if logfileerrors[-1] == NOERRFOUND:
-                        del logfileerrors[-1]
-                    # if it's the first error, remove the last line 'No error found'
-                    logfileerrors.append(line)
+    logerrreg = log_err_regexp()
+    firstline = True
+    for line in _logiter(app, reportdirname, buildtype):
+        if firstline:  # file found, remove first line
+            del logfileerrors[-1]
+            del logfilecontent[-1]
+            firstline = False
+        logfilecontent.append(line)
+        if line.startswith("*** Sphinx ") or line.startswith("*** Pdflatex "):
+            logfileerrors.append(line)
+            logfileerrors.append(NOERRFOUND)
+        elif logerrreg.match(line):
+            if logfileerrors[-1] == NOERRFOUND:
+                del logfileerrors[-1]
+            # if it's the first error, remove the last line 'No error found'
+            logfileerrors.append(line)
     return "\n".join(logfilecontent).decode('utf8'), "\n".join(logfileerrors).decode('utf8')
 
 
 def lastbuildexitcode(app, reportdirname, buildtype):
-    """This function takes the last git commit and parses its 'Notes' trying to guess the buid
-    exit code we stored in there. It's a hacky way to get the exit code but when the user logs in
-    exploiting an information that we anyway wrote on the git directory is the better way
+    """This function takes the report log and parses its first line to return the buid
+    exit status.
     :return: the exit code, -1 (unkwnown), 0 (ok, no errors), 1 (ok, compilation errors), 2 faile
     (no file created)
     """
-    args = gitkwargs(app, reportdirname)
-    notes = subprocess.check_output(["git", "log", "-1", "--pretty=format:%N"], **args).strip()
-    ret = -1  # everything not in 0, 1, 2
-    if not notes:
-        return ret
-    notes_dict = json.loads(notes)
-    if 'Report generation' not in notes_dict:
-        return ret
-    notes_dict = notes_dict['Report generation']
-    if buildtype not in notes_dict:
-        return ret
-    msg = notes_dict[buildtype]
-    # here the point: we might parse the string and get the exit code, but we might change the
-    # string msg in the future. Let's try to be sufficiently flexible for accomodating new string
-    # msg types in the future. The idea is that the exit code is any string defined by a
-    # number followed and preceeded by a var length of spaces (from 0 to inf), and this string
-    # MUST NOT be followed nor preceeded by a word character or a space character:
-    # '345' is recognized as exit code
-    # "my 345 cats" is NOT recognized
-    # "my 345: cats" is NOT recognized
-    # "my (345)cats" IS recognized
-    try:
-        reg = re.compile(r"(?<![\w\s])\s*\d+\s*(?![\w\s])")
-        return int(reg.search(msg).group().strip())
-    except (AttributeError, ValueError):
-        return ret
+    # try to make a regexp which is general and accounts for potential changes in the
+    # output string msg:
+    exitstatusreg = re.compile(r"(?<![\w\s])\s*\d+\s*(?![\w\s])")
+    for line in _logiter(app, reportdirname, buildtype):
+        try:
+            return int(exitstatusreg.search(line).group().strip())
+        except (AttributeError, ValueError):
+            return -1
+    return -1  # in case no file found
 
 
 def _logiter(app, reportdirname, buildtype):
     ''' returns an iterator over each line of the log file of a given buildtype'''
     logfile = get_logfile(app, reportdirname, buildtype)
     if os.path.isfile(logfile):
-        logerrreg = log_err_regexp()
         with open(logfile) as fopen:
             for line in fopen:
                 line = line.strip()

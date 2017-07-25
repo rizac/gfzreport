@@ -9,7 +9,7 @@ from click.testing import CliRunner
 import os
 
 from gfzreport.templates.network.main import main as network_reportgen_main
-from gfzreport.sphinxbuild.main import main as sphinxbuild_main, get_logfilename
+from gfzreport.sphinxbuild.main import main as sphinxbuild_main, get_logfilename, exitstatus2str
 from datetime import datetime
 import shutil
 from gfzreport.web.app import get_app, initdbusers, initdb
@@ -312,7 +312,7 @@ class Test(unittest.TestCase):
             assert len(commitz) == 1
             commit = commitz[0]
             assert commit['email'] == 'user1_ok@example.com'
-            assert "pdf: Successful, with compilation errors" in commit['notes']
+            assert "pdf: Build successful, with compilation errors" in commit['notes']
             
             
             # check logs:
@@ -379,7 +379,7 @@ class Test(unittest.TestCase):
             logfile = os.path.join(self.get_buildir('pdf'), get_logfilename())
             with open(logfile) as fopen:
                 logcontent = fopen.read()
-            
+
             assert "!wow!" in logcontent   # the exception message (see mock above)
             # but if we get the commits, we registered that pdflatex was wrong:
             res = app.post("/ZE_2012/get_commits",
@@ -389,8 +389,35 @@ class Test(unittest.TestCase):
             commitz = json.loads(res.data)
             commit = commitz[0]
             assert commit['email'] == 'user1_ok@example.com'
-            assert "pdf: Failed (exit code: 2)" in commit['notes']
+            assert ("pdf: %s" % exitstatus2str(2)) in commit['notes']
+            
+            res1 = app.post("/ZE_2012/last_build_exitcode",
+                           data=json.dumps({'buildtype': "html"}),
+                           content_type='application/json')
+            
+            res2 = app.post("/ZE_2012/last_build_exitcode",
+                           data=json.dumps({'buildtype': "pdf"}),
+                           content_type='application/json')
 
+            assert res1.status_code == 200 and res2.status_code == 200
+            assert int(res1.data) == -1
+            assert int(res2.data) == 2
+            
+            # assert we do not have a html file:
+            htmlfile = os.path.join(self.get_buildir('html'), 'report.html')
+            assert not os.path.isfile(htmlfile)
+            # compile html
+            res = app.get("/ZE_2012/content/html", follow_redirects=True)
+            # status code is still 200, as we redirect to the error page
+            assert res.status_code == 200
+            # re-query the exit code:
+            res1 = app.post("/ZE_2012/last_build_exitcode",
+                           data=json.dumps({'buildtype': "html"}),
+                           content_type='application/json')
+            assert res.status_code == 200
+            assert int(res1.data) == 0
+            assert os.path.isfile(htmlfile)
+            
 
 
 if __name__ == "__main__":

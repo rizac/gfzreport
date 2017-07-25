@@ -129,7 +129,7 @@ def cp_template_tree(in_path, out_path, confirm):
                               "Please provide a non-existing directory name") % out_path)
 
         if confirm:
-            strmsg = """Sphinx files %s will be written to:
+            strmsg = """Sphinx files will be written to:
 %s%s
 Continue?
 """ % (out_path, "\nThe directory path will be created (mkdir -p)" if not out_path_exists else "")
@@ -151,24 +151,13 @@ Continue?
         makedirs(_data_outdir)
         print("Generated empty folder '%s'" % _data_outdir)
 
-        # write info from the caller:
-#         print("Writing caller info to README.txt")
-#         with open(os.path.join(out_path, 'README.txt'), 'w') as opn:
-#             opn.write(u'Source folder generated automatically on %s\n' %
-#                       (datetime.datetime.utcnow()))
-#             opn.write(u'in current stack (from inner to outer caller):\n')
-#             for stack in inspect.stack()[1:]:
-#                 filename, funcname, localz = str(stack[1]), str(stack[3]), stack[0].f_locals
-#                 opn.write(u"%s:%s" % (filename, funcname))
-#                 opn.write(u'   with %d local variables:\n' % len(localz))
-#                 for key, val in localz.items():
-#                     opn.write(u'   %s = %s\n' % (str(key), str(val)))
-
         yield _data_outdir  # execute wrapped code
 
     except:
         cleanup = not out_path_exists and os.path.isdir(out_path)  # for finally (see below)
         raise
+    else:
+        print("Done")
     finally:
         if cleanup:
             shutil.rmtree(out_path, ignore_errors=True)
