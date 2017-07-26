@@ -79,9 +79,41 @@ def get_report(reportdirname):
                            pagetype="html")
 
 
+@mainpage.route('/<reportdirname>/<pagetype>/<path:static_file_path>')
+def get_report_static_file(reportdirname, pagetype, static_file_path):
+    '''views for the static content in iframes AND main page'''
+    # So, we are here for two reasons: static files within sub-pages (html, pdf)
+    # or static file within main page. We have this problem because the app static files
+    # depth match our view depth:
+    # /ZE_2012/html/_static/mystyle.css   # this is a static file for a subpage
+    # /static/css/webapp.css             # this is a static file for the main page
+    # The problem is not easy, we might solve it by specifying, as we did before,
+    # a different path depth for our views, such as (see view below):
+    # @mainpage.route('/<reportdirname>/content/<pagetype>')
+    # and changing in myapp.js the 'src' properties of the iframes, or leave as it is
+    # This way, we could get rid of the first if branch below, where we check if the path
+    # is for static data.
+    # We prefer the second because, even if more prone to errors, is documented here and we should
+    # not have surprises if changing the urls views. For info see:
+    # https://stackoverflow.com/questions/17135006/url-routing-conflicts-for-static-files-in-flask-dev-server
+
+    if current_app.static_url_path == "/" + reportdirname:  # check for static path.
+        # this relies on the fact that no pagetype is "static", which should be fine
+        # (currently they are 'pdf' or 'html')
+        return current_app.send_static_file(os.path.join(pagetype, static_file_path))
+
+    # Note: pagetype might be also "_static"
+    if pagetype != 'html' and not current_user.is_authenticated:
+        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+        abort(401)
+    if pagetype in ('html', 'pdf'):
+        filepath = os.path.join(get_builddir(current_app, reportdirname, pagetype), static_file_path)
+        return send_from_directory(os.path.dirname(filepath), os.path.basename(filepath))
+
+
 # slash at the end: this way the routes defined in the next view are pointing to the right location
 # FIXME: why?!!!
-@mainpage.route('/<reportdirname>/content/<pagetype>/')
+@mainpage.route('/<reportdirname>/<pagetype>/')
 def get_report_type(reportdirname, pagetype):
     '''views for the iframes'''
     # instead of the decorator @login_required, which handles redirects and makes the view
@@ -113,18 +145,34 @@ def get_report_type(reportdirname, pagetype):
             return render_template("buildfailed.html", pagetype=pagetype)
 
         # binfo('Serving page', None, 0, 0)
-        reportfilename = get_buildfile(current_app, reportdirname, pagetype)
-        response = send_from_directory(os.path.dirname(reportfilename),
-                                       os.path.basename(reportfilename))
         if pagetype == 'pdf':
-            # https://stackoverflow.com/questions/18281433/flask-handling-a-pdf-as-its-own-page
-            response.headers['Content-Type'] = 'application/pdf'
-            # 'inline' to 'attachment' if you want the file to download rather than display
-            # in the browser:
-            response.headers['Content-Disposition'] = \
-                'inline; filename=%s.pdf' % reportdirname
+            # this will render a page that will in turn call get_pdf_object
+            return render_template("pdf.html", reportdirname=reportdirname)
+        else:
+            reportfilename = get_buildfile(current_app, reportdirname, pagetype)
+            response = send_from_directory(os.path.dirname(reportfilename),
+                                           os.path.basename(reportfilename))
 
         return response
+
+
+@mainpage.route('/<reportdirname>/pdf/document')
+def get_pdf_object(reportdirname):
+    '''This is called from the embed or object tag within the pdf.html page to load the pdf'''
+    # Copied and modified from:
+    # https://stackoverflow.com/questions/18281433/flask-handling-a-pdf-as-its-own-page
+    pagetype = 'pdf'  # keep pagetype as variable, although it is useless
+    reportfilename = get_buildfile(current_app, reportdirname, pagetype)
+    response = send_from_directory(os.path.dirname(reportfilename),
+                                   os.path.basename(reportfilename))
+    # https://stackoverflow.com/questions/18281433/flask-handling-a-pdf-as-its-own-page
+    response.headers['Content-Type'] = 'application/pdf'
+    # 'inline' to 'attachment' if you want the file to download rather than display
+    # in the browser:
+    response.headers['Content-Disposition'] = \
+        'inline; filename=%s.pdf' % reportdirname
+
+    return response
 
 
 @mainpage.route('/<reportdirname>/last_build_exitcode', methods=['POST'])
@@ -132,24 +180,6 @@ def get_last_build_exitcode(reportdirname):
     buildtype = request.get_json()['buildtype']
     ret = lastbuildexitcode(current_app, reportdirname, buildtype)
     return jsonify(ret)
-
-
-@mainpage.route('/<reportdirname>/content/<pagetype>/<path:static_file_path>')
-def get_report_static_file(reportdirname, pagetype, static_file_path):
-    '''views for the static content in iframes'''
-    # instead of the decorator @login_required, which handles redirects and makes the view
-    # disabled for non-logged-in users, we prefer a lower level approach. First, because
-    # This view is restricted depending on pagetype, second because we do not want redirects,
-    # but aborting with a 403 (Forbidden) status. It is then the frontend which will handle
-    # this
-
-    # Note: pagetype might be also "_static"
-    if pagetype != 'html' and not current_user.is_authenticated:
-        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
-        abort(401)
-    if pagetype in ('html', 'pdf'):
-        filepath = os.path.join(get_builddir(current_app, reportdirname, pagetype), static_file_path)
-        return send_from_directory(os.path.dirname(filepath), os.path.basename(filepath))
 
 
 @mainpage.route('/<reportdirname>/save', methods=['POST'])

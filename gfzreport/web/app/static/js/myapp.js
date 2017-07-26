@@ -109,7 +109,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	    			});
 	    		});
 		    };
-		    iframe.src = "content/edit";
+		    iframe.src = "edit";
 		}
 	};
 	
@@ -189,7 +189,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 		$scope.scrollY[view] = (frame.contentWindow || frame).scrollY;
 		// seems that sometimes browsers have cache, so, for safety:
 		var append = "?preventcache=" + Date.now()
-		frame.src = "content/" + view + append;
+		frame.src = view + append;
 	
 		// As a remainder. If the url is already set, one could use also:
 		// iframe.contentWindow.location.reload(true);

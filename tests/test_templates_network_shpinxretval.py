@@ -155,7 +155,7 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
         
         # TRY TO MISALIGN A INDENTATION
         # change a directive to something it does not exist (mock typo)
-        _tmp_rst_text = rst_text.replace("   :align: center", ":align: center")
+        _tmp_rst_text = rst_text.replace(" :align: center", "\n:align: center")
         assert _tmp_rst_text != rst_text
         # write to file
         with open(os.path.join(RSTDIR, "report.rst"), "w") as _opn:
@@ -171,9 +171,7 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
         with open(os.path.join(args_[1], get_logfilename()), "r") as _opn:
             _log_out = _opn.read()
 
-        # SPHINX IS OK WITH UNKNOWN DIRECTIVE TYPES, SHIT!
-        
-        
+        # 
         assert result.exit_code == 2
         assert 'Exception occurred:' in _log_out
             

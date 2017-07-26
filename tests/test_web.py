@@ -194,7 +194,7 @@ class Test(unittest.TestCase):
             # If we add routes with the slash at the end, we should 
             # add follow_redirect=True to app.get. See
             # http://flask.pocoo.org/docs/0.11/quickstart/#routing
-            res = app.get("/ZE_2012/content/html", follow_redirects=True)
+            res = app.get("/ZE_2012/html", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert mock_reportbuild_run.call_count == 1
@@ -214,7 +214,7 @@ class Test(unittest.TestCase):
             # If we add routes with the slash at the end, we should 
             # add follow_redirect=True to app.get. See
             # http://flask.pocoo.org/docs/0.11/quickstart/#routing
-            res = app.get("/ZE_2012/content/html")
+            res = app.get("/ZE_2012/html")
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert mock_reportbuild_run.call_count == 0
@@ -229,7 +229,7 @@ class Test(unittest.TestCase):
             # If we add routes with the slash at the end, we should 
             # add follow_redirect=True to app.get. See
             # http://flask.pocoo.org/docs/0.11/quickstart/#routing
-            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
+            res = app.get("/ZE_2012/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert res.status_code == 401
@@ -240,7 +240,7 @@ class Test(unittest.TestCase):
             res = app.post("/ZE_2012/login", data={'email' :'abc'})
             assert res.status_code == 401
             # thus, we do not access the pdf creation:
-            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
+            res = app.get("/ZE_2012/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert res.status_code == 401
@@ -251,7 +251,7 @@ class Test(unittest.TestCase):
             res = app.post("/ZE_2012/login", data={'email' :'user3_no@example.com'})
             assert res.status_code == 403
             # thus, we do not access the pdf creation:
-            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
+            res = app.get("/ZE_2012/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert res.status_code == 401
@@ -297,7 +297,7 @@ class Test(unittest.TestCase):
             # and the pdf is created
             se = self.mock_urlopen.side_effect
             self.mock_urlopen.side_effect = _get_urlopen_sideeffect(None, URLError('wat'))
-            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
+            res = app.get("/ZE_2012/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert res.status_code == 200
@@ -336,7 +336,7 @@ class Test(unittest.TestCase):
             mock_reportbuild_run.reset_mock()
             # test that we do not call mock_reportbuild_run
             # once again:
-            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
+            res = app.get("/ZE_2012/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
             # we should ahve an html page:
             assert res.status_code == 200
@@ -370,7 +370,7 @@ class Test(unittest.TestCase):
             # and the pdf is created
             se = self.mock_urlopen.side_effect
             self.mock_urlopen.side_effect = _get_urlopen_sideeffect(None, URLError('wat'))
-            res = app.get("/ZE_2012/content/pdf", follow_redirects=True)
+            res = app.get("/ZE_2012/pdf", follow_redirects=True)
             # status code is still 200, as we redirect to the error page
             assert res.status_code == 200
             # raw check: the title of the error page. If we change it in the future, fix this test accordingly:
@@ -407,7 +407,7 @@ class Test(unittest.TestCase):
             htmlfile = os.path.join(self.get_buildir('html'), 'report.html')
             assert not os.path.isfile(htmlfile)
             # compile html
-            res = app.get("/ZE_2012/content/html", follow_redirects=True)
+            res = app.get("/ZE_2012/html", follow_redirects=True)
             # status code is still 200, as we redirect to the error page
             assert res.status_code == 200
             # re-query the exit code:
