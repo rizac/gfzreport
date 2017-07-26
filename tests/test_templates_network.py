@@ -197,12 +197,11 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
         runner = CliRunner()
         args_ = [os.path.join(outpath, "ZE_2014"),
                  os.path.join(outpath, "build"), "-b", ""]
-        # for pdf, we expect an exit code of 1 cause there are still things
-        # to fix. However, the pdf prints out pparently ok
-        # FIXME: pdf returns either 1 or 2. WE EXPECT 1 ACTUALLY, BUT SOMETIMES RETURNS 2. WHY?!!!
+        # Set expected ret values as list, although the value is just one, for the cases
+        # if we have more than one ret_val possible (some bug when running py.test from the terminal)
         for buildtype, expected_ext, exp_exitcode in [("", '.tex',[0]),
                                                       ("latex", '.tex',[0]),
-                                                      ("pdf", '.pdf', [1,2]),
+                                                      ("pdf", '.pdf', [1]),
                                                       ("html", '.html', [0]),
                                                       ]:
             btype = 'latex' if not buildtype else buildtype

@@ -138,3 +138,15 @@ Installation of latex in Mac is quite complex compared to Ubuntu, you have two c
   * <sub>[OWSLib](https://github.com/geopython/OWSLib) (optional) It is needed for the BaseMap.wmsimage function.</sub>
 
   * <sub>[Pillow](https://python-pillow.github.io/) (optional)  It is needed for Basemap warpimage, bluemarble, shadedrelief, and etop methods. PIL should work on Python 2.x.  Pillow is a maintained fork of PIL.</sub>
+
+  
+### Notes on py.test
+
+Curiously, py test fails in an undeterministic behaviour when run from the terminal. The problem is
+not reproducible with eclipse, so it is hard to guess what is going on. A solutioj might be to capture
+the standard output into a tmp file. This seems to work although it is unknown why (it might be
+that capturing the standard output we avoid conflicts between our program capturing stderr, pytest capturing stdout
+and potentially sphinx doing the same):
+```
+py.test ./tests --ignore=./tests/skip --cov=./gfzreport --cov-report=html > ~/Desktop/tmp3.txt	
+```
