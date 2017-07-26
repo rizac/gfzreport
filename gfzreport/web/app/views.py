@@ -8,14 +8,14 @@ from datetime import datetime
 
 from flask.templating import render_template
 from flask import abort, send_from_directory, request, jsonify, Blueprint, current_app, \
-    session  # redirect, url_for
+    session, make_response  # redirect, url_for
 from flask_login import current_user
 from flask_login.utils import login_user, logout_user
 
 # from gfzreport.web.app import app
 from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
-    get_fig_directive, get_sourcedir, get_buildfile, get_logs_, lastbuildexitcode
+    get_fig_directive, get_sourcedir, get_buildfile, get_logs_, lastbuildexitcode, nocache
 from gfzreport.web.app.models import User, session as dbsession
 
 
@@ -126,8 +126,14 @@ def get_report_type(reportdirname, pagetype):
         abort(401)
 
     if pagetype == 'edit':
-        return render_template("editor.html", source_data=get_sourcefile_content(current_app,
-                                                                                 reportdirname))
+        # force non cache. Note that get requests can be cached, whereas post requests are
+        # never cached (unless we set the appropriate content headers). Thus, let's be sure
+        # that we never cache "edit", "pdf" and "html" pages cause they are get requests
+        # for all other views defined here, as they are post, we should be fine
+        # Note that we need to use make_response cause render_template returns a string
+        template = render_template("editor.html",
+                                   source_data=get_sourcefile_content(current_app, reportdirname))
+        return nocache(make_response(template))
 
     binfo = None  # NOT USED. it might be something like
     # session['buildinginfo'] = BuildingInfo("Building page")
@@ -147,11 +153,16 @@ def get_report_type(reportdirname, pagetype):
         # binfo('Serving page', None, 0, 0)
         if pagetype == 'pdf':
             # this will render a page that will in turn call get_pdf_object
+            # the nocache wrapper is set inthere
             return render_template("pdf.html", reportdirname=reportdirname)
         else:
             reportfilename = get_buildfile(current_app, reportdirname, pagetype)
-            response = send_from_directory(os.path.dirname(reportfilename),
-                                           os.path.basename(reportfilename))
+            # force non cache. Note that get requests can be cached, whereas post requests are
+            # never cached (unless we set the appropriate content headers). Thus, let's be sure
+            # that we never cache "edit", "pdf" and "html" pages cause they are get requests
+            # for all other views defined here, as they are post, we should be fine
+            response = nocache(send_from_directory(os.path.dirname(reportfilename),
+                                                   os.path.basename(reportfilename)))
 
         return response
 
@@ -163,8 +174,12 @@ def get_pdf_object(reportdirname):
     # https://stackoverflow.com/questions/18281433/flask-handling-a-pdf-as-its-own-page
     pagetype = 'pdf'  # keep pagetype as variable, although it is useless
     reportfilename = get_buildfile(current_app, reportdirname, pagetype)
-    response = send_from_directory(os.path.dirname(reportfilename),
-                                   os.path.basename(reportfilename))
+    # force non cache. Note that get requests can be cached, whereas post requests are
+    # never cached (unless we set the appropriate content headers). Thus, let's be sure
+    # that we never cache "edit", "pdf" and "html" pages cause they are get requests
+    # for all other views defined here, as they are post, we should be fine
+    response = nocache(send_from_directory(os.path.dirname(reportfilename),
+                                           os.path.basename(reportfilename)))
     # https://stackoverflow.com/questions/18281433/flask-handling-a-pdf-as-its-own-page
     response.headers['Content-Type'] = 'application/pdf'
     # 'inline' to 'attachment' if you want the file to download rather than display

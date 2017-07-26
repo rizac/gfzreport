@@ -58,6 +58,17 @@ from gfzreport.sphinxbuild.main import _run_sphinx, get_master_doc, get_logfilen
     exitstatus2str
 
 
+def nocache(response):
+    """makes the response non cacheable. Useful for GET requests only, as POST by default
+    is not cacheable. We use it basically for the html pages 'pdf', 'html' and 'edit'"""
+    response.headers['Last-Modified'] = datetime.now()
+    response.headers['Cache-Control'] = ('no-store, no-cache, must-revalidate, '
+                                         'post-check=0, pre-check=0, max-age=0')
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
+
+
 def gitkwargs(app, reportdirname):
     '''returns the dict to be passed as keyword arguments to any 
     subprocess.check_output or subprocess.call function

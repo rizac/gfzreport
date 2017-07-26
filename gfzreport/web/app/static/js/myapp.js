@@ -188,9 +188,11 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 		// https://stackoverflow.com/questions/16018598/how-to-get-a-reference-to-an-iframes-window-object-inside-iframes-onload-handl
 		$scope.scrollY[view] = (frame.contentWindow || frame).scrollY;
 		// seems that sometimes browsers have cache, so, for safety:
-		var append = "?preventcache=" + Date.now()
-		frame.src = view + append;
-	
+		// var append = "?preventcache=" + Date.now()
+		// we implemented nocache mechanism on the backend, so
+		// frame.src = view + append;
+		frame.src = view;
+
 		// As a remainder. If the url is already set, one could use also:
 		// iframe.contentWindow.location.reload(true);
 		// (http://stackoverflow.com/questions/13477451/can-i-force-a-hard-refresh-on-an-iframe-with-javascript)

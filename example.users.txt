@@ -11,6 +11,6 @@
 # (so use ^ and $ if a match from the beginning or until the end is needed)
 
 [
-	{'email': 'user1@mysite.com'},
-	{'email': 'user2@mysite.com', 'path_restriction_reg': "/abc*$"},
+	{"email": "user1@mysite.com"},
+	{"email": "user2@mysite.com", "path_restriction_reg": "/abc*$"},
 ]
