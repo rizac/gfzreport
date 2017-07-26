@@ -10,6 +10,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	$scope.needsRefresh = {};
 	$scope.frames = {'edit': document.getElementById("edit_iframe")};
 	$scope.buildExitcode = {};  //same keys as needsRefresh (the views) mapped to an int representing the last build exit code
+	$scope.scrollY = {}; // see above. Stores the page scrollY to reset it after the build
 
 	// setting up frames and needsRefresh. The two obects above have $scope._VIEWS as keys.
 	// Note that we avoid closure with forEach
@@ -17,6 +18,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	$scope._VIEWS.forEach(function(_view) {
 		$scope.needsRefresh[_view] = true;
 		$scope.buildExitcode[_view] = -1;
+		$scope.scrollY[_view] = 0;
 		var frame = document.getElementById(_view + "_iframe");  // e.g. 'html_iframe'
 		// add listener on load complete:
 		frame.onload = function() {
@@ -27,7 +29,11 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 				$scope.needsRefresh[_view] = false;
 				$scope.loading = false;
 				$scope._init = false; //if first time, notify that everything is loaded succesfully
-				
+				if ($scope.scrollY[_view] != 0){
+					// to access an iframe window, use (frame.contentWindow || frame)
+					// https://stackoverflow.com/questions/16018598/how-to-get-a-reference-to-an-iframes-window-object-inside-iframes-onload-handl
+					(frame.contentWindow || frame).scrollTo(0, $scope.scrollY[_view]);
+				}
 			});
 		};
 		$scope.frames[_view] = frame;
@@ -176,7 +182,11 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 			return;
 		}
 		$scope.loading = true;
+		//store scrollY to reset it after page load:
 		var frame = $scope.frames[view]
+		// to access an iframe window, use (frame.contentWindow || frame)
+		// https://stackoverflow.com/questions/16018598/how-to-get-a-reference-to-an-iframes-window-object-inside-iframes-onload-handl
+		$scope.scrollY[view] = (frame.contentWindow || frame).scrollY;
 		// seems that sometimes browsers have cache, so, for safety:
 		var append = "?preventcache=" + Date.now()
 		frame.src = "content/" + view + append;

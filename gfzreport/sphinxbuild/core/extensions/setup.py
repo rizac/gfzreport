@@ -79,7 +79,7 @@ def app_source_read(app, docname, source):
 
 
 def replace_math_dollar(source):
-    return re.sub("\\$(.*?)\\$", ":math:`\\1`", source)  # flags=re.MULTILINE)
+    return re.sub("(?<!\\\\)\\$(.*?)(?<!\\\\)\\$", " :math:`\\1` ", source)  # flags=re.MULTILINE)
 
 
 def normalize_sec_headers(string, list_of_under_and_overlines=[("#", "#"),

@@ -11,10 +11,10 @@
 
 # ~~~~~ VARIABLES TO CHANGE: ~~~~~~~~~~~~~
 # python path (absolute):
-_VIRTUALENV_PYTHONPATH = '/home/riccardo/gfz-reportgen/bin/activate_this.py'
+_VIRTUALENV_PYTHONPATH = '/home/me/gfz-reportgen/bin/activate_this.py'
 # report type: in the config flask file, there must be a dict with _REPORT_TYPE name
 # with a given source folder.
-_DATA_PATH = '/data2/gfz-report/annual'
+_DATA_PATH = '/path/to/gfz-report/annual'
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
