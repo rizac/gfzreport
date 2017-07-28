@@ -328,7 +328,7 @@ class Test(unittest.TestCase):
             assert len(_data[0]) > len(_data[1])
             errlogcontent = _data[1]
             # sphinx build (rst to latex) was successfull:
-            assert 'No error found' in errlogcontent[:errlogcontent.find('Pdflatex')]
+            assert 'No compilation error found' in errlogcontent[:errlogcontent.find('Pdflatex')]
             # pdflatex gave some error(s): if we fix this in the future, it might have no errors,
             # in case check errlogcontent and assert something else or comment out the following assertion:
             assert "ERROR:" in errlogcontent[errlogcontent.find('Pdflatex'):]

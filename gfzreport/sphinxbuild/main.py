@@ -124,10 +124,12 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
     # (doc neither created nor newly modified).
     # Now for sphinx-build, we can easily rely on the returned value of sphinx build, especially
     # because sphinx checks outdated files only so the build can be successfull also when nothing
-    # has been modified. Called R the sphinx-build return value, if R !=0, then R is set to 1
+    # has been modified. Called R the sphinx-build return value, if R !=0, then R is set to 2.
     # Otherwise if R = 0, we will try to read the standard error (that we captured via
     # a `capturestderr` context manager): if an error is found (according to sphinx error format)
     # then R is set = 1, otherwise R is unchanged (0)
+    # Note that in the first case (R!=0) we do not parse the standard error cause the sphinx error
+    # format is not found (we have, e.g. "Exception occurred:...")
     # At this point if we do not need to run pdflatex, or R !=0, we return R.
     # If on the other hand we have to run pdflatex and R == 0, we run pdflatex
     # For pdflatex, as we said, we cannot rely on its exit status, as nonzero does not mean the
@@ -173,11 +175,15 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
                 break
         elif ret != 0:
             # if the return value is non-zero, set ret = 2 this will return immediately
-            # As we said, with sphinx, we do not rely on file modified cause sphinx writes a new
-            # output only if something has to be updated.
-            # With pdflatex, we are sure that output will be
-            # overridden but we cannot rely on a non-zero exit code because the document might have
-            # been created anyway
+            # NOTE THAT IN THIS CASE the error in new_stderr is NOT formatted as the other cases.
+            # Parsing it and converting to our standard format requires too much effort and is
+            # unstable. A typical error might be rst syntax error, but also python exceptions, e.g.:
+            #
+            # Exception occurred:
+            # File "/Users/extensions/mapfigure.py", line 265, in visit_map_node_html
+            #     """.format(str(_uuid), add_to_map_js, legend_js)
+            # KeyError: 'color'
+            # The full traceback has been saved in ...
             ret = 2
 
         if ret == 0 and build == 'pdf':

@@ -449,10 +449,14 @@ def get_logs_(app, reportdirname, buildtype):
     FILENOTFOUND = 'Log file not found'
     logfilecontent = [FILENOTFOUND]
     logfileerrors = [FILENOTFOUND]
-    NOERRFOUND = '   No error found'
     logerrreg = log_err_regexp()
+    logfileiter = _logiter(app, reportdirname, buildtype)
+    exit_status = next(logfileiter)
+    NOERRFOUND = '   No compilation error found'
+    if exit_status == 2:
+        NOERRFOUND += " (critical errors or exceptions are reported in the full log)"
     firstline = True
-    for line in _logiter(app, reportdirname, buildtype):
+    for line in logfileiter:
         if firstline:  # file found, remove first line
             del logfileerrors[-1]
             del logfilecontent[-1]
@@ -477,20 +481,26 @@ def lastbuildexitcode(app, reportdirname, buildtype):
     """
     # try to make a regexp which is general and accounts for potential changes in the
     # output string msg:
-    exitstatusreg = re.compile(r"(?<![\w\s])\s*\d+\s*(?![\w\s])")
     for line in _logiter(app, reportdirname, buildtype):
-        try:
-            return int(exitstatusreg.search(line).group().strip())
-        except (AttributeError, ValueError):
-            return -1
-    return -1  # in case no file found
+        return line  # first element is the exit status
 
 
 def _logiter(app, reportdirname, buildtype):
-    ''' returns an iterator over each line of the log file of a given buildtype'''
+    ''' returns an iterator over each line of the log file of a given buildtype. The first
+    element is an integer indicating the exit status (-1,0,1,2), then each line (stripped)'''
     logfile = get_logfile(app, reportdirname, buildtype)
+    firstline = True
+    exitstatusreg = re.compile(r"(?<![\w\s])\s*\d+\s*(?![\w\s])")
     if os.path.isfile(logfile):
         with open(logfile) as fopen:
             for line in fopen:
+                if firstline:
+                    try:
+                        yield int(exitstatusreg.search(line).group().strip())
+                    except (AttributeError, ValueError):
+                        yield -1
+                    firstline = False
                 line = line.strip()
                 yield line
+    else:
+        yield -1

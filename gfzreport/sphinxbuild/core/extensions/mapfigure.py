@@ -258,6 +258,8 @@ def visit_map_node_html(self, node):
     // fit bounds according to markers:
     var group = new L.featureGroup(markersArray);
     map.fitBounds(group.getBounds());
+    var rect = L.rectangle(group.getBounds(), {{color: 'black', fill: false, dashArray: "1, 3", weight: .5}}).addTo(map);
+    group.bringToFront();
     {2}
 </script>
 """.format(str(_uuid), add_to_map_js, legend_js)
