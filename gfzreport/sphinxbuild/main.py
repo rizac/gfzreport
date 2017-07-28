@@ -114,8 +114,8 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
         def listener(*a, **v):
             pass
 
-    # Ok, sorry for the verbosity but it's needed:
-    # Now start the gfzreport build (gfz-build). We call sphinx-build and then, if the build
+    # Now (sorry for the verbosity but it's needed)
+    # start the gfzreport build (gfz-build). We call sphinx-build and then, if the build
     # argument is 'pdf', we use python subprocess to invoke `pdflatex`.
     # Pdflatex returns 1 also in case the pdf
     # was written successfully, so we decided that the gfz-build
@@ -237,8 +237,7 @@ def exitstatus2str(exitstatus):
 def finalize(stderr, exitstatus, outdir):
     '''finalizes the build result writing log file and printing to stdout the final result'''
     msg = exitstatus2str(exitstatus)
-    msg = "Build %s" % (msg[:1].lower() + msg[1:])
-    sys.stdout.write("\n%s%s" % ('ERROR: ' if exitstatus == 2 else '', msg))
+    sys.stdout.write("%s%s" % ("ERROR: " if exitstatus == 2 else "", msg))
 
     fileout = os.path.join(outdir, get_logfilename())
     if os.path.isdir(os.path.dirname(fileout)):
@@ -246,7 +245,7 @@ def finalize(stderr, exitstatus, outdir):
             _.write(msg)
             _.write('\n%s\n\n' % ('*' * len(msg)))
             _.write(stderr.getvalue())
-        sys.stdout.write("\n(Log file written to '%s')" % fileout)
+        sys.stdout.write("\n(Log file written to '%s')\n" % fileout)
 
 
 def run(sourcedir, outdir, build=_DEFAULT_BUILD_TYPE, *other_sphinxbuild_options):

@@ -61,6 +61,8 @@ from gfzreport.sphinxbuild.main import _run_sphinx, get_master_doc, get_logfilen
 def nocache(response):
     """makes the response non cacheable. Useful for GET requests only, as POST by default
     is not cacheable. We use it basically for the html pages 'pdf', 'html' and 'edit'"""
+    # for info see:
+    # https://arusahni.net/blog/2014/03/flask-nocache.html
     response.headers['Last-Modified'] = datetime.now()
     response.headers['Cache-Control'] = ('no-store, no-cache, must-revalidate, '
                                          'post-check=0, pre-check=0, max-age=0')
@@ -70,7 +72,7 @@ def nocache(response):
 
 
 def gitkwargs(app, reportdirname):
-    '''returns the dict to be passed as keyword arguments to any 
+    '''returns the dict to be passed as keyword arguments to any
     subprocess.check_output or subprocess.call function
     invoking git. Basically, it changed the cwd of the subprocess and set shell=True.
     For any other common customization, edit keyword arguments here'''

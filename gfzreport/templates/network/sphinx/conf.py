@@ -150,12 +150,19 @@ templates_path = ['conf_files/html/templates']
 html_static_path = ['conf_files/html/static_path']
 
 # The name of an image file (relative to this directory) to place at the top
-# of the sidebar. NOTE: IT IS NOT CURRENTLY USED ANYWHERE BECAUSE WE SET embedded = True in
-# layout.html (in templates dir):
+# of the sidebar. NOTE: AS LONG AS html_theme='alabaster',
+# IT IS NOT CURRENTLY USED ANYWHERE BECAUSE WE SET embedded = True in
+# layout.html (in templates dir), AS LONG AS OUR THEME IS alabaster!!
+# For other themes, you should have a look at their path (see our layout.html). For instance haiku
+# seems to ignore embedded
 html_logo = "conf_files/html/GFZ-Logo_eng_RGB.png"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
+# a list of builtin themes. NOTE: NOT ALL THEMES BEHAVE THE SAME. FOR INSTANCE, ALABASTER HAS
+# A THEME WITH A JINJA VAR embedded WHICH, IF True (WE SET IT TO True IN OUR CUSTOM TEMPLATE)
+# DOES NOT DISPLAY SIDEBARS AND OTHER STUFF. THUS, IF YOU CHANGE THIS YOU MIGHT ALSO NEED TO
+# CHANGE layout.html in templates folder and style.css in static_path/css.
+# SUGGESTION: DO NOT CHANGE THIS, RATHER only style.css if you want other types of styles
 html_theme = 'alabaster'
 
 # If true, an OpenSearch description file will be output, and all pages will

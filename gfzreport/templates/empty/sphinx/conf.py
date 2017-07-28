@@ -38,16 +38,40 @@ extensions = [
     'gfzreport.sphinxbuild.core.extensions.includegraphics',  # this is the custom one
 ]
 
+
+# ******************************************** WARNING
+# THE VARIABLES BELOW SET THE MASTER DOCUMENT, AND THE RELATIVE LATEX FILES.
+# AS THIS PROGRAM CAN COMPILE ONLY A SINGLE SOURCE (rst, md) FILE INTO A DEST FILE (html, latex, pdf),
+# THE SETTINGS BELOW ARE SET IN ORDER TO ACHIEVE THAT
+# CHANGING THESE ARGUMENTS IS STRONGLY DISCOURAGED
+# *********************************************
+
 # The document name of the “master” document, that is, the document that contains the root
-# toctree directive. In case of single page document, as this report is,
-# THIS IS THE SOURCE FILE AND DESTINATION FILE NAME (without extensions) OF THE REPORT.
-# (extensions will be appended as needed, see source_suffic below for instance):
+# toctree directive. WE do NOT have a .. toctree:: in the master_doc THUS this is simply the ONLY
+# source document to compile, which will be built with `master_doc` + `source_suffix` (se below)
+# THIS ARGUMENT WILL BE READ IN ORDER TO GET THE OUTPUT FILE NAME (master_doc + '.html', master_doc + '.tex'
+# etcetera)
+# For info see:
+# http://www.sphinx-doc.org/en/1.5.2/config.html#confval-master_doc (current as of July 2017), or
+# http://www.sphinx-doc.org/en/latest/config.html#confval-master_doc
 master_doc = 'report'
 
-# The suffix(es) of source filenames. You can specify multiple suffix as a list of string:
+# This is the suffix(es) of source filenames. You can specify multiple suffix as a list of string:
 # source_suffix = ['.rst', '.md']
-# master_doc and source_suffix tell sphinx which are the source files in sourcedir:
+# BUT SPHINX DOES NOT TELL US WHAT HAPPENS IN CASE OF CONFLICTS, SO PROVIDE A SINGLE ELEMENT HERE:
 source_suffix = '.rst'
+
+# The argument below determines how to group the document tree into LaTeX source files.
+# DO NOT CHANGE THIS ARGUMENT, IN PARTICULAR, DO NOT PROVIDE MORE THAN ONE ELEMENT
+# For other latex related stuff, scroll below this config file
+# For info see:
+# http://www.sphinx-doc.org/en/1.5.2/config.html#confval-latex_documents (current as of July 2017), or
+# http://www.sphinx-doc.org/en/latest/config.html#confval-latex_documents
+latex_documents = [
+    (master_doc, master_doc + '.tex', u'', u'', 'howto', False),
+]
+
+# ******************************************** END OF WARNING
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
@@ -126,12 +150,19 @@ templates_path = ['conf_files/html/templates']
 html_static_path = ['conf_files/html/static_path']
 
 # The name of an image file (relative to this directory) to place at the top
-# of the sidebar. NOTE: IT IS NOT CURRENTLY USED ANYWHERE BECAUSE WE SET embedded = True in
-# layout.html (in templates dir):
+# of the sidebar. NOTE: AS LONG AS html_theme='alabaster',
+# IT IS NOT CURRENTLY USED ANYWHERE BECAUSE WE SET embedded = True in
+# layout.html (in templates dir), AS LONG AS OUR THEME IS alabaster!!
+# For other themes, you should have a look at their path (see our layout.html). For instance haiku
+# seems to ignore embedded
 html_logo = "conf_files/html/GFZ-Logo_eng_RGB.png"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
+# a list of builtin themes. NOTE: NOT ALL THEMES BEHAVE THE SAME. FOR INSTANCE, ALABASTER HAS
+# A THEME WITH A JINJA VAR embedded WHICH, IF True (WE SET IT TO True IN OUR CUSTOM TEMPLATE)
+# DOES NOT DISPLAY SIDEBARS AND OTHER STUFF. THUS, IF YOU CHANGE THIS YOU MIGHT ALSO NEED TO
+# CHANGE layout.html in templates folder and style.css in static_path/css.
+# SUGGESTION: DO NOT CHANGE THIS, RATHER only style.css if you want other types of styles
 html_theme = 'alabaster'
 
 # If true, an OpenSearch description file will be output, and all pages will
@@ -218,19 +249,7 @@ html_use_opensearch = ''
 
 # -- Options for LaTeX output ---------------------------------------------
 
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title, author, documentclass [howto, manual, or own class]).
-# 1) startdocname: document name that is the “root” of the LaTeX file. All documents referenced by
-# it in TOC trees will be included in the LaTeX file too. (If you want only one LaTeX file,
-# use your master_doc here.)
-# 2) targetname: file name of the LaTeX file in the output directory.
-# 3) title: LaTeX document title. Can be empty to use the title of the startdoc.
-# For info see:
-# http://www.sphinx-doc.org/en/stable/config.html#confval-latex_documents
-# NOTE: TITLE MUST BE EMPTY IF YOU WANT TO USE THE TITLE (TOP LEVEL ONE) IN THE .rst
-latex_documents = [
-    (master_doc, master_doc + '.tex', u'', author, 'howto'),
-]
+# `latex_documents` has been defined above and should NOT be changed
 
 # A list of file names, relative to the configuration directory, to copy to the build directory
 # when building LaTeX output. (Note: changed in version 1.2: This overrides the files which is
@@ -254,9 +273,9 @@ latex_elements = {
     # (NOTE THAT Title Color applies to ALL section/chapter titles in sphinx 1.5.1):
     'sphinxsetup': "HeaderFamily=\\bfseries,TitleColor={rgb}{0,0,0}",
     # sphinx preamble (http://www.sphinx-doc.org/en/stable/config.html#confval-latex_elements):
-    'preamble': r'\makeatletter\input{latex.preamble.dontcompile.tex}\makeatother',
+    'preamble': r'\makeatletter\input{latex.preamble.tex}\makeatother',
     # latex epilog (http://www.sphinx-doc.org/en/stable/config.html#confval-latex_elements):
-    'atendofbody': r'\makeatletter\input{latex.atendofbody.dontcompile.tex}\makeatother',
+    'atendofbody': r'\makeatletter\input{latex.atendofbody.tex}\makeatother',
 }
 
 # The name of an image file (relative to this directory) to place at the top of the title page:
