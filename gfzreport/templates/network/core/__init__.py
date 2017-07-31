@@ -226,8 +226,8 @@ def get_map_df(geofonstations_df, otherstations_df):
     columns = ['Label', 'Lat', 'Lon', 'Marker', 'Color', 'Legend']
     # The first three are common to both dataframes. otherstations_df has all five columns
 
-    # make a new geofonstations_df, it will be a view of the original geofonstations_df. But this way we do not
-    # pollute the original
+    # make a new geofonstations_df, it will be a view of the original geofonstations_df.
+    # But this way we do not pollute the original
     _sta_df = geofonstations_df[columns[:3]]
     # avoid pandas settingwithcopy warnings (we know what we are doing):
     _sta_df.is_copy = False
@@ -236,10 +236,14 @@ def get_map_df(geofonstations_df, otherstations_df):
     _sta_df['Legend'] = ''
     sensors = pd.unique(geofonstations_df['Sensor'])
 
-    # create a variable color scale
-    step = 255.0 / (len(sensors)+1)
-    # set a scale of reds in html. Use "#00%s00" for scale of green, "#%s%s00" for yellow scale, etc
-    colors = ["#%s0000" % hex(int(step*(i+1)))[2:].upper().zfill(2) for i in xrange(len(sensors))]
+    # create a variable color scale (red scale)
+    # set first a min val of the red component (0=black, 255 full_red): we want to avoid
+    # full black colors
+    MIN_RED = 50
+    # set the step of the scale in order to maximize the distance
+    step = (255.0 - MIN_RED) / (len(sensors)-1) if len(sensors) > 1 else 1
+    # set the colors. The first will be full red, then darker until
+    colors = ["#%s0000" % hex(int(255-step*i))[2:].upper().zfill(2) for i in xrange(len(sensors))]
 
     _sta_df['Color'] = ''
     for sens, col in izip(sensors, colors):

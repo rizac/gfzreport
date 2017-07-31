@@ -297,25 +297,27 @@ References
 .. tabularcolumns:: |@{\ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ \ }l@{\ \ }|
 
 
-.. customize the table horizontal lines via the (NonStandard) tabularrows directive which applies to the next
+.. customize the table horizontal lines via the tabularrows directive (implemented in this
+   project onyl, as of July 2017 it's not implemented in Sphinx) which applies to the next
    generated table (latex output only). You can remove the whole block to show all hlines (default in sphinx).
    The directive can have two options, 'hline-show' or 'hline-hide' (*either* one *or* the other) specifying
    the indices of the hlines to show/hide, separeted by spaces (first index is 0). You can also
    provide python slice notations in the format 'start:end' or 'start:end:step'
    (http://stackoverflow.com/questions/509211/explain-pythons-slice-notation).
-   The command might not perfect as it is a hack around a poor sphinx implementation, and might
-   need some trial-and-errors for for tables spanning over multiple pages. As an example, we want
-   to show the first (0) and the last (-1) hlines, and each fourth hline starting from the second
-   one (1::4 which means indices 1,5,9,...)
+   The command might not work in some edge cases (e.g. for tables spanning over multiple pages)
+   as it is a hack around a poor sphinx implementation, and might
+   need some trial-and-errors for working as expected.
+   Here we want  to show the first (0) and the last (-1) hlines, and each fourth hline starting from
+   the second one (1::4 which means indices 1,5,9,...)
    
 .. tabularrows::
    :hline-show: 0 1::4 -1
 
 .. finally, the table directive (preceeded by its label so you can reference it via
-   :numref:`stations_table`). In principle, you might want to edit the
-   directive content as any csv file (the table content. To provide empty strings, quote them like this: "")
-   or its argument (the table caption) which as you can see can spanning over several lines
-   (providing as always the correct indentation)
+   :numref:`stations_table`). You can edit the
+   directive content[1] or the directive argument[2], as any csv file.
+   [1] To provide empty strings quote them like this: "".
+   [2] Text can span over several lines (providing as always the correct indentation)
    
 .. _stations_table:
 
