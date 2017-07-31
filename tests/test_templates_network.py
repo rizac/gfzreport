@@ -120,8 +120,8 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
         with open(os.path.join(outpath, "ZE_2014", "report.rst")) as opn:
             rst = opn.read()
         # assert we have the network stations (just few):
-        assert 'MS02 -23.34335 43.89449 s #7F0000' in rst 
-        assert 'AM01 -21.07725 48.23924 s #3F0000 L4-3D' in rst
+        assert 'MS02 -23.34335 43.89449 s #980000' in rst
+        assert 'AM01 -21.07725 48.23924 s #FF0000 L4-3D' in rst
         # assert we have the non-network stations:
         # Note that testing if we filtered out some stations baseed on the network boundary box
         # is hard as we should run a real test
@@ -155,24 +155,26 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
 
 
         runner = CliRunner()
-        args_ = [os.path.join(outpath, "ZE_2014"),
-                 os.path.join(outpath, "build"), "-b", ""]
+#         args_ = [os.path.join(outpath, "ZE_2014"),
+#                  os.path.join(outpath, "build"), "-b", ""]
         for buildtype, expected_ext in [("", '.tex'), ("latex", '.tex'), ("pdf", '.pdf'),
                                         ("html", '.html')]:
-            btype = 'latex' if not buildtype else buildtype
-            outdir = os.path.join(args_[1], btype)
+                
+            btype = 'latex' if buildtype != 'html' else buildtype
+            outdir = os.path.join(os.path.join(outpath, "build"), btype)
+            
+            if buildtype in ('latex', 'pdf'):
+                assert os.path.isdir(outdir)
+            else:
+                assert not os.path.isdir(outdir)
+            
             indir = os.path.join(outpath, "ZE_2014")
             args_ = [indir, outdir]
             if buildtype:
                 args_.extend(['-b', buildtype])
-            if buildtype != 'latex':
-                # if buildtype is latex, we already executed a build with no build arg
-                # which defaults to latex, so the dir exists
-                assert not os.path.isdir(outdir)
+            
 
             result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
-            # in any build, sphinx builds anyway something in the dir:
-            assert os.path.isdir(outdir)
 
             if '.html' == expected_ext:
                 # html does not use arcgis images, so no error should be raised:
@@ -195,8 +197,6 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
 
         # and re-run:
         runner = CliRunner()
-        args_ = [os.path.join(outpath, "ZE_2014"),
-                 os.path.join(outpath, "build"), "-b", ""]
         # Set expected ret values as list, although the value is just one, for the cases
         # if we have more than one ret_val possible (some bug when running py.test from the terminal)
         for buildtype, expected_ext, exp_exitcode in [("", '.tex',[0]),
@@ -204,8 +204,11 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
                                                       ("pdf", '.pdf', [1]),
                                                       ("html", '.html', [0]),
                                                       ]:
-            btype = 'latex' if not buildtype else buildtype
-            outdir = os.path.join(args_[1], btype)
+            btype = 'latex' if buildtype != 'html' else buildtype
+            outdir = os.path.join(os.path.join(outpath, "build"), btype)
+            
+            assert os.path.isdir(outdir)  # we already created it above
+
             indir = os.path.join(outpath, "ZE_2014")
             args_ = [indir, outdir]
             if buildtype:
