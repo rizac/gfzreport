@@ -102,9 +102,15 @@
 	% make title text
 	% RECALL:
 	% 1st arg: the LEFT of the text box, 2nd argument the TOP of the textbox
-	 %author:
+	%author:
 	\PlaceText{5.8cm}{9cm}{\large \par \@author \par}
-	 %title+substitles
+	% title+substitles
+	% in principle, when changing the font like {\LARGE ..} the baselineskip when issuing \\ or \newlines should
+	% still be the baseline skip of the normal text. To issue a baselineskip which is the same
+	% as the font size, we should enclose each change of font inside {}, and putting a \par at the end
+	% e.g.: {\LARGE \bfseries \color{gfzblue} \@title \\ \par}. The solution below seems to achive the same
+	% with \\[\baselineskip], but we should FIX: is then worth to adda \par at the end? For info google or see:
+	% https://texblog.org/2012/08/29/changing-the-font-size-in-latex/ 
 	\PlaceText{5.8cm}{13cm}{\LARGE \bfseries \color{gfzblue} \@title \\[\baselineskip]
 							\Large \bfseries \color{gfzblue} \rstSubtitle \\[\baselineskip]
 							\large \bfseries \color{gfzblue} \rstSubSubtitle \par}
@@ -120,7 +126,10 @@
   	% \let\thanks\relax\let\maketitle\relax
 	\clearpage
   
-	% 3) second title page, with citations and stuff in the lower right corner:	  
+	% 3) second title page, with citations and stuff in the lower right corner:	
+	% in principle, inside {\footenotesize ..} the baselineskip when issuing \\ or \newlines should
+	% still be the baseline skip of the normal text, whihc is fine. For info google or see:
+	% https://texblog.org/2012/08/29/changing-the-font-size-in-latex/  
 	{\footnotesize
 		
 		Recommended citation:		 									\newline\newline
@@ -166,7 +175,8 @@
 	% make title 3rd page:
 	% RECALL:
 	% 1st arg: the LEFT of the text box, 2nd argument the TOP of the textbox
-	 %author:
+	% see notes in title+substitles above about \par at the end
+	%author:
 	\PlaceText{4cm}{6.5cm}{\large \par \@author \par}
 	 %title+substitles
 	\PlaceText{4cm}{10cm}{\LARGE \bfseries \@title \\[\baselineskip]

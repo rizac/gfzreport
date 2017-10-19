@@ -18,12 +18,13 @@ import click
 from sphinx import build_main as sphinx_build_main
 from sphinx.util.pycompat import execfile_
 from sphinx.util.osutil import cd
+import time
 
 
 _DEFAULT_BUILD_TYPE = 'latex'
 
 
-def pdflatex(texfile, texfolder=None):
+def pdflatex(texfile, texfolder=None, interaction='batchmode', draftmode=False):
     """
     Runs pdflatex with the given texfile as input
     :param texfile the input tex file
@@ -50,14 +51,16 @@ def pdflatex(texfile, texfolder=None):
     # http://tex.stackexchange.com/questions/91592/where-to-find-official-and-extended-documentation-for-tex-latexs-commandlin
     # for -file-line-error, see:
     # https://tex.stackexchange.com/questions/27878/pdflatex-bash-script-to-supress-all-output-except-error-messages
-    popenargs = ['pdflatex', "-interaction=nonstopmode", "-file-line-error", texfile]
+    popenargs = ['pdflatex', "-interaction=%s" % interaction, "-file-line-error", texfile]
+    if draftmode:
+        popenargs.insert(1, "-draftmode")
     kwargs = dict(cwd=texfolder, shell=False)
     try:
         # SIDE NOTE FOR DEVELOPERS: IF RUN FROM WITHIN ECLIPSE (AND POTENTIALLY ANY
         # OTHER EDITOR), AS os.environ['PATH'] is different than the shell $PATH
         # THE COMMAND BELOW MIGHT RAISE OSError
 
-        ret = subprocess.call(popenargs, **kwargs)
+        ret = subprocess.call(popenargs, **kwargs)  # from the docs: waits the command to complete
     except OSError as oserr:
         appendix = " (is pdflatex installed?)" if oserr.errno == os.errno.ENOENT else ""
         # copied from sphinx, we want to preserve the same way of handling errors:
@@ -188,13 +191,17 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
 
         if ret == 0 and build == 'pdf':
             texfilepath = checker.filepath
+            # the checkfilechanged wraps exceptions and prints them to stderr, so we still
+            # need the with statement although we will not check for file modifications (see below)
             with checkfilechanged(outdir, master_doc, build) as checker:
-                listener('Running pdflatex (1st step)', None, 2, steps)
+                listener('Running pdflatex (1st step, with -draftmode)', None, 2, steps)
                 start_ = datetime.utcnow()
-                pdflatex(texfilepath, None)
+                pdflatex(texfilepath, None, draftmode=True)
                 duration_ = datetime.utcnow() - start_
 
-            if not checker.modified:
+            # do NOT check for checker.modified as we did NOT modify anything (-draftmode).
+            # However, check if it raised:
+            if checker.raised:
                 ret = 2
 
             if ret == 0:
@@ -320,7 +327,17 @@ class checkfilechanged(object):
     def isfile(self):
         return os.path.isfile(self.filepath)
 
+    @property
+    def raised(self):
+        return self._raised
+
     def __enter__(self):
+        time.sleep(1)  # on some OSs (mac el apitan)
+        # os.stat(file).m_time seems to be rounded to the second (or floored?)
+        # thus, if between __enter__ and __exit__ passes less than 1 second, the m_time
+        # might be the same although the file has been modified
+        # For info see:
+        # https://mail.python.org/pipermail/python-list/2006-September/365876.html
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -332,7 +349,7 @@ class checkfilechanged(object):
             sys.stderr.write("%s:%d: ERROR: %s: %s" % (fname, traceback.tb_lineno,
                                                        str(exc_value.__class__.__name__),
                                                        str(exc_value)))
-
+            self._raised = True
         # If the context was exited without an exception, all three arguments will be None
         if os.path.isfile(self.filepath) and os.stat(self.filepath).st_mtime > self.mtime:
             self._modified = True
