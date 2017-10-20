@@ -3,6 +3,7 @@ Created on Jun 19, 2016
 
 @author: riccardo
 '''
+from __future__ import print_function
 import os
 import sys
 import glob
@@ -18,6 +19,7 @@ from _io import BytesIO
 from matplotlib.image import imread
 from urllib2 import URLError
 from StringIO import StringIO
+import time
 
 # global paths defined once
 DATADIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "testdata")
@@ -107,6 +109,12 @@ def setupurlread(mock_urlopen, geofon_retval=None, others_retval=None):
     mock_urlopen.side_effect = sideeffect
 
 
+def printl(title, buildtype):
+    line = "gfzreport.sphinxbuild (build type=%s): %s" % (buildtype, title)
+    print("\n\n%s" % ('=' * len(line)))
+    print(line)
+    print("%s\n" % ('=' * len(line)))
+
 @patch('gfzreport.templates.network.core.iterdcurl', side_effect=lambda *a, **v: _getdatacenters(*a, **v))
 @patch('gfzreport.templates.network.core.utils.urllib2.urlopen')
 def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
@@ -141,18 +149,20 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
         # run sphinx and see the output code:
         # with runner.isolated_filesystem():
         btype = 'html'
+        printl("Testing rst typo", btype)
         args_ = [RSTDIR,
                  os.path.join(outpath, "build"), "-b", btype]
+
         result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
-#             outdir = os.path.join(args_[1], btype)
-#             indir = RSTDIR
         with open(os.path.join(args_[1], get_logfilename()), "r") as _opn:
             _log_out = _opn.read()
 
         # SPHINX IS OK WITH UNKNOWN DIRECTIVE TYPES, SHIT!
         assert 'Unknown directive type "bridfigure"' in _log_out
         assert result.exit_code == 1
-        
+        print(result.output)
+
+
         # TRY TO MISALIGN A INDENTATION
         # change a directive to something it does not exist (mock typo)
         _tmp_rst_text = rst_text.replace(" :align: center", "\n:align: center")
@@ -163,40 +173,55 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
         # run sphinx and see the output code:
         # with runner.isolated_filesystem():
         btype = 'html'
+        printl("Testing mis-alignement of :align:", btype)
         args_ = [RSTDIR,
                  os.path.join(outpath, "build"), "-b", btype]
         result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
-#             outdir = os.path.join(args_[1], btype)
-#             indir = RSTDIR
         with open(os.path.join(args_[1], get_logfilename()), "r") as _opn:
             _log_out = _opn.read()
-
-        # 
         assert result.exit_code == 2
         assert 'Exception occurred:' in _log_out
-            
-#         with runner.isolated_filesystem():
-#             args_ = [os.path.join(outpath, "ZE_2014"),
-#                      os.path.join(outpath, "build"), "-b", ""]
-#             # for pdf, we expect an exit code of 1 cause there are still things
-#             # to fix. However, the pdf prints out pparently ok
-#             for buildtype, expected_ext, exp_exitcode in [("", '.tex',0), ("latex", '.tex',0), ("pdf", '.pdf',1),
-#                                             ("html", '.html',0)]:
-#                 btype = 'latex' if not buildtype else buildtype
-#                 outdir = os.path.join(args_[1], btype)
-#                 indir = os.path.join(outpath, "ZE_2014")
-#                 args_ = [indir, outdir]
-#                 if buildtype:
-#                     args_.extend(['-b', buildtype])
-#                 
-#                 result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
-#                 assert os.path.isdir(outdir)
-#                 if not os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext)):
-#                     sdf = 9
-#                 assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
-#                 # assert "ValueError: invalid PNG header" in result.output
-#                 assert result.exit_code == exp_exitcode
+        print(result.output)
+
         
     # check if we deleted the temop dir:
     assert not os.path.isdir(outpath)
- 
+    
+    
+@patch('gfzreport.templates.network.core.iterdcurl', side_effect=lambda *a, **v: _getdatacenters(*a, **v))
+@patch('gfzreport.templates.network.core.utils.urllib2.urlopen')
+def test_netgen_ok_sphinxbuild_output(mock_urlopen, mock_get_dcs):
+    # set args, with wildcards
+    # mock urllib returns our testdata files
+    setupurlread(mock_urlopen)
+    args = ['ZE', '2012', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/sta1*"]
+    with invoke(*args) as _:
+        result, outpath, args = _
+        # Now re-set our mock library to return an exception (the mock_url
+        # is intended to distinguish if 'geofon' is in the url or not, provide 
+        # an exception for both cases to be sure)
+        # Our map module will handle silently the error by returning a map
+        # with coastal lines drawn
+        setupurlread(mock_urlopen, URLError('wat?'), URLError('wat?'))
+        # and re-run:
+        runner = CliRunner()
+
+        RSTDIR = os.path.join(outpath, 'ZE_2012')
+
+        btype = 'html'
+        printl("Testing normal build with no rst syntax errors", btype)
+        args_ = [RSTDIR,
+                 os.path.join(outpath, "build"), "-b", btype]
+        result = runner.invoke(sphinxbuild_main, args_)
+        assert result.exit_code == 0
+        print(result.output)
+
+        btype = 'pdf'
+        printl("Testing normal build with no rst syntax errors", btype)
+        args_ = [RSTDIR,
+                 os.path.join(outpath, "build"), "-b", btype]
+        result = runner.invoke(sphinxbuild_main, args_)
+        assert result.exit_code == 1
+        print(result.output)
+
+        

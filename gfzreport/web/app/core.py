@@ -219,7 +219,7 @@ def gitcommit(app, reportdirname, user=None):
     return True
 
 
-def build_report(app, reportdirname, buildtype, user, buildinginfo=None, force=False):
+def build_report(app, reportdirname, buildtype, user, force=False):
     """Builds the given report according to the specified network. Returns
     the tuple reportfile (string), hasChanged (boolean)"""
     # we return reportfile, exit_status, has_changed
@@ -232,8 +232,7 @@ def build_report(app, reportdirname, buildtype, user, buildinginfo=None, force=F
     # _run_sphinx should never raise as a context manager catches exceptions printing to stderr,
     # which is temporary set to a StringIO. The StringIO will be written to our out directory
     # See get_logs
-    ret = _run_sphinx(sourcedir, builddir, master_doc(app, reportdirname), buildtype,
-                      buildinginfo, '-E')
+    ret = _run_sphinx(sourcedir, builddir, master_doc(app, reportdirname), buildtype, '-E')
 
     # write to the last git commit the returned status. Note that in git we need to override
     # completely the notes, so in order to override only relevant stuff, first read the notes,

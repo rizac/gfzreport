@@ -9,6 +9,7 @@ Created on Mar 14, 2016
 import sys
 import os
 import subprocess
+import time
 from datetime import datetime
 from cStringIO import StringIO
 import re
@@ -18,7 +19,6 @@ import click
 from sphinx import build_main as sphinx_build_main
 from sphinx.util.pycompat import execfile_
 from sphinx.util.osutil import cd
-import time
 
 
 _DEFAULT_BUILD_TYPE = 'latex'
@@ -76,7 +76,7 @@ def log_err_regexp():
 
 
 def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
-                listener=None, *other_sphinxbuild_options):
+                *other_sphinxbuild_options):
     """Runs sphinx-build (with build either 'latex' or 'html' or 'pdf') returning the integer
     result:
     ```
@@ -90,61 +90,72 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
     :param sourcedir: the source input directory
     :param outdir: the output build directory
     :param build: either 'latex', 'html' or 'pdf'
-    :param listener: a callback accepting four arguments:
-        current_process_msg (string), e.g., 'Building html report', 'Running pdflatex'
-        endtime: UTC datetime denoting when the process should end (or None if no such info
-            available. Actually, this is non-None only in the
-            second pdflatex step, if build = 'pdf', and it represents an estimation based on
-            the previous run
-        current_step: array of two elements: the current step, integer (starting from 1)
-        total_steps_number (integer). The total number of steps. It is > 1 only if build == 'pdf'
     :param other_sphinxbuild_options: positional command line argument to be forwarded to
     sphinx-build
     :return: 0 on success, 1 on success with error (this holds only for build='pdf'
     meaning that pdflatex returned nonzero, but the pdf file was written), 2 on failure
     (no output written)
-    :raise: OsError (returned from pdflatex) or any exception raised by sphinx build (FIXME: check)
-    FIXME: does it raises with contextmanager???
     """
-    # ok, short answer for the listener below:
-    # never mind, ignore it.
-    # Long answer: listener was a callback implemented if we want to be notified about the progress
-    # of the build. The idea was to implement a progress bar with info on a web page
-    # It turns out that to do that we should run this function in a thread, return from the caller
-    # and then allow other requests to query for the status. Implementing such a functionality is
-    # not trivial so we gave up for the moment
-    if listener is None:
-        def listener(*a, **v):
-            pass
-
-    # Now (sorry for the verbosity but it's needed)
-    # start the gfzreport build (gfz-build). We call sphinx-build and then, if the build
-    # argument is 'pdf', we use python subprocess to invoke `pdflatex`.
-    # Pdflatex returns 1 also in case the pdf
-    # was written successfully, so we decided that the gfz-build
-    # will return 0: doc created, no errs/warns;
-    # 1: doc created with errs/ warns (either from sphinx-build or pdflatex). 2: build failed
-    # (doc neither created nor newly modified).
-    # Now for sphinx-build, we can easily rely on the returned value of sphinx build, especially
-    # because sphinx checks outdated files only so the build can be successfull also when nothing
-    # has been modified. Called R the sphinx-build return value, if R !=0, then R is set to 2.
-    # Otherwise if R = 0, we will try to read the standard error (that we captured via
-    # a `capturestderr` context manager): if an error is found (according to sphinx error format)
-    # then R is set = 1, otherwise R is unchanged (0)
-    # Note that in the first case (R!=0) we do not parse the standard error cause the sphinx error
-    # format is not found (we have, e.g. "Exception occurred:...")
-    # At this point if we do not need to run pdflatex, or R !=0, we return R.
-    # If on the other hand we have to run pdflatex and R == 0, we run pdflatex
-    # For pdflatex, as we said, we cannot rely on its exit status, as nonzero does not mean the
-    # document has not been created. Thus, if the document has been created but pdflatex's
-    # return value is nonzero, we return 1. If the document has not been created,
-    # we reutrn 2, otherwise we return what pdflatex returned, i.e, 0.
-    # This way we have a reliable and harmonized way to return the same values regardless of the
-    # build type ('html', 'pdf', 'latex')
-    # Side note: when the build type is 'pdf' and the document has been created, we read the
-    # pdflatex og file into our captured standard error, converting the pdflatex errors into
-    # the sphinx error format. Thus the standard error will also have normalized error format:
-    # .+:[0-9]+ ERROR: .*
+    # Now (sorry for the verbosity but it's needed). This function calls:
+    #    1. sphinx-build
+    #    2. `pdflatex` (if `build` = pdf, by means of python `subprocess`) with
+    #    -interaction=batchmode (i.e., suppress user interaction)
+    #
+    # That would be easy. But there are different scenarios which we need to uniformely handle:
+    #
+    # +----------+---------------+---------------+-------------------------------------------+
+    # |          | output to     | errors to     | returns                                   |
+    # +----------+---------------+---------------+-------------------------------------------+
+    # | sphinx   | stdout        | stderr        | 0 on success !=0 on failure (no doc)      |
+    # +----------+---------------+---------------+-------------------------------------------+
+    # | pdflatex | stdout,       | stdout,       | 0 on success !=0 on failure or warnings   |
+    # |          | then log file | then log file | (thus doc might be created also when !=0) |
+    # +----------+---------------+---------------+-------------------------------------------+
+    #
+    # Hence, we need to standardize:
+    # - The output (write all errors with a normalized format in a file "__.gfzreport.__.log" file)
+    # - The returned value: that will be:
+    #     0: doc created, no errs/warns;
+    #     1: doc created with errs/ warns (either from sphinx-build or pdflatex)
+    #     2: build failed (doc neither created nor modified)
+    #
+    # Outline of the function:
+    #
+    # 0) Capture the standard error to a temporary StringIO. Go to 1)
+    #
+    # 1) Run sphinx build
+    # -------------------
+    # 1a) Get the sphinx build return value R.
+    #        - If R !=0: set R=2 (see convention above) and goto FINALIZE
+    #        - If R=0, then check the captured standard error for Sphinx errors (they have
+    #        a typical format string: '.+:[0-9]+ ERROR: .*', so we use regexps for that): if such
+    #        a string is found, set R=1. Then continue to 1b
+    # 1b) If build != 'pdf', fo to FINALIZE, otherwise got to 2)
+    #
+    # 2) Run pdflatex
+    # ---------------
+    # Still while wrapping the standard error
+    #        2a) run pdflatex once with the flag -draftmode. This flag speed up rendering by NOT
+    #        writing the pdf output. If
+    #            - the process raised and exception, set R=2 and go to FINALIZE. Otherwise:
+    #            - go to 2b)
+    #        2b) run again pdflatex without the flag -draftmode. Get the pdflatex return value,
+    #        R_TMP. If:
+    #        - the output pdf file is NOT modified, set R=2, goto FINALIZE
+    #        - the output pdf file is modified, and R_TMP !=0, set R=1. Open pdflatex log file and
+    #        write its content into our captured standard error, formatting latex errors with the
+    #        same format as sphinx errors. Go to FINALIZE
+    #
+    # 3. FINALIZE
+    # -----------
+    # We have a return status code R in [0, 1, 2], and a captured standard error which normalizes
+    # sphinx and pdflatex output. Write the captured standard error in our log file (currently
+    # "__.gfzreport.__.log" under the build directory). Finally, return R
+    #
+    # Final note: all runs 1a) 2a) 2b) are wrapped in a context manager `execwrapper` that
+    # catches exceptions, prints them to stderr, and has a property 'raised', that returns if
+    # an exception was caught. Also, it optionally (case 2b), with pdflatex)
+    # returns if the  output file has been successfully
 
     # with the option "-file-line-error", the pdflatex errors are of the form:
     re_pdflatex = re.compile(r"(.+?:[0-9]+:)\s*(.+)")
@@ -152,7 +163,6 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
     # ".+?:[0-9]+:\\s*ERROR\\s*:.+"
     # Use re_pdflatex to convert pdflatex errors to sphinx errors in order to normalize them
 
-    steps = 3 if build == 'pdf' else 1
     # call sphinx:
     sphinxbuild = 'latex' if build == 'pdf' else build
     argv = ["", sourcedir, outdir, "-b", sphinxbuild] + list(other_sphinxbuild_options)
@@ -163,50 +173,48 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
     # warning the user that not "everything" was perfect
     with capturestderr(outdir) as new_stderr:
         new_stderr.write("*** Sphinx (rst to %s) ***\n\n" % sphinxbuild)
-        with checkfilechanged(outdir, master_doc, sphinxbuild) as checker:
-            # Note: check file changed NEVER raises as it gets exceptions and prints them to stderr
-            # with the sphinx error format. Thus ret_sphinx will ALWAYS be a value
-            listener('Building %s report' % sphinxbuild, None, 1, steps)
+        with execwrapper(outdir, master_doc, sphinxbuild) as checker:
+            # sphinx_build_main NEVER raises and prints to stderr.
+            # If it if did, however, the error would be captured by execwrapper, which
+            # also NEVER raises. For safety, we can thus check if checker.raised, and if False,
+            # then ret will ALWAYS be a value
             ret = sphinx_build_main(argv)
 
-        if checker.modified and ret == 0:
-            # if return value is zero, we might have errors from the sphinx stderr
-            # To make it compliant with pdflatex, set ret_sphinx = 1 (note that if
-            reg = log_err_regexp()
-            for _ in reg.finditer(new_stderr.getvalue()):
-                c_errors = True
-                break
-        elif ret != 0:
-            # if the return value is non-zero, set ret = 2 this will return immediately
-            # NOTE THAT IN THIS CASE the error in new_stderr is NOT formatted as the other cases.
-            # Parsing it and converting to our standard format requires too much effort and is
-            # unstable. A typical error might be rst syntax error, but also python exceptions, e.g.:
+        if checker.raised or ret != 0:
+            if not checker.raised:  # ret != 0
+                pass
+            # set ret = 2 this will return immediately
+            ret = 2
+            # NOTE THAT if ret was !=0 (i.e., not checker.raised)
+            # sphinx has printed to stderr a non-formatted error, e.g.:
             #
             # Exception occurred:
             # File "/Users/extensions/mapfigure.py", line 265, in visit_map_node_html
             #     """.format(str(_uuid), add_to_map_js, legend_js)
             # KeyError: 'color'
             # The full traceback has been saved in ...
-            ret = 2
+        else:
+            # if return value is zero, we might have errors from the sphinx stderr
+            # To make it compliant with pdflatex, set ret_sphinx = 1
+            reg = log_err_regexp()
+            for _ in reg.finditer(new_stderr.getvalue()):
+                c_errors = True
+                break
 
         if ret == 0 and build == 'pdf':
+            sys.stdout.write("Running PdfLatex")
             texfilepath = checker.filepath
-            # the checkfilechanged wraps exceptions and prints them to stderr, so we still
+            # the execwrapper wraps exceptions and prints them to stderr, so we still
             # need the with statement although we will not check for file modifications (see below)
-            with checkfilechanged(outdir, master_doc, build) as checker:
-                listener('Running pdflatex (1st step, with -draftmode)', None, 2, steps)
-                start_ = datetime.utcnow()
+            with execwrapper(outdir, master_doc, build) as checker:
                 pdflatex(texfilepath, None, draftmode=True)
-                duration_ = datetime.utcnow() - start_
 
             # do NOT check for checker.modified as we did NOT modify anything (-draftmode).
             # However, check if it raised:
             if checker.raised:
                 ret = 2
-
-            if ret == 0:
-                listener('Running pdflatex (2nd step)', datetime.utcnow() + duration_, 3, steps)
-                with checkfilechanged(outdir, master_doc, build) as checker:
+            else:
+                with execwrapper(outdir, master_doc, build, wait=1) as checker:
                     ret_pdflatex = pdflatex(texfilepath, None)
                 if not checker.modified:
                     ret = 2
@@ -250,7 +258,7 @@ def exitstatus2str(exitstatus):
 def finalize(stderr, exitstatus, outdir):
     '''finalizes the build result writing log file and printing to stdout the final result'''
     msg = exitstatus2str(exitstatus)
-    sys.stdout.write("%s%s" % ("ERROR: " if exitstatus == 2 else "", msg))
+    sys.stdout.write("\n%s%s" % ("ERROR: " if exitstatus == 2 else "", msg))
 
     fileout = os.path.join(outdir, get_logfilename())
     if os.path.isdir(os.path.dirname(fileout)):
@@ -283,7 +291,7 @@ def run(sourcedir, outdir, build=_DEFAULT_BUILD_TYPE, *other_sphinxbuild_options
             break
     conf_file = os.path.join(confdir, 'conf.py')
 
-    return _run_sphinx(sourcedir, outdir, get_master_doc(conf_file), build, None,
+    return _run_sphinx(sourcedir, outdir, get_master_doc(conf_file), build,
                        *other_sphinxbuild_options)
 
 
@@ -304,13 +312,20 @@ def get_master_doc(conf_file):
     return _globals['master_doc']
 
 
-class checkfilechanged(object):
+class execwrapper(object):
     '''class which takes sphinx vars and used within a with statement returns two members:
     filepath and modified
     that return the output file path and if the file was modified. Modified means
     that the file is newly created OR its modification time is greater than the modification time
-    it had before entering this object''' 
-    def __init__(self, outdir, master_doc, buildtype):
+    it had before entering this object'''
+    def __init__(self, outdir, master_doc, buildtype, wait=0):
+        '''
+        :param wait: (default:0, don't wait) how much to wait, in seconds, when __enter__
+        is called (`time.wait`). Set this number to
+        1 or more if you want to rely on `execwrapper.modified` after __exit__, as in some OSs
+        (e.g., Mac) it seems that file timestamps are rounded (or floored?) to seconds, so fast
+        executions might *erroneously* return `execwrapper.modified=False` if wait is 0
+        '''
         ext = 'tex' if buildtype == 'latex' else buildtype
         self.filepath = os.path.join(outdir, master_doc + "." + ext)
         self.mtime = float('-inf')
@@ -318,6 +333,7 @@ class checkfilechanged(object):
             self.mtime = os.stat(self.filepath).st_mtime
         self._modified = False
         self._raised = False
+        self._wait = wait
 
     @property
     def modified(self):
@@ -332,12 +348,13 @@ class checkfilechanged(object):
         return self._raised
 
     def __enter__(self):
-        time.sleep(1)  # on some OSs (mac el apitan)
-        # os.stat(file).m_time seems to be rounded to the second (or floored?)
-        # thus, if between __enter__ and __exit__ passes less than 1 second, the m_time
-        # might be the same although the file has been modified
-        # For info see:
-        # https://mail.python.org/pipermail/python-list/2006-September/365876.html
+        if self._wait > 0:
+            time.sleep(self._wait)  # on some OSs (mac el apitan)
+            # os.stat(file).m_time seems to be rounded to the second (or floored?)
+            # thus, if between __enter__ and __exit__ passes less than 1 second, the m_time
+            # might be the same although the file has been modified
+            # For info see:
+            # https://mail.python.org/pipermail/python-list/2006-September/365876.html
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):

@@ -135,13 +135,9 @@ def get_report_type(reportdirname, pagetype):
                                    source_data=get_sourcefile_content(current_app, reportdirname))
         return nocache(make_response(template))
 
-    binfo = None  # NOT USED. it might be something like
-    # session['buildinginfo'] = BuildingInfo("Building page")
-    # but this functionality is not implemented yet
-
     if pagetype in ('html', 'pdf'):
         try:
-            ret = build_report(current_app, reportdirname, pagetype, current_user, binfo, force=False)
+            ret = build_report(current_app, reportdirname, pagetype, current_user, force=False)
         except Exception as exc:
             # raises if gitcommit raises
             raise AppError(str(exc), 500)
@@ -150,7 +146,6 @@ def get_report_type(reportdirname, pagetype):
         if ret == 2:
             return render_template("buildfailed.html", pagetype=pagetype)
 
-        # binfo('Serving page', None, 0, 0)
         if pagetype == 'pdf':
             # this will render a page that will in turn call get_pdf_object
             # the nocache wrapper is set inthere

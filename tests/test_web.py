@@ -6,7 +6,7 @@ Created on Jul 8, 2017
 import unittest
 from contextlib import contextmanager
 from click.testing import CliRunner
-import os
+import os, sys
 
 from gfzreport.templates.network.main import main as network_reportgen_main
 from gfzreport.sphinxbuild.main import main as sphinxbuild_main, get_logfilename, exitstatus2str
@@ -221,7 +221,7 @@ class Test(unittest.TestCase):
             
 
     @patch('gfzreport.web.app.core._run_sphinx', side_effect = _reportbuild_run_orig)
-    def test_report_views_auth(self, mock_reportbuild_run):
+    def tst_report_views_auth(self, mock_reportbuild_run):
         
         # test the page pdf. We are unauthorized, so this should give us error:
         with self.app.test_request_context():
@@ -292,10 +292,12 @@ class Test(unittest.TestCase):
             # but w need to setup urlread for the arcgis image, because we mocked it
             # (FIXME: we mocked in gfzreport.templates.network.core.utils.urllib2.urlopen,
             # why is it mocked in map module?!!!)
-            # we setup an URLError if 'geofon' is not in url (which is the case for
-            # arcgis query). This way, the map is generated with drawcostallines
-            # and the pdf is created
-            se = self.mock_urlopen.side_effect
+            # The signature is:
+            # _get_urlopen_sideeffect(geofon_retval=None, others_retval=None):
+            # Thus, we setup others_retval=URLError, which means that if 'geofon' is not in url
+            # (which is the case for arcgis query) and URLException is raised.
+            # This way, the map is generated with drawcostallines
+            # and the pdf is created. Keep in mind that pdflatex will raise in any case
             self.mock_urlopen.side_effect = _get_urlopen_sideeffect(None, URLError('wat'))
             res = app.get("/ZE_2012/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
@@ -320,9 +322,13 @@ class Test(unittest.TestCase):
                            content_type='application/json')
             
             assert res.status_code == 200
-            # res.data is a 3element list of two elements: the log name, and the log file
-            # content. The files are two: the sphinx log and the pdf log. So assert:
             _data = json.loads(res.data)
+            # _data has two elements: the standard error (plus some titles added, such as
+            # 'Sphinx build') and the standard error showing only relevant errors/warnings: these
+            # are lines recognizable by a special format (using regexps) and that are more
+            # informative for the web user than the all standard error, which might be too verbose.
+            # (The the standard error showing only relevant errors/warnings can be shown by means
+            # of a checkobx on the GUI)
             assert len(_data) == 2
             # first string is the whole log file, must be greater than the second one (errors only):
             assert len(_data[0]) > len(_data[1])
@@ -345,11 +351,112 @@ class Test(unittest.TestCase):
         
             # If needed UNCOMMENT NEXT LINE AND reset url mock side effect (in case used afterwards)?
             # self.mock_urlopen.side_effect = se
+
+    def test_report_views_build_failed_sphinxerr(self):
+        '''test when sphinx_build raises die to rst syntax error in the source'''
+        
+        # mock a syntax error. Apparently, misplacing alignment does so:
+        source_rst = os.path.join(self.source, 'source', 'ZE_2012', 'report.rst')
+        with open(source_rst, 'r') as opn:
+            rst_text = opn.read()
+        _tmp_rst_text = rst_text.replace(" :align: center", "\n:align: center")
+        assert _tmp_rst_text != rst_text
+        # write to file
+        with open(os.path.join(source_rst), "w") as _opn:
+            _opn.write(_tmp_rst_text)
+        
+        # test the page pdf. We are unauthorized, so this should give us error:
+        with self.app.test_request_context():
+            app = self.app.test_client()
+
+            # login:
+            # now try to login:
+            # with a registered email and good write permission
+            res = app.post("/ZE_2012/login", data={'email' :'user1_ok@example.com'})
+            assert res.status_code == 200
+            # thus, we DO access the pdf creation:
+
+            res = app.get("/ZE_2012/pdf", follow_redirects=True)
+            # status code is still 200, as we redirect to the error page
+            assert res.status_code == 200
+            # raw check: the title of the error page. If we change it in the future, fix this test accordingly:
+            assert "Build failed" in res.data
+            # if we try to get the log:
+            logfile = os.path.join(self.get_buildir('pdf'), get_logfilename())
+            # in case of sphinx exception, we do not have a build dir created.
+            # Still to FIXME: is that a problem for the web app?
+            assert os.path.isfile(logfile)
+
+            with open(logfile) as opn:
+                content = opn.read()
             
+            # this has to be changhed if we provide some way to normalize the message.For the
+            # moment:
+            assert "Exception occurred" in content
+            # check logs:
+            res = app.post("/ZE_2012/get_logs", data=json.dumps({'buildtype': 'pdf'}),
+                           content_type='application/json')
+
+            assert res.status_code == 200
+            _data = json.loads(res.data)
+            # _data has two elements: the standard error (plus some titles added, such as
+            # 'Sphinx build') and the standard error showing only relevant errors/warnings: these
+            # are lines recognizable by a special format (using regexps) and that are more
+            # informative for the web user than the all standard error, which might be too verbose.
+            # (The the standard error showing only relevant errors/warnings can be shown by means
+            # of a checkobx on the GUI)
+            assert len(_data) == 2
+            assert "Exception occurred" in _data[0]
+            # as the sphinx exceptions are not formatted as sphinx errors, we should have this
+            # in the short message:
+            assert "No compilation error found" in _data[1]
+    
+    @patch('gfzreport.sphinxbuild.main.sphinx_build_main', side_effect = Exception('!wow!'))
+    def tst_report_views_build_failed_sphinxerr2(self, mock_sphinxbuild):
+        '''test when sphinx_build raises. This should never be the case as sphinx prints
+        exception to stderr, but we can check other stuff, e.g. that get_logs returns
+        'file not found' string'''
+        # test the page pdf. We are unauthorized, so this should give us error:
+        with self.app.test_request_context():
+            app = self.app.test_client()
+
+            # login:
+            # now try to login:
+            # with a registered email and good write permission
+            res = app.post("/ZE_2012/login", data={'email' :'user1_ok@example.com'})
+            assert res.status_code == 200
+            # thus, we DO access the pdf creation:
+
+            res = app.get("/ZE_2012/pdf", follow_redirects=True)
+            # status code is still 200, as we redirect to the error page
+            assert res.status_code == 200
+            # raw check: the title of the error page. If we change it in the future, fix this test accordingly:
+            assert "Build failed" in res.data
+            # if we try to get the log:
+            logfile = os.path.join(self.get_buildir('pdf'), get_logfilename())
+            # in case of sphinx exception, we do not have a build dir created.
+            # Still to FIXME: is that a problem for the web app?
+            assert not os.path.isfile(logfile)
+
+            # check logs:
+            res = app.post("/ZE_2012/get_logs", data=json.dumps({'buildtype': 'pdf'}),
+                           content_type='application/json')
+
+            assert res.status_code == 200
+            _data = json.loads(res.data)
+            # _data has two elements: the standard error (plus some titles added, such as
+            # 'Sphinx build') and the standard error showing only relevant errors/warnings: these
+            # are lines recognizable by a special format (using regexps) and that are more
+            # informative for the web user than the all standard error, which might be too verbose.
+            # (The the standard error showing only relevant errors/warnings can be shown by means
+            # of a checkobx on the GUI)
+            assert len(_data) == 2
+            assert "Log file not found" in _data[0]
+            assert "Log file not found" in _data[1]
 
     @patch('gfzreport.web.app.core._run_sphinx', side_effect = _reportbuild_run_orig)
     @patch('gfzreport.sphinxbuild.main.pdflatex', side_effect = Exception('!wow!'))
-    def test_report_views_build_failed(self, mock_pdflatex, mock_reportbuild_run):
+    def tst_report_views_build_failed_pdflatex(self, mock_pdflatex, mock_reportbuild_run):
         
         # test the page pdf. We are unauthorized, so this should give us error:
         with self.app.test_request_context():
@@ -365,10 +472,12 @@ class Test(unittest.TestCase):
             # but w need to setup urlread for the arcgis image, because we mocked it
             # (FIXME: we mocked in gfzreport.templates.network.core.utils.urllib2.urlopen,
             # why is it mocked in map module?!!!)
-            # we setup an URLError if 'geofon' is not in url (which is the case for
-            # arcgis query). This way, the map is generated with drawcostallines
-            # and the pdf is created
-            se = self.mock_urlopen.side_effect
+            # The signature is:
+            # _get_urlopen_sideeffect(geofon_retval=None, others_retval=None):
+            # Thus, we setup others_retval=URLError, which means that if 'geofon' is not in url
+            # (which is the case for arcgis query) and URLException is raised.
+            # This way, the map is generated with drawcostallines
+            # and the pdf is created. Keep in mind that pdflatex will raise in any case
             self.mock_urlopen.side_effect = _get_urlopen_sideeffect(None, URLError('wat'))
             res = app.get("/ZE_2012/pdf", follow_redirects=True)
             # status code is still 200, as we redirect to the error page
