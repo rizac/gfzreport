@@ -17,7 +17,7 @@ from mock import patch
 from io import BytesIO
 import re
 
-from gfzreport.web.app.core import _run_sphinx as _reportbuild_run_orig
+from gfzreport.web.app.core import _run as _reportbuild_run_orig
 import tempfile
 from urllib2 import URLError
 import json
@@ -168,7 +168,7 @@ class Test(unittest.TestCase):
                 if u.email == "user1_ok@example.com":
                     assert u.path_restriction_reg is None
 
-    @patch('gfzreport.web.app.core._run_sphinx', side_effect = _reportbuild_run_orig)
+    @patch('gfzreport.web.app.core._run', side_effect = _reportbuild_run_orig)
     def test_report_views(self, mock_reportbuild_run):
         with self.app.test_request_context():
             app = self.app.test_client()
@@ -220,7 +220,7 @@ class Test(unittest.TestCase):
             assert mock_reportbuild_run.call_count == 0
             
 
-    @patch('gfzreport.web.app.core._run_sphinx', side_effect = _reportbuild_run_orig)
+    @patch('gfzreport.web.app.core._run', side_effect = _reportbuild_run_orig)
     def tst_report_views_auth(self, mock_reportbuild_run):
         
         # test the page pdf. We are unauthorized, so this should give us error:
@@ -454,7 +454,7 @@ class Test(unittest.TestCase):
             assert "Log file not found" in _data[0]
             assert "Log file not found" in _data[1]
 
-    @patch('gfzreport.web.app.core._run_sphinx', side_effect = _reportbuild_run_orig)
+    @patch('gfzreport.web.app.core._run', side_effect = _reportbuild_run_orig)
     @patch('gfzreport.sphinxbuild.main.pdflatex', side_effect = Exception('!wow!'))
     def tst_report_views_build_failed_pdflatex(self, mock_pdflatex, mock_reportbuild_run):
         

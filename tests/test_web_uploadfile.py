@@ -17,7 +17,7 @@ from mock import patch
 from io import BytesIO
 import re
 
-from gfzreport.web.app.core import _run_sphinx as _reportbuild_run_orig, master_doc
+from gfzreport.web.app.core import _run as _reportbuild_run_orig, master_doc
 import tempfile
 from urllib2 import URLError
 import json
@@ -142,7 +142,7 @@ class Test(unittest.TestCase):
         return os.path.join(self.source, 'build', 'ZE_2012', 'latex' if buildtype=='pdf' else buildtype)
 
 
-    @patch('gfzreport.web.app.core._run_sphinx', side_effect = _reportbuild_run_orig)
+    @patch('gfzreport.web.app.core._run', side_effect = _reportbuild_run_orig)
     def test_uploadfile(self, mock_reportbuild_run):
         with self.app.test_request_context() as req:
             app = self.app.test_client()

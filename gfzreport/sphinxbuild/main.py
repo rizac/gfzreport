@@ -14,6 +14,7 @@ from datetime import datetime
 from cStringIO import StringIO
 import re
 from contextlib import contextmanager
+from tempfile import TemporaryFile
 
 import click
 from sphinx import build_main as sphinx_build_main
@@ -24,14 +25,29 @@ from sphinx.util.osutil import cd
 _DEFAULT_BUILD_TYPE = 'latex'
 
 
-def pdflatex(texfile, texfolder=None, interaction='batchmode', draftmode=False):
+def pdflatex(texfile, texfolder=None, interaction='batchmode', draftmode=False,
+             file_line_error=True, *args):
     """
     Runs pdflatex with the given texfile as input
-    :param texfile the input tex file
-    :param texfolder: the texfile location directory. The pdflatex process will be run inside it.
-        If None (default if missing), then it is texfile directory. Otherwise, texfile denotes the
-        file name which must exist inside texfolder
-    :return: the tuple return_status, out_pdf, new_or_modified
+    :param texfile: (string) the input tex file
+    :param texfolder: (string or None) the texfile location directory. The pdflatex process will
+        be run with this as current default directory.
+        If None (default if missing), then `texfile` needs to denote a file path, and `texfolder`
+        is set as `texfile` directory. Otherwise, `texfile` denotes a file name
+    :param interaction: string: `batchmode` (the default), 'nonstopmode` or any valid pdflatex
+        option
+        (http://tex.stackexchange.com/questions/91592/where-to-find-official-and-extended-documentation-for-tex-latexs-commandlin)
+    :param draftmode: boolean (default: False). If True, pdflatex doesn't write any pdf
+        but does create auxiliary files. When compiling twice, set this argument to True the
+        first time to speed up execution.
+        (https://tex.stackexchange.com/questions/129737/pdflatex-draftmode-much-slower-compared-to-draft-option-passed-to-graphicx)
+    :param file_line_error: boolean (default: True)
+        (https://tex.stackexchange.com/questions/27878/pdflatex-bash-script-to-supress-all-output-except-error-messages)
+    :param args: (list of strings, or None. Default: None) supplementary arguments passed to
+        python `subprocess.check_output`. None (the default) is equivalent to an empty list: ignore
+        supplementary arguments. The arguments can be any valid pdflatex arguments in the form
+        'a' (for flags) or 'a=b' (options)
+    :return: the tuple return_status (int), stdout (string), stderr (string)
     :raise: OsError in case of file not found, pdflatex not installed etcetera.
     """
     texexists = False
@@ -43,31 +59,49 @@ def pdflatex(texfile, texfolder=None, interaction='batchmode', draftmode=False):
         texexists = os.path.isfile(os.path.join(texfolder, texfile))
 
     if not texexists:
-        raise OSError(os.errno.ENOENT, "'%s' does not exist")
+        raise OSError(os.errno.ENOENT, "'%s' does not exist" % texfile)
 
-    # seems that we need to call subprocess.call according to this post:
-    # http://stackoverflow.com/questions/4230926/pdflatex-in-a-python-subprocess-on-mac
-    # for interaction options, see here:
-    # http://tex.stackexchange.com/questions/91592/where-to-find-official-and-extended-documentation-for-tex-latexs-commandlin
-    # for -file-line-error, see:
-    # https://tex.stackexchange.com/questions/27878/pdflatex-bash-script-to-supress-all-output-except-error-messages
-    popenargs = ['pdflatex', "-interaction=%s" % interaction, "-file-line-error", texfile]
-    if draftmode:
-        popenargs.insert(1, "-draftmode")
+    # make up arguments:
+    args = ['pdflatex', "-interaction=%s" % interaction] + \
+        (["-file-line-error"] if file_line_error else []) +\
+        (["-draftmode"] if draftmode else []) + \
+        (args if args else []) +\
+        [texfile]
     kwargs = dict(cwd=texfolder, shell=False)
-    try:
-        # SIDE NOTE FOR DEVELOPERS: IF RUN FROM WITHIN ECLIPSE (AND POTENTIALLY ANY
-        # OTHER EDITOR), AS os.environ['PATH'] is different than the shell $PATH
-        # THE COMMAND BELOW MIGHT RAISE OSError
 
-        ret = subprocess.call(popenargs, **kwargs)  # from the docs: waits the command to complete
-    except OSError as oserr:
-        appendix = " (is pdflatex installed?)" if oserr.errno == os.errno.ENOENT else ""
-        # copied from sphinx, we want to preserve the same way of handling errors:
-        raise OSError(oserr.errno, ("Unable to run 'pdflatex {0}': "
-                                    "{1}{2}\n").format(texfile, os.strerror(oserr.errno), appendix))
+    with TemporaryFile() as _stderr:
+    # https://stackoverflow.com/questions/30937829/how-to-get-both-return-code-and-output-from-subprocess-in-python
+        kwargs['stderr'] = _stderr
+        try:
+            # SIDE NOTE FOR DEVELOPERS: IF RUN FROM WITHIN ECLIPSE (AND POTENTIALLY ANY
+            # OTHER EDITOR), AS os.environ['PATH'] is different than the shell $PATH
+            # THE COMMAND BELOW MIGHT RAISE OSError
+            # For info on check_output:
+            out = subprocess.check_output(args, **kwargs)
+            _stderr.seek(0)
+            return 0, out, _stderr.read()
+        except subprocess.CalledProcessError as exc:
+            _stderr.seek(0)
+            return exc.returncode, exc.output, _stderr.read()
+        except OSError as oserr:
+            appendix = " (is pdflatex installed?)" if oserr.errno == os.errno.ENOENT else ""
+            # copied from sphinx, we want to preserve the same way of handling errors:
+            raise OSError(oserr.errno, ("Unable to run 'pdflatex {0}': "
+                                        "{1}{2}\n").format(texfile, os.strerror(oserr.errno), appendix))
 
-    return ret
+#     try:
+#         # SIDE NOTE FOR DEVELOPERS: IF RUN FROM WITHIN ECLIPSE (AND POTENTIALLY ANY
+#         # OTHER EDITOR), AS os.environ['PATH'] is different than the shell $PATH
+#         # THE COMMAND BELOW MIGHT RAISE OSError
+#
+#         ret = subprocess.call(args, **kwargs)  # from the docs: waits the command to complete
+#     except OSError as oserr:
+#         appendix = " (is pdflatex installed?)" if oserr.errno == os.errno.ENOENT else ""
+#         # copied from sphinx, we want to preserve the same way of handling errors:
+#         raise OSError(oserr.errno, ("Unable to run 'pdflatex {0}': "
+#                                     "{1}{2}\n").format(texfile, os.strerror(oserr.errno), appendix))
+#
+#     return ret
 
 
 def log_err_regexp():
@@ -75,8 +109,8 @@ def log_err_regexp():
     return re.compile(".+?:[0-9]+:\\s*ERROR\\s*:.+", re.IGNORECASE)
 
 
-def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
-                *other_sphinxbuild_options):
+def _run(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE, is_terminal=False,
+         *other_sphinxbuild_options):
     """Runs sphinx-build (with build either 'latex' or 'html' or 'pdf') returning the integer
     result:
     ```
@@ -98,10 +132,9 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
     """
     # Now (sorry for the verbosity but it's needed). This function calls:
     #    1. sphinx-build
-    #    2. `pdflatex` (if `build` = pdf, by means of python `subprocess`) with
-    #    -interaction=batchmode (i.e., suppress user interaction)
+    #    2. `pdflatex` (if `build` = pdf, by means of python `subprocess`)
     #
-    # That would be easy. But there are different scenarios which we need to uniformely handle:
+    # That's simple, but there are different scenarios which we need to uniformely handle:
     #
     # +----------+---------------+---------------+-------------------------------------------+
     # |          | output to     | errors to     | returns                                   |
@@ -130,11 +163,12 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
     #        - If R=0, then check the captured standard error for Sphinx errors (they have
     #        a typical format string: '.+:[0-9]+ ERROR: .*', so we use regexps for that): if such
     #        a string is found, set R=1. Then continue to 1b
-    # 1b) If build != 'pdf', fo to FINALIZE, otherwise got to 2)
+    # 1b) If build != 'pdf', go to FINALIZE, otherwise got to 2)
     #
     # 2) Run pdflatex
     # ---------------
-    # Still while wrapping the standard error
+    # Still while wrapping the standard error (which will capture python errors, not pdflatex
+    #    stderr, which in any case is apparently not used)
     #        2a) run pdflatex once with the flag -draftmode. This flag speed up rendering by NOT
     #        writing the pdf output. If
     #            - the process raised and exception, set R=2 and go to FINALIZE. Otherwise:
@@ -149,7 +183,7 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
     # 3. FINALIZE
     # -----------
     # We have a return status code R in [0, 1, 2], and a captured standard error which normalizes
-    # sphinx and pdflatex output. Write the captured standard error in our log file (currently
+    # sphinx and pdflatex errors. Write the captured standard error in our log file (currently
     # "__.gfzreport.__.log" under the build directory). Finally, return R
     #
     # Final note: all runs 1a) 2a) 2b) are wrapped in a context manager `execwrapper` that
@@ -202,7 +236,9 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
                 break
 
         if ret == 0 and build == 'pdf':
-            sys.stdout.write("Running PdfLatex")
+            if is_terminal:
+                sys.stdout.write("\nRunning PdfLatex")
+
             texfilepath = checker.filepath
             # the execwrapper wraps exceptions and prints them to stderr, so we still
             # need the with statement although we will not check for file modifications (see below)
@@ -215,7 +251,14 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
                 ret = 2
             else:
                 with execwrapper(outdir, master_doc, build, wait=1) as checker:
-                    ret_pdflatex = pdflatex(texfilepath, None)
+                    ret_pdflatex, std_out, std_err = pdflatex(texfilepath, None)  # @UnusedVariable
+                    if is_terminal and _:
+                        sys.stdout.write("\n%s" % std_out)
+                    # we don't do this:
+                    # sys.stderr.write(std_err)
+                    # because we will rely on pdflatex log file and we want to avoid duplicated
+                    # messages (although it seems that std_err is not used by pdflatex, is for
+                    # safety)
                 if not checker.modified:
                     ret = 2
                 else:
@@ -236,11 +279,13 @@ def _run_sphinx(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE,
                                 if m and len(m.groups()) == 2:
                                     line = "%s ERROR: %s" % (m.group(1), m.group(2))
                                 new_stderr.write("\n%s" % line)
+            if is_terminal:
+                sys.stdout.write("\n")
 
     if ret == 0 and c_errors:
         ret = 1
 
-    finalize(new_stderr, ret, outdir)
+    finalize(new_stderr, ret, outdir, is_terminal)
     return ret
 
 
@@ -255,10 +300,11 @@ def exitstatus2str(exitstatus):
             ).format(" (exit status: %s)" % str(exitstatus))
 
 
-def finalize(stderr, exitstatus, outdir):
+def finalize(stderr, exitstatus, outdir, is_terminal):
     '''finalizes the build result writing log file and printing to stdout the final result'''
     msg = exitstatus2str(exitstatus)
-    sys.stdout.write("\n%s%s" % ("ERROR: " if exitstatus == 2 else "", msg))
+    if is_terminal:
+        sys.stdout.write("\n%s%s" % ("ERROR: " if exitstatus == 2 else "", msg))
 
     fileout = os.path.join(outdir, get_logfilename())
     if os.path.isdir(os.path.dirname(fileout)):
@@ -266,7 +312,8 @@ def finalize(stderr, exitstatus, outdir):
             _.write(msg)
             _.write('\n%s\n\n' % ('*' * len(msg)))
             _.write(stderr.getvalue())
-        sys.stdout.write("\n(Log file written to '%s')\n" % fileout)
+        if is_terminal:
+            sys.stdout.write("\n(Log file written to '%s')\n" % fileout)
 
 
 def run(sourcedir, outdir, build=_DEFAULT_BUILD_TYPE, *other_sphinxbuild_options):
@@ -291,8 +338,8 @@ def run(sourcedir, outdir, build=_DEFAULT_BUILD_TYPE, *other_sphinxbuild_options
             break
     conf_file = os.path.join(confdir, 'conf.py')
 
-    return _run_sphinx(sourcedir, outdir, get_master_doc(conf_file), build,
-                       *other_sphinxbuild_options)
+    return _run(sourcedir, outdir, get_master_doc(conf_file), build, True,
+                *other_sphinxbuild_options)
 
 
 def get_master_doc(conf_file):

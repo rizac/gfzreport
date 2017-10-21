@@ -54,7 +54,7 @@ from cStringIO import StringIO
 from itertools import count
 from werkzeug.utils import secure_filename
 
-from gfzreport.sphinxbuild.main import _run_sphinx, get_master_doc, get_logfilename, log_err_regexp,\
+from gfzreport.sphinxbuild.main import _run, get_master_doc, get_logfilename, log_err_regexp,\
     exitstatus2str
 
 
@@ -229,10 +229,10 @@ def build_report(app, reportdirname, buildtype, user, force=False):
 
     sourcedir = get_sourcedir(app, reportdirname)
     builddir = get_builddir(app, reportdirname, buildtype)
-    # _run_sphinx should never raise as a context manager catches exceptions printing to stderr,
+    # _run should never raise as a context manager catches exceptions printing to stderr,
     # which is temporary set to a StringIO. The StringIO will be written to our out directory
     # See get_logs
-    ret = _run_sphinx(sourcedir, builddir, master_doc(app, reportdirname), buildtype, '-E')
+    ret = _run(sourcedir, builddir, master_doc(app, reportdirname), buildtype, False, '-E')
 
     # write to the last git commit the returned status. Note that in git we need to override
     # completely the notes, so in order to override only relevant stuff, first read the notes,

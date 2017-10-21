@@ -5,7 +5,7 @@ Created on May 18, 2016
 @author: riccardo
 '''
 
-# from __future__ import print_function
+from __future__ import print_function
 
 import os
 import sys
@@ -217,7 +217,7 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
                     title=gen_title(network, geofon_df),
                     network_description=get_net_desc(geofon_df),
                     stations_table={'content': geofon_df.to_csv(sep=" ", quotechar='"',
-                                                             index=False),
+                                                                index=False),
                                     },
                     stations_map={'content': map_df.to_csv(sep=" ", quotechar='"', index=False),
                                   'options': mapfigure.get_defargs(**mymapdefaults)

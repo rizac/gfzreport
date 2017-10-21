@@ -38,12 +38,6 @@ def main(out_path, mv, noprompt):
     # Moreover, if we ever re-implement it in the futre, remember that windows does not expand
     # wildcards
     # (http://stackoverflow.com/questions/12501761/passing-multple-files-with-asterisk-to-python-shell-in-windows)
-
-    # Note also that area margins are in degree because we want to make life easier
-    # If you want to support 'm' and 'km', be aware that we need to convert margins back to string
-    # to pass these to the initial map settings (supporting only degrees makes life easier,
-    # just write in the map figure rst option:
-    # ", ".join(str(m) for m in area_margins)
     try:
         sys.exit(run(out_path, mv, not noprompt))
     except Exception as exc:
