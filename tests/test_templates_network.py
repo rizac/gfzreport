@@ -7,8 +7,10 @@ import os
 import sys
 import glob
 from click.testing import CliRunner
-from gfzreport.templates.network.main import main as network_reportgen_main
-from gfzreport.sphinxbuild.main import main as sphinxbuild_main, get_logfilename
+from gfzreport.cli import main as gfzreport_main
+from gfzreport.sphinxbuild import get_logfilename
+# from gfzreport.templates.network.__init__ import main as network_reportgen_main
+# from gfzreport.sphinxbuild.__init__ import main as sphinxbuild_main, get_logfilename
 import shutil
 from contextlib import contextmanager
 from obspy.core.inventory.inventory import read_inventory
@@ -21,6 +23,8 @@ from urllib2 import URLError
 # global paths defined once
 DATADIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "testdata")
 
+TEMPLATE_NETWORK = ["template_network"]
+BUILD = ['build']
 
 @contextmanager
 def invoke(*args):
@@ -45,24 +49,62 @@ def invoke(*args):
 
     with runner.isolated_filesystem():
         argz.extend(['-o', os.getcwd()])
-        yield runner.invoke(network_reportgen_main, argz, catch_exceptions=False), os.getcwd(), argz
+        yield runner.invoke(gfzreport_main, TEMPLATE_NETWORK + argz, catch_exceptions=False), os.getcwd(), argz
 
 
-def test_netgen_bad_path():
+@patch('gfzreport.templates.network.core.iterdcurl', side_effect=lambda *a, **v: _getdatacenters(*a, **v))
+@patch('gfzreport.templates.network.core.utils.urllib2.urlopen')
+def test_netgen_configonly_flag(mock_urlopen, mock_get_dcs):
+    # set args, with wildcards
+    # mock urllib returns our testdata files
+    setupurlread(mock_urlopen)
     # set args:
-    args_ = [
-        # -i points to a non existing path name, -n too
-        ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes-/*", "-n", "noise_pdf/sta1*.pdf"],
-        # -i points to a non existing path name, -n is ok
-        ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes-/*", "-n", "noise_pdf/sta1*"],
-        # -i points to an existing path name, -n no
-        ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/sta1*.pdf"]]
-    for args in args_:
-        with invoke(*args) as _:
-            result, outpath, args = _
-            assert "ZE_2014" not in os.listdir(outpath)
-            assert "Aborted: No files copied" in result.output
-            assert result.exit_code != 0
+    args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/*"]
+
+    with invoke(*args) as _:
+        result, outpath, args = _
+        outpath_ = os.path.join(outpath, "ZE_2014")
+        conf_files_dir = os.path.join(outpath_, 'conf_files')
+        data_dir = os.path.join(outpath_, 'data')
+        confiles_subdirs = sorted(os.listdir(conf_files_dir))
+        shutil.rmtree(conf_files_dir)
+        shutil.rmtree(data_dir)
+        assert not os.path.isdir(conf_files_dir)
+        assert not os.path.isdir(data_dir)
+
+        confile_path = os.path.join(outpath_, 'conf.py') 
+        # modify conf.py and assert later that we overwrote it:
+        with open(confile_path) as opn_:
+            text = "dummyvar='ert'" + opn_.read()
+        with open(confile_path, 'w') as opn_:
+            opn_.write(text)
+        with open(confile_path) as opn_:
+            assert "dummyvar='ert'" in opn_.read()
+
+        rstreport_path = os.path.join(outpath_, 'report.rst') 
+        # modify conf.py and assert later that we overwrote it:
+        with open(rstreport_path) as opn_:
+            text = opn_.read() + "\na simple text__"
+        with open(rstreport_path, 'w') as opn_:
+            opn_.write(text)
+        with open(rstreport_path) as opn_:
+            assert "\na simple text__" in opn_.read()
+
+        # needs to run it inside the with statement otherwise the dest dir is removed
+        runner = CliRunner()
+        args += ['-c']
+        result = runner.invoke(gfzreport_main, TEMPLATE_NETWORK + args, catch_exceptions=False)
+        confiles_subdirs2 = sorted(os.listdir(conf_files_dir))
+        # conf_files_dir was deleted, assert it has again the proper subdirs:
+        assert confiles_subdirs == confiles_subdirs2
+        # confile_path was modified, assert it has been overwritten:
+        with open(confile_path) as opn_:
+            assert "dummyvar='ert'" not in opn_.read()
+        # rstreport_path was modified, assert it was NOT overwritten:
+        with open(rstreport_path) as opn_:
+            assert "\na simple text__" in opn_.read()
+        # data dir has not been newly created in update config mode:
+        assert not os.path.isdir(data_dir)
 
 
 def _getdatacenters(*a, **v):
@@ -149,7 +191,7 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
 
         # while the dir is already open, test that we cannot override it:
         runner = CliRunner()
-        result = runner.invoke(network_reportgen_main, args, catch_exceptions=False)
+        result = runner.invoke(gfzreport_main, TEMPLATE_NETWORK + args, catch_exceptions=False)
         assert result.exit_code == 1
         assert " already exists" in result.output
 
@@ -174,7 +216,7 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
                 args_.extend(['-b', buildtype])
             
 
-            result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
+            result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
 
             if '.html' == expected_ext:
                 # html does not use arcgis images, so no error should be raised:
@@ -223,7 +265,7 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
             elif buildtype == 'pdf':
                 sdf = 9
 
-            result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
+            result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
             assert os.path.isdir(outdir)
             assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
             # assert "ValueError: invalid PNG header" in result.output
@@ -272,7 +314,7 @@ def test_netgen_ok_sphinxbuild_ok(mock_urlopen, mock_get_dcs):
         # while the dir is already open, test that we cannot override it:
         runner = CliRunner()
 
-        result = runner.invoke(network_reportgen_main, args, catch_exceptions=False)
+        result = runner.invoke(gfzreport_main, TEMPLATE_NETWORK + args, catch_exceptions=False)
         assert result.exit_code == 1
         assert " already exists" in result.output
 
@@ -295,7 +337,7 @@ def test_netgen_ok_sphinxbuild_ok(mock_urlopen, mock_get_dcs):
                 # which defaults to latex, so the dir exists
                 assert not os.path.isdir(outdir)
             
-            result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
+            result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
             assert os.path.isdir(outdir)
             assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
                 
@@ -381,7 +423,7 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
         open(file_, 'a').close()
 
     try:
-        args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/XXX*", "-n", "noise_pdf/xxx*", "--mv"]
+        args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/XXX*", "-n", "noise_pdf/xxx*", "-m"]
         with invoke(*args) as _:
             result, outpath, args = _
             assert not os.path.isfile(os.path.join(DATADIR, "noise_pdf", "xxx.png"))

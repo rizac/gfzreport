@@ -8,8 +8,8 @@ from contextlib import contextmanager
 from click.testing import CliRunner
 import os, sys
 
-from gfzreport.templates.network.main import main as network_reportgen_main
-from gfzreport.sphinxbuild.main import main as sphinxbuild_main, get_logfilename, exitstatus2str
+from gfzreport.templates.network.__init__ import main as network_reportgen_main
+from gfzreport.sphinxbuild.__init__ import main as sphinxbuild_main, get_logfilename, exitstatus2str
 from datetime import datetime
 import shutil
 from gfzreport.web.app import get_app, initdbusers, initdb
@@ -411,7 +411,7 @@ class Test(unittest.TestCase):
             # in the short message:
             assert "No compilation error found" in _data[1]
     
-    @patch('gfzreport.sphinxbuild.main.sphinx_build_main', side_effect = Exception('!wow!'))
+    @patch('gfzreport.sphinxbuild.__init__.sphinx_build_main', side_effect = Exception('!wow!'))
     def tst_report_views_build_failed_sphinxerr2(self, mock_sphinxbuild):
         '''test when sphinx_build raises. This should never be the case as sphinx prints
         exception to stderr, but we can check other stuff, e.g. that get_logs returns
@@ -455,7 +455,7 @@ class Test(unittest.TestCase):
             assert "Log file not found" in _data[1]
 
     @patch('gfzreport.web.app.core._run', side_effect = _reportbuild_run_orig)
-    @patch('gfzreport.sphinxbuild.main.pdflatex', side_effect = Exception('!wow!'))
+    @patch('gfzreport.sphinxbuild.__init__.pdflatex', side_effect = Exception('!wow!'))
     def tst_report_views_build_failed_pdflatex(self, mock_pdflatex, mock_reportbuild_run):
         
         # test the page pdf. We are unauthorized, so this should give us error:

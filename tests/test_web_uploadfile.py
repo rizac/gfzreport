@@ -8,8 +8,8 @@ from contextlib import contextmanager
 from click.testing import CliRunner
 import os
 
-from gfzreport.templates.network.main import main as network_reportgen_main
-from gfzreport.sphinxbuild.main import main as sphinxbuild_main, get_logfilename
+from gfzreport.templates.network.__init__ import main as network_reportgen_main
+from gfzreport.sphinxbuild.__init__ import main as sphinxbuild_main, get_logfilename
 from datetime import datetime
 import shutil
 from gfzreport.web.app import get_app, initdbusers, initdb

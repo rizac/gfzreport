@@ -8,8 +8,9 @@ import os
 import sys
 import glob
 from click.testing import CliRunner
-from gfzreport.templates.network.main import main as network_reportgen_main
-from gfzreport.sphinxbuild.main import main as sphinxbuild_main, get_logfilename
+# from gfzreport.templates.network import main as network_reportgen_main
+# from gfzreport.sphinxbuild import main as sphinxbuild_main, get_logfilename
+from gfzreport.cli import main as gfzreport_main
 import shutil
 from contextlib import contextmanager
 from obspy.core.inventory.inventory import read_inventory
@@ -20,10 +21,14 @@ from matplotlib.image import imread
 from urllib2 import URLError
 from StringIO import StringIO
 import time
+from gfzreport.sphinxbuild import get_logfilename
 
 # global paths defined once
 DATADIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "testdata")
 
+
+TEMPLATE_NETWORK = ["template_network"]
+BUILD = ['build']
 
 @contextmanager
 def invoke(*args):
@@ -48,7 +53,7 @@ def invoke(*args):
 
     with runner.isolated_filesystem():
         argz.extend(['-o', os.getcwd()])
-        yield runner.invoke(network_reportgen_main, argz, catch_exceptions=False), os.getcwd(), argz
+        yield runner.invoke(gfzreport_main, TEMPLATE_NETWORK + argz, catch_exceptions=False), os.getcwd(), argz
 
 
 def test_netgen_bad_path():
@@ -64,7 +69,7 @@ def test_netgen_bad_path():
         with invoke(*args) as _:
             result, outpath, args = _
             assert "ZE_2014" not in os.listdir(outpath)
-            assert "Aborted: No files copied" in result.output
+            assert "No data file found to copy" in result.output
             assert result.exit_code != 0
 
 
@@ -153,7 +158,7 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
         args_ = [RSTDIR,
                  os.path.join(outpath, "build"), "-b", btype]
 
-        result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
+        result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
         with open(os.path.join(args_[1], get_logfilename()), "r") as _opn:
             _log_out = _opn.read()
 
@@ -176,7 +181,7 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
         printl("Testing mis-alignement of :align:", btype)
         args_ = [RSTDIR,
                  os.path.join(outpath, "build"), "-b", btype]
-        result = runner.invoke(sphinxbuild_main, args_, catch_exceptions=False)
+        result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
         with open(os.path.join(args_[1], get_logfilename()), "r") as _opn:
             _log_out = _opn.read()
         assert result.exit_code == 2
@@ -212,7 +217,7 @@ def test_netgen_ok_sphinxbuild_output(mock_urlopen, mock_get_dcs):
         printl("Testing normal build with no rst syntax errors", btype)
         args_ = [RSTDIR,
                  os.path.join(outpath, "build"), "-b", btype]
-        result = runner.invoke(sphinxbuild_main, args_)
+        result = runner.invoke(gfzreport_main, BUILD + args_)
         assert result.exit_code == 0
         print(result.output)
 
@@ -220,7 +225,7 @@ def test_netgen_ok_sphinxbuild_output(mock_urlopen, mock_get_dcs):
         printl("Testing normal build with no rst syntax errors", btype)
         args_ = [RSTDIR,
                  os.path.join(outpath, "build"), "-b", btype]
-        result = runner.invoke(sphinxbuild_main, args_)
+        result = runner.invoke(gfzreport_main, BUILD + args_)
         assert result.exit_code == 1
         print(result.output)
 

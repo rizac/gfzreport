@@ -1,27 +1,32 @@
 #!/usr/bin/env ptatioython
 # -*- coding: utf-8 -*-
 '''
-Created on May 18, 2016
+Created on Oct 23, 2017
 @author: riccardo
 '''
-
-from __future__ import print_function
-
-import os
-import sys
-# import shutil
-# import datetime
-# import inspect
 import click
-from jinja2 import Environment
-from jinja2.loaders import FileSystemLoader
+import sys
 
-from gfzreport.templates.network.core.utils import relpath
-from gfzreport.templates.network.core import get_noise_pdfs_content, gen_title,\
-    get_net_desc, geofonstations_df, otherstations_df, get_map_df, get_figdirective_vars
+from sphinx import build_main as sphinx_build_main
 from gfzreport.sphinxbuild.map import parse_margins
-from gfzreport.sphinxbuild.core.extensions import mapfigure
-from gfzreport.templates.utils import cp_template_tree, makedirs, copyfiles, validate_outdir
+from gfzreport.templates.network import run as networktemplate_run
+from gfzreport.sphinxbuild import run as sphinxbuild_run
+from gfzreport.sphinxbuild import _DEFAULT_BUILD_TYPE
+
+
+@click.group()
+def main():
+    """gfzreport is a program to generate reports and report templates for the
+    Helmholtz-Centre Potsdam - GFZ German Research Centre for Geosciences
+
+    For details, type:
+
+    \b
+    gfzreport COMMAND --help
+
+    \b
+    where COMMAND is one of the commands listed below"""
+    pass
 
 
 def _validate_margins(ctx, param, value):
@@ -35,7 +40,7 @@ def _validate_margins(ctx, param, value):
                                  % (param.human_readable_name, str(value)))
 
 
-@click.command()
+@main.command()
 @click.argument('network')
 @click.argument('start_after')  # , type=int)
 @click.option('-a', '--area_margins', default=None,  callback=_validate_margins,
@@ -51,7 +56,7 @@ def _validate_margins(ctx, param, value):
                     "or a single value that will be applied to all directions. "
                     "Negative values will shrink the box, positive will "
                     "expand it"))
-@click.option('-o', '--out_path', default=None, callback=validate_outdir,
+@click.option('-o', '--out_path', default=None, # callback=validate_outdir,
               help=("The output path. The destination directory "
                     "will be a directory in this path with name [NETWORK]_[STATION]. "
                     "The destination directory must *not* exist, or the program will exit. "
@@ -82,28 +87,32 @@ def _validate_margins(ctx, param, value):
                     'of the instrument uptimes image(s). If multiple files '
                     'are provided, the images will be displayed in a grid of one column '
                     'sorted alphabetically by name'))
-@click.option("--mv", is_flag=True, default=False,
-              help=("Move all specified files instead of copying"
+@click.option("-m", "--mv_datafiles", is_flag=True, default=False,
+              help=("Move all specified data files instead of copying"
                     "them (default False, i.e. missing)"))
+@click.option("-c", "--conffiles_only", is_flag=True, default=False,
+              help=("Copy only conf files (sphinx files + conf.py). Useful for an already edited "
+                    "rst where some configuration changed. This will remove all old configuration "
+                    "files and copy those defined in the package"))
 @click.option("--noprompt", is_flag=True, default=False, is_eager=True,  # <- exec it first. Used?
               help=("Do not ask before proceeding if the user wants to write to out_path. "
                     "The default, when this flag is missing, is False"
                     "(always ask before writing)"))
-@click.option('-m', '--network_station_marker', default="^", type=str,
+@click.option('-nm', '--network_station_marker', default="^", type=str,
               help=('The marker used to display network stations on the map. Defaults to ^ '
                     '(Triangle)'))
-@click.option('-M', '--nonnetwork_station_marker', default="^", type=str,
+@click.option('-NM', '--nonnetwork_station_marker', default="^", type=str,
               help=('The marker used to display non-network stations (within the network bbox) on '
                     'the map. Defaults to ^ (Triangle)'))
-@click.option('-c', '--network_station_color', default="#ffef10", type=str,
+@click.option('-nc', '--network_station_color', default="#ffef10", type=str,
               help=('The color used to display network stations on the map. Defaults to "#ffef10" '
                     '(yellow-like color)'))
-@click.option('-C', '--nonnetwork_station_color', default="#dddddd", type=str,
+@click.option('-NC', '--nonnetwork_station_color', default="#dddddd", type=str,
               help=('The color used to display  non-network stations (within the network bbox) on '
                     'the map. Defaults to "#dddddd" (gray-like color)'))
-def main(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes, mv, noprompt,
-         network_station_marker, nonnetwork_station_marker, network_station_color,
-         nonnetwork_station_color):
+def template_network(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes,
+                     mv_datafiles, conffiles_only, noprompt, network_station_marker,
+                     nonnetwork_station_marker, network_station_color, nonnetwork_station_color):
     """
     Generates the report folder for the given network and year
 
@@ -114,17 +123,31 @@ def main(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes, 
 
     The directory tree that will be created will look like the following:
 
-    out_path
+    \b
+    out_path:
 
-     +- config           [directory: Sphinx configuration stuff]
+    \b
+        conf_files:       directory with sphinx
+                          additional files (see conf.py)
 
-     +- report.rst       [generated file]
+    \b
+        conf.py:          Sphinx configuration file
 
-     +- data              [directory]
+    \b
+        report.rst:       ReStructuredText report. The file name
+                          might change depending on the value of
+                          'master_doc' in conf.py
 
-         +- noise_pdf     [directory]
+    \b
+        data:
+    \b
+            noise_pdf:    directory, populated with noise prob.
+                          density functions
 
-         +- inst_uptimes  [directory]
+    \b
+            inst_uptimes: directory, populated with a figure
+                          of instrumental uptimes
+
 
     NOTE: Data files specified by 'noise_pdf' and 'inst_uptimes' must denote one or
     more files or directories. They can be typed ONE OR MORE TIMES, where each file path is
@@ -152,94 +175,58 @@ def main(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes, 
     # just write in the map figure rst option:
     # ", ".join(str(m) for m in area_margins)
     try:
-        sys.exit(run(network, start_after, area_margins, out_path, noise_pdf, inst_uptimes,
-                     mv, not noprompt, network_station_marker, nonnetwork_station_marker,
-                     network_station_color, nonnetwork_station_color))
+        sys.exit(networktemplate_run(network, start_after, area_margins, out_path, noise_pdf,
+                                     inst_uptimes, mv_datafiles, conffiles_only, not noprompt,
+                                     network_station_marker, nonnetwork_station_marker,
+                                     network_station_color, nonnetwork_station_color))
     except Exception as exc:
         print("Aborted: %s" % str(exc))
         sys.exit(1)
 
 
-def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_uptimes,
-        mv, confirm,
-        network_station_marker, nonnetwork_station_marker, network_station_color,
-        nonnetwork_station_color):
-    in_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sphinx")
-    out_path = os.path.abspath(os.path.join(out_path, "%s_%s" % (str(network), str(start_after))))
-    with cp_template_tree(in_path, out_path, confirm) as _data_outdir:
+# as when we provide --sphinxhelp we should not check for sourcedir and outdir existence
+# we cannot set the nargs=1 and required=True in @click.argument, so we implement this function
+# that behaves as nargs=1+required=True
+def check_dirs(ctx, param, value):
+    if not value and "sphinxhelp" not in ctx.params:
+        raise click.BadParameter("Missing argument", ctx=ctx, param=param)
+    return value
 
-        # OKAY, we copied all relevant sphinx stuff. Now we have to copy the
-        # template specific files, noise_pdf and inst_uptimes:
-        noise_pdf_dst = os.path.join(_data_outdir, "noise_pdf")
-        inst_uptimes_dst = os.path.join(_data_outdir, "inst_uptimes")
-        # copy the data files:
-        # Note: create the sub-directories first, as copyfiles below creates them
-        # only if there are files to copy
-        for path in [inst_uptimes_dst, noise_pdf_dst]:
-            makedirs(path)
 
-        # copy data files: inst_uptimes, data_aval, noise_pdf
-        # note that the first elements of each tuple are LISTS as the arguments have the
-        # flag multiple=True
-        for arg__ in [(inst_uptimes, inst_uptimes_dst),
-                      (noise_pdf, noise_pdf_dst)]:
-            dst__ = arg__[1]
-            for src__ in arg__[0]:
-                print("Copying file: '%s' in '%s'" % (src__, dst__))
-                copyfiles(src__, dst__, mv)
-                # raise Error if no files are in the folder (Sphinx complains afterwards for bad
-                # formed code, e.g. csv tables with no content):
-                if not os.listdir(dst__):
-                    raise IOError(("No files copied. Argument does not exist "
-                                   "or does not match any file: '%s'") % src__)
+@main.command(context_settings=dict(ignore_unknown_options=True,),
+              options_metavar='[options]')
+@click.argument('sourcedir', nargs=1, required=False, callback=check_dirs,
+                metavar='sourcedir')  # @IgnorePep8
+@click.argument('outdir', nargs=1, required=False, callback=check_dirs, metavar='outdir')
+@click.option('-b', '--build',
+              help=('builder to use. Default is ' + _DEFAULT_BUILD_TYPE + ' (in '
+                    'sphinx-build is html). You can also type pdf: if this program is correctly '
+                    'installed (with all latex libs) then `sphinx-build -b latex ...` is first '
+                    'executed and then pdflatex is run on all .tex files in outdir which '
+                    'did not exist before (or whose last-modified time changed during) this '
+                    'program execution. This usually works fine but might compile also latex '
+                    'additional files provided in conf.py, at least after the first build, as they '
+                    'will be seen as new: to avoid this, put the string ".dontcompile." in the '
+                    '.tex file names. Note that this program has been currently tested '
+                    'only for sphinx builds generating a single .tex file in outdir'),
+              default=_DEFAULT_BUILD_TYPE, type=click.Choice(['html', 'pdf', _DEFAULT_BUILD_TYPE]))
+@click.argument('other_sphinxbuild_options', nargs=-1, type=click.UNPROCESSED,
+                metavar='[other_sphinxbuild_options]')
+@click.option('--sphinxhelp', is_flag=True, default=False, help='print out the sphinx-build help '
+              'to know which options (except -b, --build) or arguments (except sourcedir, outdir) '
+              'can be passed in [other_sphinxbuild_options]')
+def build(sourcedir, outdir, build, other_sphinxbuild_options, sphinxhelp):
+    """A wrapper around sphinx-build"""
+    if sphinxhelp:
+        sphinx_build_main(["", "--help"])
+        return 0
 
-        print("Rendering report template with jinja2")
-        try:
-            geofon_df = geofonstations_df(network, start_after)
-        except Exception as exc:
-            raise Exception(("error while fetching network stations ('%s')\n"
-                             "check arguments and internet connection") % str(exc))
-        try:
-            others_df = otherstations_df(geofon_df, area_margins_in_deg)
-        except Exception as exc:
-            raise Exception(("error while fetching other stations within network "
-                             "stations boundaries ('%s')\n"
-                             "check arguments and internet connection") % str(exc))
-        map_df = get_map_df(geofon_df, others_df)
-
-        # convert area margins into plotmap map_margins arg:
-        mymapdefaults = dict(mapmargins=", ".join("%sdeg" % str(m)
-                                                  for m in area_margins_in_deg),
-                             sizes=50, fontsize=8, figmargins="1,2,9,0", legend_ncol=2)
-        # building template, see template.rst:
-        # when possible, we put everything in the rst.
-        args = dict(
-                    title=gen_title(network, geofon_df),
-                    network_description=get_net_desc(geofon_df),
-                    stations_table={'content': geofon_df.to_csv(sep=" ", quotechar='"',
-                                                                index=False),
-                                    },
-                    stations_map={'content': map_df.to_csv(sep=" ", quotechar='"', index=False),
-                                  'options': mapfigure.get_defargs(**mymapdefaults)
-                                  },
-                    noise_pdfs={'dirpath': relpath(noise_pdf_dst, out_path),
-                                'content': get_noise_pdfs_content(noise_pdf_dst)
-                                },
-                    inst_uptimes=get_figdirective_vars(inst_uptimes_dst, out_path)
-                    )
-
-        rstfilename = "report.rst"
-        template = Environment(loader=FileSystemLoader(out_path)).get_template(rstfilename)
-        reporttext = template.render(**args)
-
-        template_dst = os.path.join(out_path, rstfilename)
-        # writing back to report.rst file
-        print("Writing report rst file in %s" % (template_dst))
-        with open(template_dst, 'w') as opn:
-            opn.write(reporttext.encode('UTF8'))
-
-    return 0
+    # for info see:
+    # sphinx/cmdline.py, or
+    # http://www.sphinx-doc.org/en/1.5.1/man/sphinx-build.html
+    sys.exit(sphinxbuild_run(sourcedir, outdir, build, *list(other_sphinxbuild_options)))
 
 
 if __name__ == '__main__':
     main()  # pylint:disable=no-value-for-parameter
+

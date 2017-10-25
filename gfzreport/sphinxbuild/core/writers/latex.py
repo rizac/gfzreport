@@ -68,7 +68,7 @@ class LatexTranslator(LT):
 
     def depart_table(self, node):
         """
-            This method is a horrible hack to remove the HORRIBLE (and BADLY CODED) frame in the
+            Horrible hack which removes the TERRIBLE (and HARD CODED) frame in the
             bottom of longtable saying "continued on next page". WHY Sphinx does that? WHY??!!!??
         """
         # get the current body length. Tables in sphinx writer superclass work weirdly.
@@ -85,13 +85,13 @@ class LatexTranslator(LT):
                     self.body[i] = self.body[i].replace("\\hline", "").replace("{|r|}", "{r}")
 
     def astext(self):
-        # build a dict of bibliographic fields, and inject them as newcommand 
+        # build a dict of bibliographic fields, and inject them as newcommand
         # in the latex header
         newcommands = "\n".join("\\newcommand{\\rst" + (name[0].title() + name[1:]) + "}" +
                                 "{" + definition.replace("\n", '\\\\\n') + "}"
                                 for name, definition in self.rst_bib_fields.iteritems()
                                 if name and name not in self.no_newcommand)
-        preamble_wrapper = (u"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+        preamble_wrapper = ("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
                             "%% NEWCOMMANDS FROM RST BIB.FIELDS GENERATED IN LatexTranslator:\n"
                             "{}\n"
                             "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"

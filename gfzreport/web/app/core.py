@@ -54,7 +54,7 @@ from cStringIO import StringIO
 from itertools import count
 from werkzeug.utils import secure_filename
 
-from gfzreport.sphinxbuild.main import _run, get_master_doc, get_logfilename, log_err_regexp,\
+from gfzreport.sphinxbuild.__init__ import _run, get_master_doc, get_logfilename, log_err_regexp,\
     exitstatus2str
 
 
