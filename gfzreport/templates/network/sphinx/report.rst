@@ -1,16 +1,89 @@
 .. Network report template. Please fill your custom text here below.
    This is a RsT (ReStructuredText) file and also a comprehensive tutorial
    which might help you during editing. RsT is a lightweight markup language designed to be both
-   easily readable/editable and processable by documentation-processing software (sphinx) to
+   easily readable/editable and processable by documentation-processing software (Sphinx) to
    produce html, latex or pdf output
 
    This portion of text (".. " followed by INDENTED text) is a comment block and will not
    be rendered. The comment block ends at the first non-indented line found
 
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. FIELD LIST (LATEX METADATA)
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 
+.. Field lists are two-column table-like structures resembling database records
+   in the form :name: value (note the space before value). E.g.:
+   
+   :Date: 2001-08-16
+   :Version: 1
+   
+   Fields in a Field list placed before the title:
+   - Will never be rendered in any document
+   - Can not have comments before or after (Sphinx bug?)
+   - Must have values in plain text only, as markup in there will not be
+     recognized (However, in this program newlines will be rendered)
+   - Have to be considered as document metadata: their value will be placed in specific portions
+     of the latex layout
+   
+   Here below a description of these fields:
 
-.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   - doi (LIBRARY OR AUTHOR OR GIPP/GEOFON INPUT): the DOI of this report
+   - doiDataset (LIBRARY INPUT): the DOI of the report dataset, if any
+   - doiSupplementaryDataset (LIBRARY INPUT): the DOI of the report supplementary data, if any
+   - subtitle (AUTHOR INPUT): self-explanatory. Filled automatically by default with the network description.
+     Note: you should not specify newlines in it (same for subSubtitle below)
+   - sub-sub-title (AUTHOR INPUT): self-explanatory. This this is the (optional) sub-sub-subtitle (below the subtitle)
+   - strNum (LIBRARY INPUT): the Scientific Technical Report (STR) number
+   - urn (LIBRARY INPUT): The urn, e.g.: urn:nbn:de:kobv:b103-xxxxx
+     (side-note for developers: the sphinx builder might raise a
+     warning if rst interprets it urn as URL. Please ignore the warning)
+   - issn (LIBRARY INPUT): the issn. E.g.: 2190-7110
+   - publicationYear (LIBRARY INPUT): the publication year. E.g., 2016
+   - publicationMonth (LIBRARY INPUT): the publication month in plain english. E.g.: October
+   - reportCitationPreamble (LIBRARY INPUT): the preamble text before the full bibliographic citation
+     relative to the DOI of this report. The full text (preamble + DOI)
+     will be rendered as the first paragraph in the back of the title page
+   - datasetCitationPreamble (LIBRARY INPUT): the preamble text before the full bibliographic citation
+     relative to the DOI of the dataset of this report
+     The full text (preamble + DOI) will be rendered as the second paragraph in the back of the title page
+     Note: If doiDataset is empty, nothing will be printed
+   - supplementaryDataCitationPreamble (LIBRARY INPUT): the preamble text before the full bibliographic citation
+     relative to the DOI of the supplementary dataset of this report.
+     The full text (preamble + DOI) will be rendered as the third paragraph in the back of the title page.
+     Note: If doiSupplementaryDataset is empty, nothing will be printed
+
+
+:doi: 10.14470/XXXXXXXXXXY
+
+:doiDataset: 10.14471/XXXXXXXXXXX
+
+:doiSupplementaryData: 10.14472/XXXXXXXXXXX
+
+:subtitle: {{ network_description }}
+
+:subSubtitle: 
+
+:strNum: 
+
+:urn: urn:nbn:de:kobv:b103-xxxxx
+
+:issn: 
+
+:publicationYear: 
+
+:publicationMonth: 
+      
+:reportCitationPreamble: Recommended citation for the data report:
+
+:datasetCitationPreamble: If you use the dataset described in this report, please use the following citation:
+   
+:supplementaryDataCitationPreamble: The raw unprocessed data from cube data loggers and logfiles from
+   EDL stations are archived as assembled dataset and should be cited as:
+
+
+.. ^^^^^^
 .. TITLE:
-.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. ^^^^^^
 
 .. Section titles are set by decorating a SINGLE line of text with under- (and optionally over-)
    line characters WHICH MUST BE AT LEAST AS LONG AS the section title length.
@@ -20,89 +93,26 @@
 
 {{ title }}
 
-.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. FIELDS:
-.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. ^^^^^^^^^^^^^^^^^^^^^^^^
+.. FIELD LIST (AFTER TITLE)
+.. ^^^^^^^^^^^^^^^^^^^^^^^^
+ 
+.. Fields in a Field list placed after the title:
+   - Will be rendered in all documents (where and how, it depends on the output, e.g. LaTex vs HTML)  
+   - Can have comments before or after
+   - Can have values in rst syntax, as markup in there will be recognized. Thus remember to escape
+     special characters with a backslash, if needed (e.g. to render ":abc:def:" as it is
+     you need to input "\:abc\:def\:")
 
-.. Here below the document "fields" (authors, revision, etcetera): they are used as special
-   variables for latex output and rendered according to templating rules you don't have to care about.
-   They are in the form:
-   :fieldname: fieldbody
-   The ":fieldname: " part (including the trailing whitespace) is called the field marker:
-   Please NEVER MODIFY (or DELETE) field markers. The field body on the other hand can contain:
-   - newlines, indented relative to the field marker
-   - colons, if they are escaped with a backslash: "\:"
-   - multiple body elements, but note that raw text and raw urls only have been tested succesfully.
 
-.. authors (AUTHOR INPUT). Provide the authors as comma separated items (affiliation still to be implemented):
+.. authors (AUTHOR INPUT). Provide the authors as comma separated items. Affiliations should be
+   included here if needed, e.g. in round brackets after the author:
 
 :authors: Author1, author2, author3
 
-.. subtitle. Filled automatically by default with the network description. Note: you
-   should not specify newlines in it (same for subSubtitle below)
+.. The abstract (AUTHOR INPUT):
 
-:subtitle: {{ network_description }}
-
-.. sub-sub-title: this this is the (optional) sub-sub-subtitle (below the subtitle)
-
-:subSubtitle: 
-
-.. a revision mechanism from within the rst is currently not implemented,
-   this field can be left as it is:
-
-:revision: 1.0
-
-.. the Scientific Technical Report (STR) number (LIBRARY INPUT). Fill in if you know it
-
-:strNum: 
-
-.. the doi (AUTHOR OR GIPP/GEOFON INPUT). Fill in if you know it. For info on the doi format see
-   https://en.wikipedia.org/wiki/Digital_object_identifier#Nomenclature
-   Example: http://doi.org/10.2312/GFZ.b103-xxxxx
-      
-:doi: 
-
-.. The urn (LIBRARY INPUT). Fill in if you know it.
-   Example: urn\:nbn:de\:kobv\:b103-xxxxx (remember to escape colons with backslash)
-   Just a side-note for developers the sphinx builder will raise a
-   warning as rst interprets it urn as URL. Please ignore the warning
-
-:urn: 
-
-.. the issn (LIBRARY INPUT). Fill in if you know it (e.g.: 2190-7110)
-
-:issn: 
-
-.. the publication year (LIBRARY INPUT). Fill in if you know it (e.g., 2016)
-
-:publicationYear: 
-
-.. the publication month (LIBRARY INPUT). Fill in if you know it (e.g., October)
-
-:publicationMonth: 
-
-.. (OPTIONAL AUTHOR INPUT) this field is optional and will be rendered (in latex only) under the section
-   "Supplementary datasets:" in the back of the cover page. Fill it with
-   a bibliographic citation to a publication (if any)
-
-:supplDatasets: 
-
-.. this field is OPTIONAL and will be rendered (in latex only) under the section
-   "Recommended citation for chapter:" in the back of the cover page. Fill it with
-   a bibliographic citation to a publication (if any)
-
-:citationChapter: 
-
-.. this field is optional and will be rendered (in latex only) under the section
-   "The report and the datasets are supplements to:" in the back of the cover page.
-   Fill it with a bibliographic citation to a publication (if any)
-
-:supplementsTo: 
-
-.. this is the abstract (AUTHOR INPUT) and will be rendered in latex within the 
-   abstract environment (\begin{abstract} ... \end{abstract}):
-
-:abstract: write your abstract here, you can add newlines but remeber:
+:Abstract: write your abstract here, you can add newlines but remeber:
            you should indent
            any new line
 
@@ -114,8 +124,8 @@
 Introduction
 ============
 
-.. (AUTHOR INPUT) Describe the overall motivation for the experiment, its scientific objectives, and general statements
-   about the conduct of the experiment, overall evaluation etc. 
+.. (AUTHOR INPUT) Describe the overall motivation for the experiment, its scientific objectives,
+   and general statements about the conduct of the experiment, overall evaluation etc. 
 
 
 Data Acquisition
@@ -124,8 +134,8 @@ Data Acquisition
 Experimental Design and Schedule
 --------------------------------
 
-.. (AUTHOR INPUT) Describe here the overall design and design goals, the schedule of deployment, recovery and service 
-   trips, any major reorganisations of array geometry 
+.. (AUTHOR INPUT) Describe here the overall design and design goals, the schedule of deployment,
+   recovery and service trips, any major reorganisations of array geometry 
 
 The station distribution is shown in :numref:`stations_figure`, and :numref:`stations_table`
 summarises the most important information about each station.
@@ -133,14 +143,15 @@ summarises the most important information about each station.
 Site Descriptions
 -----------------
 
-.. (AUTHOR INPUT) Describe in what environments stations were deployed (free field, urban etc., in houses or outside etc). 
-   Upload pictures of a typical installation. 
+.. (AUTHOR INPUT) Describe in what environments stations were deployed (free field, urban etc.,
+   in houses or outside etc). Upload pictures of a typical installation. 
 
 Instrumentation
 ---------------
 
-.. (AUTHOR INPUT) What instruments were used in the experiment, to whom do they belong. Any special issues? 
-   What version of firmware did they run.  Any particular technical issues (malfunctioning equipment)
+.. (AUTHOR INPUT) What instruments were used in the experiment, to whom do they belong.
+   Any special issues? What version of firmware did they run.  Any particular technical issues
+   (malfunctioning equipment)
 
 Sensor orientation
 ------------------
@@ -152,7 +163,8 @@ Sensor orientation
    determined. Note that GFZ provides a declination calculator at
    http://www.gfz-potsdam.de/en/section/earths-magnetic-field/data-products-services/igrf-declination-calculator/
    Please verify that the sensor orientation in the GEOFON database (see table below)
-   matches the actual orientation. (If not please send an email to geofon@gfz-potsdam.de to correct this)
+   matches the actual orientation. (If not please send an email to geofon@gfz-potsdam.de to
+   correct this)
 
 
 Data Description
@@ -168,23 +180,25 @@ Data Completeness
 Data Processing
 ---------------
 
-.. (AUTHOR INPUT) Describe the steps resulting in generating the miniseed file finally submitted to GEOFON
+.. (AUTHOR INPUT) Describe the steps resulting in generating the miniseed file finally submitted
+   to GEOFON
  
 Data quality and Noise Estimation
 ---------------------------------
 
-.. (AUTHOR INPUT) Describe the noise levels, describe possible noise sources (day/night variability if this information is available 
-   and describe any other issues with the data quality, e.g. stuck components
+.. (AUTHOR INPUT) Describe the noise levels, describe possible noise sources (day/night
+   variability if this information is available and describe any other issues with the data
+   quality, e.g. stuck components
 
 Fig. :numref:`noise_pdfs_figure` shows noise probability density functions for all channels.
 
 Timing Accuracy
 ---------------
 
-.. (AUTHOR INPUT) How well did the GPS clocks run. Are there any stations with significant GPS outages?
-   Be specific by providing tables or figures showing exactly which stations are trustworthy.
-   What is your best estimate for the timing accuracy - note that for EDL you can upload 
-   plots 
+.. (AUTHOR INPUT) How well did the GPS clocks run. Are there any stations with significant GPS
+   outages? Be specific by providing tables or figures showing exactly which stations are
+   trustworthy. What is your best estimate for the timing accuracy - note that for EDL you can
+   upload plots 
 
 
 Data Access
@@ -196,7 +210,8 @@ File format and access tools
 .. Normally nothing to be added by the PI here
 
 The data are stored in the GEOFON database, and selected time windows can be requested by EIDA
-access tools as documented on http://geofon.gfz-potsdam.de/waveform/ . Normally the data are delivered in miniseed format. 
+access tools as documented on http://geofon.gfz-potsdam.de/waveform/ . Normally the data are
+delivered in miniseed format. 
 The current data access possibilities can always be found by resolving the DOI of the dataset.
 
 Structure and file formats of supplementary datasets
@@ -206,15 +221,17 @@ Structure and file formats of supplementary datasets
  
 Availability
 ------------
-.. (AUTHOR INPUT) Are data open or restricted. Until what time does an embargo last (for GIPP experiments normally 4 years after the end of data acquisition)
+.. (AUTHOR INPUT) Are data open or restricted. Until what time does an embargo last
+   (for GIPP experiments normally 4 years after the end of data acquisition)
  
 
 Conclusions and recommendations
 ===============================
 
-.. (AUTHOR INPUT) If a colleague were to do an experiment in the same or similar area, what recommendations would you 
-   make to maximise data recovery. Are there any other general lessons learned on deployment procedures
-   or data pre-processing worth passing on to other users or the instrument pool.
+.. (AUTHOR INPUT) If a colleague were to do an experiment in the same or similar area, what
+   recommendations would you make to maximise data recovery. Are there any other general lessons
+   learned on deployment procedures or data pre-processing worth passing on to other users or the
+   instrument pool.
  
    
 Acknowledgments
@@ -226,8 +243,8 @@ Acknowledgments
 References
 ==========
 
-.. Example: [RYBERG14] Trond Ryberg. Cube timing errors introduced by long periods without gps reception, 
-    2014. URL http://www.gfz-potsdam.de/fileadmin/gfz/sec22/pdf_doc/GIPP/cube/Cube_timing_errors_no_gps.pdf .
+.. Example: [RYBERG14] Trond Ryberg. Cube timing errors introduced by long periods without gps
+   reception, 2014. URL http://www.gfz-potsdam.de/fileadmin/gfz/sec22/pdf_doc/GIPP/cube/Cube_timing_errors_no_gps.pdf .
 
 
 .. end of the document content. Below figures and tables added by means of rst directives
@@ -238,7 +255,8 @@ References
 
 .. Rst "directives" are explicit markup blocks for generating special document objects, like
    figures and tables. They are in the form ".. directivetype::" and includes all subsequent
-   INDENTED lines (see e.g. the ".. math::" directive above). A typical example to include a figure is:
+   INDENTED lines (see e.g. the ".. math::" directive above). A typical example to include a
+   figure is:
    
    .. _figure-label:
    
@@ -255,8 +273,8 @@ References
    (For details, see http://docutils.sourceforge.net/docs/ref/rst/directives.html#figure)
 
    **IMPORTANT**:
-   1. In the following, with "directive block" (or simply block) we will denote the directive AND its
-   label (if any).
+   1. In the following, with "directive block" (or simply block) we will denote the directive AND
+   its label (if any).
    2. A directive block must be always preceeded and followed by a blank line. Always.
    3. Only a blank line, not even comments, can be input between a label and
    its directive
@@ -299,16 +317,17 @@ References
 
 .. customize the table horizontal lines via the tabularrows directive (implemented in this
    project onyl, as of July 2017 it's not implemented in Sphinx) which applies to the next
-   generated table (latex output only). You can remove the whole block to show all hlines (default in sphinx).
-   The directive can have two options, 'hline-show' or 'hline-hide' (*either* one *or* the other) specifying
-   the indices of the hlines to show/hide, separeted by spaces (first index is 0). You can also
-   provide python slice notations in the format 'start:end' or 'start:end:step'
+   generated table (latex output only). You can remove the whole block to show all hlines
+   (default in sphinx).
+   The directive can have two options, 'hline-show' or 'hline-hide' (*either* one *or* the other)
+   specifying the indices of the hlines to show/hide, separeted by spaces (first index is 0).
+   You can also provide python slice notations in the format 'start:end' or 'start:end:step'
    (http://stackoverflow.com/questions/509211/explain-pythons-slice-notation).
    The command might not work in some edge cases (e.g. for tables spanning over multiple pages)
    as it is a hack around a poor sphinx implementation, and might
    need some trial-and-errors for working as expected.
-   Here we want  to show the first (0) and the last (-1) hlines, and each fourth hline starting from
-   the second one (1::4 which means indices 1,5,9,...)
+   Here we want  to show the first (0) and the last (-1) hlines, and each fourth hline starting
+   from the second one (1::4 which means indices 1,5,9,...)
    
 .. tabularrows::
    :hline-show: 0 1::4 -1
@@ -344,8 +363,8 @@ References
    After the label definition (so you can reference the map figure via
    :numref:`stations_figure`), in the directive you can edit the argument (the map caption, keep
    indentation for newlines), the content as any csv file, or the directive option **values** 
-   to customize the map: a full documentation of all option names is in preparation, we tried to make
-   them as much self-explanatory as possible
+   to customize the map: a full documentation of all option names is in preparation, we tried to
+   make them as much self-explanatory as possible
 
 .. _stations_figure:
 
@@ -371,11 +390,12 @@ References
    Note that in latex this will be rendered with a longtable followed by an
    empty figure with only the caption inside. This is a workaround to produce something that
    looks like a figure spanning over several pages (if needed) BUT it might need some arrangment
-   as the figure caption might be placed on a different page. Being a table and a figure, all figure
-   + table options, as well as all figure + table latex pre-customization (e.g. 'tabularcolumns',
-   'includegraphics') apply also to a 'gridfigure'
+   as the figure caption might be placed on a different page. Being a table and a figure, all
+   figure + table options, as well as all figure + table latex pre-customization (e.g.
+   'tabularcolumns', 'includegraphics') apply also to a 'gridfigure'
 
-.. first issue a raw latex command (You can remove the lines if the layout does not need a clear page):
+.. first issue a raw latex command (You can remove the lines if the layout does not need a clear
+   page):
 
 .. raw:: latex
 
@@ -401,7 +421,8 @@ References
 
 .. finally, the gridfigure directive (preceeded by its label so you can reference it via
    :numref:`noise_pdfs_figure`). The directive argument is the figure caption, the directive
-   content holds the auto-generated pdfs placed on the server in the :dir: option (**do not change it!!**)
+   content holds the auto-generated pdfs placed on the server in the :dir: option
+   (**do not change it!!**)
 
 .. _noise_pdfs_figure:
 
@@ -418,8 +439,8 @@ References
 
 .. 4) The fourth directive is the directive to display the instrumental uptimes.
    Depending on the number of files uploaded when generating this template, it's either a
-   'figure' or a (NonStandard) 'gridfigure' directive, in any case it will be rendered as figure in
-   html and latex).
+   'figure' or a (NonStandard) 'gridfigure' directive, in any case it will be rendered as figure
+   in html and latex).
 
 .. customize the includegraphics options (only for latex output) for the next figure or image
    found (in the former case, applies the includegraphics options to all images of the figure):
@@ -496,7 +517,8 @@ References
     Hyperlink with subsitution text: `Python <http://www.python.org/>`_
     
     .. Hyperlink with substitution text, if it has to be referenced more than once.
-       Define the hyperlink as follows (note that the line below is NOT rendered but is NOT a comment):
+       Define the hyperlink as follows (note that the line below is NOT rendered but is NOT
+       a comment):
        
     .. _Wikipedia: https://www.wikipedia.org/
     
@@ -561,7 +583,8 @@ References
     
     Here a ref to the first footnote [#]_ and here to the second [#]_.
     
-    .. Footnotes with auto numbering, referenced more than once (newlines must be INDENTED of at least three spaces):
+    .. Footnotes with auto numbering, referenced more than once (newlines must be INDENTED of at
+       least three spaces):
     
     .. [#firstnote] First footnote (autonumbered, referenced more than once)
     
@@ -588,8 +611,8 @@ References
        must be case-insensitive single words of alphanumerics plus internal hyphens,
        underscores, and periods. No whitespace, no numeric only. E.g., CIT2002:
     
-    .. [CIT2002] Deep India meets deep Asia: Lithospheric indentation, delamination and break-off under
-       Pamir and Hindu Kush (Central Asia). http://doi.org/10.1016/j.epsl.2015.11.046
+    .. [CIT2002] Deep India meets deep Asia: Lithospheric indentation, delamination and break-off
+       under Pamir and Hindu Kush (Central Asia). http://doi.org/10.1016/j.epsl.2015.11.046
     
     Here a reference to a publication: [CIT2002]_. And here another reference to it ([CIT2002]_)
     

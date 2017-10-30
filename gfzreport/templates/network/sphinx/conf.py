@@ -278,6 +278,17 @@ latex_elements = {
     'atendofbody': r'\makeatletter\input{latex.atendofbody.tex}\makeatother',
 }
 
+# Short comment: set the next flag to True.
+# Long comment: Sphinx defines in its sphinx.sty file (added by default in the latex dir)
+# custom styling commands. To avoid conflicts, these commands were redefined from version
+# 1.4+ into \sphinx<foo>, e.g. \sphinxtablecontinued instead of \tablecontinued.
+# What THEY claim is that, if we want to avoid conflicts, we can set the next parameter to False
+# What is TRUE is that, if we want to avoid latex 'undefined control sequence' errors, you better
+# keep it to True (basically, sphinx 1.5.2 still issues old macro commands). Note that we do not
+# upgrade to newer version of sphinx because currently (1.6+) they have a completely
+# new latex templating system still under development. Waiting for that to be stable, we set:
+latex_keep_old_macro_names = True
+
 # The name of an image file (relative to this directory) to place at the top of the title page:
 # latex_logo = None
 

@@ -8,8 +8,8 @@ from contextlib import contextmanager
 from click.testing import CliRunner
 import os, sys
 
-from gfzreport.templates.network.__init__ import main as network_reportgen_main
-from gfzreport.sphinxbuild.__init__ import main as sphinxbuild_main, get_logfilename, exitstatus2str
+from gfzreport.cli import main as gfzreport_main
+from gfzreport.sphinxbuild import get_logfilename, exitstatus2str
 from datetime import datetime
 import shutil
 from gfzreport.web.app import get_app, initdbusers, initdb
@@ -26,6 +26,9 @@ from gfzreport.web.app import models
 
 # global paths defined once
 SOURCEREPORTDIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "testdata")
+
+TEMPLATE_NETWORK = ["template_network"]
+BUILD = ['build']
 # SOURCEWEBDIR = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), "tmp")
 
 def _cleanup(testobj):
@@ -44,7 +47,8 @@ def _cleanup(testobj):
         pass
 
 
-def _get_urlopen_sideeffect(geofon_retval=None, others_retval=None):
+def _get_urlopen_sideeffect(geofon_retval=None, others_retval=None,
+                            doicit_retval=None):
     '''Returns a side_effect function for the urlopen.urlread mock
     :param geofon_retval: the string returned from urlopen.read when querying geofon network
     If None, defaults to "ZE.network.xml" content (file defined in testdata dir)
@@ -52,9 +56,15 @@ def _get_urlopen_sideeffect(geofon_retval=None, others_retval=None):
     :param others_retval: the string returned from urlopen.read when querying NON geofon stations
     within the geofon network boundaries
     If None, defaults to "other_stations.xml" content (file defined in testdata dir)
+    :param doicit_retval: the string returne from urlopen.read when querying for a DOI citation
+    defaults is a string formatted as a doi citation according to the input doi url
     If Exception, then it will be raised
     '''
-    def sideeffect(url, timeout=None):
+    def sideeffect(url_, timeout=None):
+        try:
+            url = url_.get_full_url()
+        except AttributeError:
+            url = url_
         if "geofon" in url:
             if isinstance(geofon_retval, Exception):
                 raise geofon_retval
@@ -63,6 +73,12 @@ def _get_urlopen_sideeffect(geofon_retval=None, others_retval=None):
                     return BytesIO(opn.read())
             else:
                 return BytesIO(geofon_retval)
+        elif 'doi.org' in url:
+            if isinstance(doicit_retval, Exception):
+                raise doicit_retval
+            if doicit_retval is None:
+                return BytesIO("Marc Smith (2002): A Paper. %s" % url.encode('utf8'))
+            return BytesIO(doicit_retval)
         else:
             if isinstance(others_retval, Exception):
                 raise others_retval
@@ -123,7 +139,7 @@ class Test(unittest.TestCase):
                 '-o', os.path.join(self.source, "source")
                 ]
         runner = CliRunner()
-        res = runner.invoke(network_reportgen_main, args, catch_exceptions=False)
+        res = runner.invoke(gfzreport_main, TEMPLATE_NETWORK + args, catch_exceptions=False)
         if res.exit_code != 0:
             raise unittest.SkipTest("Unable to generate test report:\n%s" % res.output)
 
@@ -221,7 +237,7 @@ class Test(unittest.TestCase):
             
 
     @patch('gfzreport.web.app.core._run', side_effect = _reportbuild_run_orig)
-    def tst_report_views_auth(self, mock_reportbuild_run):
+    def test_report_views_auth(self, mock_reportbuild_run):
         
         # test the page pdf. We are unauthorized, so this should give us error:
         with self.app.test_request_context():
@@ -301,7 +317,7 @@ class Test(unittest.TestCase):
             self.mock_urlopen.side_effect = _get_urlopen_sideeffect(None, URLError('wat'))
             res = app.get("/ZE_2012/pdf", follow_redirects=True)
             # few stupid asserts, the main test is not raising
-            # we should ahve an html page:
+            # we should have an html page:
             assert res.status_code == 200
             assert mock_reportbuild_run.call_count == 1
 
@@ -411,8 +427,8 @@ class Test(unittest.TestCase):
             # in the short message:
             assert "No compilation error found" in _data[1]
     
-    @patch('gfzreport.sphinxbuild.__init__.sphinx_build_main', side_effect = Exception('!wow!'))
-    def tst_report_views_build_failed_sphinxerr2(self, mock_sphinxbuild):
+    @patch('gfzreport.sphinxbuild.sphinx_build_main', side_effect = Exception('!wow!'))
+    def test_report_views_build_failed_sphinxerr2(self, mock_sphinxbuild):
         '''test when sphinx_build raises. This should never be the case as sphinx prints
         exception to stderr, but we can check other stuff, e.g. that get_logs returns
         'file not found' string'''
@@ -455,8 +471,8 @@ class Test(unittest.TestCase):
             assert "Log file not found" in _data[1]
 
     @patch('gfzreport.web.app.core._run', side_effect = _reportbuild_run_orig)
-    @patch('gfzreport.sphinxbuild.__init__.pdflatex', side_effect = Exception('!wow!'))
-    def tst_report_views_build_failed_pdflatex(self, mock_pdflatex, mock_reportbuild_run):
+    @patch('gfzreport.sphinxbuild.pdflatex', side_effect = Exception('!wow!'))
+    def test_report_views_build_failed_pdflatex(self, mock_pdflatex, mock_reportbuild_run):
         
         # test the page pdf. We are unauthorized, so this should give us error:
         with self.app.test_request_context():

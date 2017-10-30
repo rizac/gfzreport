@@ -284,7 +284,7 @@ def get_map_from_csv(**map_args):
 
 def visit_map_node_latex(self, node):
     """
-    self is the builder, although not well documented FIXME: setuo this doc!
+    self is the app, although not well documented FIXME: setuo this doc!
     http://www.sphinx-doc.org/en/stable/_modules/sphinx/application.html
     """
     _uuid = node._data_hash__

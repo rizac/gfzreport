@@ -260,8 +260,9 @@ def get_noise_pdfs_content(dst_dir, regex="^(?P<row>.*)_(?P<col>[A-Z][A-Z][A-Z])
                            delimiter=" ",
                            columns=["HHZ", "HHN", "HHE"]):
 
-    # Provide a default value DEF_VAL for non-found files. Do not provide empty strings as DEF_VAL
-    # if the delimiter is the space as this is not rendered properly in the csv content
+    # We want to provide empty delimiter because is more readable from the rst
+    # Problem is, empty strings will not be quoted in csvwriter
+    # Thus provide a default non-empty string
     # (for safety, do not provide empty strings as DEF_VAL in any case):
     DEF_VAL = 'WARNING: file not found'
     lineterminator = '\n'

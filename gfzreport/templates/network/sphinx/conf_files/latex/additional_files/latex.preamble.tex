@@ -14,22 +14,37 @@
 
 \definecolor{gfzblue}{RGB}{0,88,156} % http://media-intranet.gfz-potsdam.de/gfz/wv/%C3%96A/Corporate%20Design%20-%20de%20PDF.pdf
 
-% tablecontinued is used for longtables to show the 'continued on next/previous page'
-% string. Remove sfseries and make it smaller
-% NOTE: tablecontinued has been replaced by sphinxtablecontinued now. sphinx 1.5.1 still generates
-% \tablecontinued in its latex writer (which we override, but keeping that command)
-% WHEREAS the sphinx.sty file defines a sphinxtablecontinued but apparently also
-% the old tablecontinued (what A MESS. WHAT A MESS). So, as always, thanks sphinx for the hack:
-%renewcommand twice for safety:
-\renewcommand{\tablecontinued}[1]{\rmseries\small #1}
-\renewcommand{\sphinxtablecontinued}[1]{\rmseries\small #1}
-% FINAL NOTE: sphinx 1.6+ has a templating system for latex still UNDEER DEVELOPMENT.
-% maybe in the future this might be handy if it will be commented and overriddable. From the doc of
-% version 1.6 (http://www.sphinx-doc.org/en/1.6.3/latex.html):
-% ``New in version 1.6: currently all template variables are unstable and undocumented.''
+% make command that prints stuff if a given command is not empty. E.g. given \rstDoi, and we want to
+% print ``DOI: \rstDoi'' only if \rstDoi is not empty, then:
+% \ifnotempty{\rstDoi}{DOI: \rstDoi}
+\newcommand{\ifnotempty}[2]{%
+    	\if\relax#1\relax%
+% 			EMPTY
+		\else%
+  			#2%
+		\fi%
+}
 
-% make table headers ``normal'' (by default is \textsf in sphinx.sty)
-\renewcommand{\sphinxstylethead}{\textrm}
+
+% Sphinx styles (defined in sphinx.sty, added by sphinx in the late folder)
+% Note that from version 1.4.+, to avoid conflict sphinx renamed each command, e.g. \tablecontinued
+% into \sphinxtablecontinued. The former is NOT defined if in conf.py we provide
+% keep_old_macro_names = False.
+% Problem is, in version 1.5.2 there is still code using old macro names, thus to avoid bugs
+% we still need keep_old_macro_names=True, and here we must re-define both commands for safety
+%
+% (side-note: we do not upgrade to sphinx newer version because they have a completely
+% different templating system for latex, which looks good but, as of sphinx 1.6+ is still UNDER DEVELOPMENT.
+% See e.g. http://www.sphinx-doc.org/en/1.6.3/latex.html)
+%
+% sphinxtablecontinued is used for longtables and prints basically ``Continued on next page''
+% in sans serif. We want it normal font, but small. Thus:
+\renewcommand{\sphinxtablecontinued}[1]{\small #1}
+\renewcommand{\tablecontinued}[1]{\small #1}
+% make table headers ``normal'' (by default is \textsf in sphinx.sty). In this case it seems there
+% is no counterpart \stylethead (AARGHHH Sphinx)
+\renewcommand{\sphinxstylethead}{}
+
 
 % setup footers and headers in the "normal" document pages
 % IMPORTANT NOTE: fancyhdr is required if the document class is NOT memoir, (which is set in config.py
@@ -115,7 +130,7 @@
 							\Large \bfseries \color{gfzblue} \rstSubtitle \\[\baselineskip]
 							\large \bfseries \color{gfzblue} \rstSubSubtitle \par}
 	 %title footer:
-	\PlaceText{5.8cm}{22cm}{\Large Scientific Technical Report \rstStrNum \\
+	\PlaceText{5.8cm}{22cm}{\Large Scientific Technical Report - Data \rstStrNum \\
 	  					   \normalsize GIPP Experiment and Data Archive \par}
 	
 	% FIXME: what are these? (uncomment all but setcounter, which makes sense)
@@ -132,15 +147,17 @@
 	% https://texblog.org/2012/08/29/changing-the-font-size-in-latex/  
 	{\footnotesize
 		
-		Recommended citation:		 									\newline\newline
-		\@author\ (\rstPublicationYear): \@title. Scientific Technical Report \rstStrNum, GFZ German Research Centre for Geosciences. doi: \rstDoi 				\newline\newline\newline
-		\if\relax\rstSupplDatasets\relax\else{Supplementary datasets:}\fi   \newline\newline
-		\rstSupplDatasets 													\newline\newline\newline
-		\if\relax\rstCitationChapter\relax\else{Recommended citation for chapter:}\fi   \newline\newline
-		\rstCitationChapter 													\newline\newline\newline
-		\if\relax\rstSupplementsTo\relax\else{The report and the datasets are supplements to:}\fi   \newline\newline
-		\rstSupplementsTo 													\newline\newline\newline
-		
+		\rstReportCitationPreamble 				\newline\newline
+		\rstDoiCitation 						\newline\newline\newline
+		\ifnotempty{\rstDoiDatasetCitation}{%
+			\rstDatasetCitationPreamble 			\newline\newline
+			\rstDoiDatasetCitation 					\newline\newline\newline%
+		}
+		\ifnotempty{\rstDoiSupplementaryDataCitation}{%
+			\rstSupplementaryDataCitationPreamble 	\newline\newline
+			\rstDoiSupplementaryDataCitation		\newline\newline\newline%
+		}
+
 		% lower right corner:
 		\begin{flushright}\vfill
 			\begin{tabular}{r}
@@ -154,10 +171,10 @@
 				Published in Potsdam, Germany \\
 				\rstPublicationMonth\ \rstPublicationYear \\
 				\\
-				ISSN \rstIssn \\
+				\ifnotempty{\rstIssn}{ISSN \rstIssn}\\
 				\\
 				DOI: \rstDoi \\
-				URN: \rstUrn \\
+				\ifnotempty{\rstUrn}{URN: \rstUrn}\\
 				\\
 				This work is published in the GFZ series \\
 				Scientific Technical Report (STR) \\

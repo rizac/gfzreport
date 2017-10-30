@@ -17,7 +17,7 @@ from contextlib import contextmanager
 import errno
 import click
 from jinja2 import Environment, BaseLoader
-from gfzreport.sphinxbuild.__init__ import get_master_doc
+from gfzreport.sphinxbuild import get_master_doc
 from jinja2.loaders import FileSystemLoader
 
 

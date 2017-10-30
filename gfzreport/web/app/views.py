@@ -4,7 +4,7 @@ Created on Apr 3, 2016
 @author: riccardo
 '''
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask.templating import render_template
 from flask import abort, send_from_directory, request, jsonify, Blueprint, current_app, \
@@ -308,28 +308,45 @@ def login(reportdirname):
 
         if not user:
             # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
-            raise AppError("'%s' not registered" % email, 401)
+            raise AppError("User '%s' not registered" % email, 401)
 
         sourcepath = os.path.abspath(get_sourcedir(current_app, reportdirname))
         if not user.is_authorized(sourcepath):
-            raise AppError("'%s' registered but not authorized to access this report" % email, 403)
+            raise AppError("User '%s' not authorized to access this report" % email, 403)
 
         dbuser = sess.query(User).filter((User.email != email) &
                                          (User.login_date != None) &  # @IgnorePep8
                                          (User.editing_path == sourcepath)).first()
+
         if dbuser:
-            msg = ("'%s' registered but conflict detected: user '%s' (logged in on %s) is "
-                   "currently editing the same report "
-                   "(or forgot to log out)") % (email, dbuser.gitname, dbuser.login_date)
-            raise AppError(msg, 409)  # 409: conflict
+            msg = ''
+            rem_timedelta = current_app.config['PERMANENT_SESSION_LIFETIME'] - \
+                (datetime.utcnow() - dbuser.login_date)
+            if rem_timedelta.total_seconds() <= 0:
+                try:
+                    _logout(dbuser.id)
+                except Exception as exc:
+                    msg = ("Conflict: user '%s' is editing the same report, his/her session"
+                           "expired but could not log him/her out: "
+                           "%s") % (dbuser.gitname, str(exc))
+            else:
+                tdstr = timedelta(seconds=round(rem_timedelta.total_seconds()))
+                msg = ("Conflict: user '%s' is editing the same report (or forgot "
+                       "to log out): by default, his/her session will expire in "
+                       "%s") % (dbuser.gitname, str(tdstr))
+            if msg:
+                raise AppError(msg, 409)  # 409: conflict
 
-        login_user(user, remember=False)
-
-        # now write data to the db (user active on current page).
-        # THIS IS AFTER LOGIN so if login failed we do not write anything
-        user.login_date = datetime.utcnow()
-        user.editing_path = sourcepath
-        sess.commit()
+        if login_user(user, remember=False):
+            # now write data to the db (user active on current page).
+            # THIS IS AFTER LOGIN so if login failed we do not write anything
+            user.login_date = datetime.utcnow()
+            user.editing_path = sourcepath
+            sess.commit()
+        else:
+            msg = ("User '%s' is inactive. Possible reasons: user not authenticated, user "
+                   "account not activated or rejected (e.g., user suspended) ") % (email)
+            raise AppError(msg, 401)  # 401: Unauthorized
 
     return jsonify({})  # FIXME: what to return?
 
@@ -339,18 +356,30 @@ def logout(reportdirname):
     """View to process login form data and login user in case.
     """
     try:
-        # writing to files because it raises
-        with dbsession(current_app) as sess:
-            dbuser = sess.query(User).filter(User.id == current_user.id).first()
-            if dbuser:
-                # should be already abspath, however for safety (we will use the path for comparison
-                # with other users logging in, so better be safe):
-                dbuser.editing_path = None
-                dbuser.login_date = None
-                sess.commit()
+        _logout(current_user.id)
     except:
         pass  # FIXME: better handling?
     finally:
         logout_user()
 
     return jsonify({})  # FIXME: what to return?
+
+
+def _logout(user_id):
+    """Sets the attributes to the user identified by user_id to be recognized later as
+    not logged in. Raises SqlAlchemy error in case of db errors.
+    :return: True if the user with `user_id` was found and the db session has been succesfully
+    committed, False if the user with `user_id` was not found
+    """
+    # writing to files because it raises
+    with dbsession(current_app) as sess:
+        dbuser = sess.query(User).filter(User.id == user_id).first()
+        if dbuser:
+            # should be already abspath, however for safety (we will use the path for comparison
+            # with other users logging in, so better be safe):
+            dbuser.editing_path = None
+            dbuser.login_date = None
+            sess.commit()
+            return True
+        else:
+            return False

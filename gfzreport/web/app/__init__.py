@@ -24,7 +24,7 @@ import json
 
 
 def get_app(config_obj='gfzreport.web.config.BaseConfig', data_path=None,
-            db_path=None):
+            db_path=None, **custom_config_settings):
     '''
     initializes the app and setups the blueprint on it
     :param config: string, A valid argument for `app.config.from_object`.
@@ -54,9 +54,13 @@ def get_app(config_obj='gfzreport.web.config.BaseConfig', data_path=None,
     app = Flask(__name__)
     app.secret_key = os.urandom(24)
 
-    # Note: supply absolute module path. Apache complains tht a config is elsewhere defined
+    # Note: supply absolute module path. Apache complains that a config is elsewhere defined
     # in the python path otherwise:
     app.config.from_object(config_obj)
+    # cutom configs (for testing purposes:
+    for key, val in custom_config_settings.items():
+        app.config[key] = val
+
     app.config['REPORT_BASENAMES'] = {}  # will be populatedwhen querying pages
 
     app.config['DATA_PATH'] = data_path

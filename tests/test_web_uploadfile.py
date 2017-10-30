@@ -8,8 +8,8 @@ from contextlib import contextmanager
 from click.testing import CliRunner
 import os
 
-from gfzreport.templates.network.__init__ import main as network_reportgen_main
-from gfzreport.sphinxbuild.__init__ import main as sphinxbuild_main, get_logfilename
+from gfzreport.cli import main as gfzreport_main
+from gfzreport.sphinxbuild import get_logfilename
 from datetime import datetime
 import shutil
 from gfzreport.web.app import get_app, initdbusers, initdb
@@ -28,6 +28,8 @@ import pytest
 
 # global paths defined once
 SOURCEREPORTDIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "testdata")
+TEMPLATE_NETWORK = ["template_network"]
+BUILD = ['build']
 # SOURCEWEBDIR = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), "tmp")
 
 def _cleanup(testobj):
@@ -125,7 +127,7 @@ class Test(unittest.TestCase):
                 '-o', os.path.join(self.source, "source")
                 ]
         runner = CliRunner()
-        res = runner.invoke(network_reportgen_main, args, catch_exceptions=False)
+        res = runner.invoke(gfzreport_main, TEMPLATE_NETWORK + args, catch_exceptions=False)
         if res.exit_code != 0:
             raise unittest.SkipTest("Unable to generate test report:\n%s" % res.output)
 

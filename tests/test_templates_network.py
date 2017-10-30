@@ -118,7 +118,7 @@ def _getdatacenters(*a, **v):
             yield dc
 
 
-def setupurlread(mock_urlopen, geofon_retval=None, others_retval=None):
+def setupurlread(mock_urlopen, geofon_retval=None, others_retval=None, doicit_retval=None):
     '''sets up urlopen.urlread mock
     :param geofon_retval: the string returned from urlopen.read when querying geofon network
     If None, defaults to "ZE.network.xml" content (file defined in testdata dir)
@@ -127,8 +127,15 @@ def setupurlread(mock_urlopen, geofon_retval=None, others_retval=None):
     within the geofon network boundaries
     If None, defaults to "other_stations.xml" content (file defined in testdata dir)
     If Exception, then it will be raised
+     :param doicit_retval: the string returne from urlopen.read when querying for a DOI citation
+    defaults is a string formatted as a doi citation according to the input doi url
+    If Exception, then it will be raised
     '''
-    def sideeffect(url, timeout=None):
+    def sideeffect(url_, timeout=None):
+        try:
+            url = url_.get_full_url()
+        except AttributeError:
+            url = url_
         if "geofon" in url:
             if isinstance(geofon_retval, Exception):
                 raise geofon_retval
@@ -137,6 +144,12 @@ def setupurlread(mock_urlopen, geofon_retval=None, others_retval=None):
                     return BytesIO(opn.read())
             else:
                 return BytesIO(geofon_retval)
+        elif 'doi.org' in url:
+            if isinstance(doicit_retval, Exception):
+                raise doicit_retval
+            if doicit_retval is None:
+                return BytesIO("Marc Smith (2002): A Paper. %s" % url.encode('utf8'))
+            return BytesIO(doicit_retval)
         else:
             if isinstance(others_retval, Exception):
                 raise others_retval
