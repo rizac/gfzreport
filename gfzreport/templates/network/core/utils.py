@@ -10,7 +10,6 @@ import re
 from obspy import read_inventory
 from io import BytesIO
 
-
 def relpath(path, reference_path):
     """Almost the same as os.path.relpath but prepends a "./", so the returned value is
         usable in .rst relative paths"""
@@ -218,5 +217,17 @@ def iterdcurl(**query_args):
     # (fix bug in eida routing service when querying without network arguments):
 
 
+def sortchannels(channels, inplace=False):
+    # sort according to http://www.fdsn.org/seed_manual/SEEDManual_V2.4_Appendix-A.pdf (pag.124):
+    orientations = ['Z', 'N', 'E', 'A', 'B', 'C', 'T', 'R', '1', '2', '3', 'U', 'V', 'W']
+    dct = {o: i for i, o in enumerate(orientations)}
+    max_ = len(dct)
 
+    def keyfunc(channel):
+        return hash(channel[:-1]) + dct.get(channel[-1], max_)
 
+    if inplace and isinstance(channels, list):
+        channels.sort(key=keyfunc)
+    else:
+        channels = sorted(channels, key=keyfunc)
+    return channels

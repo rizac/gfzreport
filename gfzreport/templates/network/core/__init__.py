@@ -29,7 +29,7 @@ import pandas as pd
 from jinja2 import Environment
 # from lxml.etree import XMLSyntaxError
 from gfzreport.templates.network.core.utils import relpath, read_geofonstations, read_stations, todf,\
-    get_query, iterdcurl
+    get_query, iterdcurl, sortchannels
 from gfzreport.sphinxbuild.map import getbounds
 
 
@@ -68,15 +68,31 @@ def geofonstations_df(network, start_after_year):
             mydic['Id'] = cha.data_logger.serial_number
             mydic['Start'] = start
             mydic['End'] = end
-            mydic['Channels'] = "%s %s" % (mydic['Channels'], cha.code) \
-                if 'Channels' in mydic else cha.code
+            if 'Channels' in mydic:
+                mydic['Channels'] += [cha.code]
+            else:
+                mydic['Channels'] = [cha.code]
+#             mydic['Channels'] = "%s %s" % (mydic['Channels'], cha.code) \
+#                 if 'Channels' in mydic else cha.code
 
         return retdict.itervalues()
 
+    # convert to df. Note: rows are sorted alphabetically ascending accoridng to station.code
+    # (station.station in EDIA naming convention)
     dframe = todf(geofon_inventory, func, funclevel='station', sortkey=lambda val: val['Label'])
 
+    # sort the channels of each row according to `sortchannels`. Put all channels in the
+    # `channels` set and sort it at the end into a list, which will populate
+    # dframe.metadata['channels']
+    channels = set()
+    for idx, cha_list in izip(dframe.index, dframe['Channels']):
+        cha_list = sortchannels(cha_list, True)
+        dframe.loc[idx, 'Channels'] = " ".join(cha_list)
+        channels.update(cha_list)
+
     # add metadata:
-    dframe.metadata = {'start_date': None, 'end_date': None, 'desc': ''}
+    dframe.metadata = {'start_date': None, 'end_date': None, 'desc': '',
+                       'channels': sortchannels(channels)}
     for net in geofon_inventory:
         if net.code == network:
             dframe.metadata['start_date'] = net.start_date
@@ -256,38 +272,103 @@ def get_map_df(geofonstations_df, otherstations_df):
     return ret_df
 
 
-def get_noise_pdfs_content(dst_dir, regex="^(?P<row>.*)_(?P<col>[A-Z][A-Z][A-Z]).*$",
-                           delimiter=" ",
-                           columns=["HHZ", "HHN", "HHE"]):
+def get_noise_pdfs_content(directory, stations_df, delimiter=" ", quotechar='"'):
+    '''Returns the csv content for the noise pdfs in 'directory'. The content can be set for the
+    directive type `grid-figure`
 
-    # We want to provide empty delimiter because is more readable from the rst
-    # Problem is, empty strings will not be quoted in csvwriter
-    # Thus provide a default non-empty string
-    # (for safety, do not provide empty strings as DEF_VAL in any case):
-    DEF_VAL = 'WARNING: file not found'
-    lineterminator = '\n'
-    quotechar = '"'
-    reg = re.compile(regex)
-    dct = defaultdict(lambda: [DEF_VAL] * len(columns))
-    for fl in os.listdir(dst_dir):
-        mat = reg.match(fl)
-        if mat and len(mat.groups()) == 2:
-            row = mat.group('row')
-            col = mat.group('col')
-            if col in columns:
-                dct[row][columns.index(col)] = fl
+    This method uses `sttions_df` to know which files should be present and with which
+    channels. For each file, it splits the file name (without extension) according to
+    boundary words (where "_" is considered non-word). It then assess the position of the file
+    in the csv (later translated into a grid position)
 
-    ret = [columns] + [dct[k] for k in sorted(dct)]
+    :param dzt_dir: the directory of the noise pdf images (e.g., where they have been copied
+    from other directories)
+    :param stations_df: the result of `geofonstations_df`. Obviously, the noise pdfs must be
+    relative to the network and year `stations_df` has been built from
+    '''
 
-    sio = StringIO()
-    spamwriter = csv.writer(sio, delimiter=delimiter, quotechar=quotechar,
-                            lineterminator=lineterminator,
-                            quoting=csv.QUOTE_MINIMAL)
-    for line in ret:
-        spamwriter.writerow(line)
-    ret = sio.getvalue()
-    sio.close()
-    return ret
+    channels = stations_df.metadata['channels']
+    channelset = set(channels)
+    # setup a dataframe where at each station and channel corresponds a file name
+    ret_df = pd.DataFrame(index=stations_df['Label'], columns=channels, dtype=str, data=None)
+    splitre = re.compile("[A-Za-z0-9]+|[^A-Za-z0-9]+")
+    # store separators used. The most used separator will be set for those files not found
+    separators = defaultdict(int)
+    extensions = defaultdict(int)
+    for fl in os.listdir(directory):
+        fname, ext = os.path.splitext(fl)
+        extensions[ext] += 1
+        # findall, instead of split, returns ALL chunks, also the separators:
+        chunks = splitre.findall(fname)
+        if len(chunks) < 3 or chunks[0] not in ret_df.index or chunks[2] not in channelset or \
+                (pd.notnull(ret_df.loc[chunks[0], chunks[2]]) and len(chunks) != 3):
+            continue
+        separators[chunks[1]] += 1
+        ret_df.loc[chunks[0], chunks[2]] = fl
+
+    # replace null values with the "expected" file name. For that, use the separator most commonly
+    # found
+    sep, ext = None, None
+    for c in ret_df.columns:
+        nulls = pd.isnull(ret_df[c])
+        if not nulls.any():
+            continue
+        if sep is None:
+            # get most used separator and extension to build a likely file (not found anyway)
+            # supply standard separator and extension if the relative sequences are empty
+            # (max of empty sequence raises)
+            sep = "." if not separators else max(separators.iteritems(), key=lambda _: _[1])[0]
+            ext = ".png" if not extensions else max(extensions.iteritems(), key=lambda _: _[1])[0]
+        nullfiles_stations = ret_df.index[nulls]
+        ret_df.loc[nulls, c] = nullfiles_stations.str.cat([sep + c + ext] * len(nullfiles_stations))
+
+    return ret_df.to_csv(None, sep=delimiter, header=True, index=False, encoding='utf-8',
+                         quotechar=quotechar, line_terminator='\n', quoting=csv.QUOTE_MINIMAL)
+    
+#     # We want to provide empty delimiter because is more readable from the rst than commas or
+#     # semicolons
+#     # Problem is, empty strings will not be quoted in csvwriter
+#     # Thus provide a default non-empty string
+#     # (for safety, do not provide empty strings as DEF_VAL in any case):
+#     DEF_VAL = '*'
+#     while os.path.isfile(os.path.join(directory, DEF_VAL)):
+#         DEF_VAL += '*'
+#     reg = re.compile(regex)
+#     columns = set()
+#     # do a first round: check first that DEF_VAL is not a aname of a file,
+#     # and filter only files which match
+#     files2parse = []
+#     for fl in os.listdir(directory):
+#         mat = reg.match(fl)
+#         if mat and len(mat.groups()) == 2:
+#             files2parse.append(fl)
+#             col = mat.group('col')
+#             columns.add(col)
+# 
+#     columns = sortchannels(columns)
+#     lineterminator = '\n'
+#     quotechar = '"'
+#     reg = re.compile(regex)
+#     dct = defaultdict(lambda: [DEF_VAL] * len(columns))
+#     for fl in os.listdir(directory):
+#         mat = reg.match(fl)
+#         if mat and len(mat.groups()) == 2:
+#             row = mat.group('row')
+#             col = mat.group('col')
+#             if col in columns:
+#                 dct[row][columns.index(col)] = fl
+# 
+#     ret = [columns] + [dct[k] for k in sorted(dct)]
+# 
+#     sio = StringIO()
+#     spamwriter = csv.writer(sio, delimiter=delimiter, quotechar=quotechar,
+#                             lineterminator=lineterminator,
+#                             quoting=csv.QUOTE_MINIMAL)
+#     for line in ret:
+#         spamwriter.writerow(line)
+#     ret = sio.getvalue()
+#     sio.close()
+#     return ret
 
 
 def get_figdirective_vars(src_path, src_rst_path):

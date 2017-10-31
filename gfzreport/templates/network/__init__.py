@@ -82,7 +82,7 @@ def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_upt
                                   'options': mapfigure.get_defargs(**mymapdefaults)
                                   },
                     noise_pdfs={'dirpath': relpath(noise_pdf_dst, dest_path),
-                                'content': get_noise_pdfs_content(noise_pdf_dst)
+                                'content': get_noise_pdfs_content(noise_pdf_dst, geofon_df)
                                 },
                     inst_uptimes=get_figdirective_vars(inst_uptimes_dst, dest_path)
                     )

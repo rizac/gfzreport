@@ -43,7 +43,7 @@ def _validate_margins(ctx, param, value):
 @main.command()
 @click.argument('network')
 @click.argument('start_after')  # , type=int)
-@click.option('-a', '--area_margins', default=None,  callback=_validate_margins,
+@click.option('-a', '--area_margins', default=0.5,  callback=_validate_margins,
               help=("The search margins (in degrees) relative to the bounding box calculated "
                     "from the network station locations. The new square area (bbox + margins) "
                     "will be used to search for non-network stations to be displayed on the "
@@ -56,46 +56,44 @@ def _validate_margins(ctx, param, value):
                     "or a single value that will be applied to all directions. "
                     "Negative values will shrink the box, positive will "
                     "expand it"))
-@click.option('-o', '--out_path', default=None, # callback=validate_outdir,
-              help=("The output path. The destination directory "
-                    "will be a directory in this path with name [NETWORK]_[STATION]. "
-                    "The destination directory must *not* exist, or the program will exit. "
-                    "If this program is deployed on a web server, this is the DATA_DIR "
-                    "environment variable provided for the network report (if deployed on "
-                    "Apache, see relative .wsgi file)"))
+@click.option('-o', '--out_path', default=None,  # callback=validate_outdir,
+              help=("The output path. The destination directory D (where files are written) "
+                    "will be a sub-directory of out_path with name [network]_[start_after]. "
+                    "D must *not* exist if -c is missing (the default), or the program will exit. "
+                    "If -c is given, on the other hand, D must exist"))
 @click.option('-n', '--noise_pdf', default=None, multiple=True,
-              help=("The path (directory, file) of the "
+              help=("The path (directory, file, glob pattern) of the "
                     "Noise Probability Density function images. "
-                    "The images will be displayed on a grid. The grid is built by determining "
-                    "each file position (row and column) from its name. File "
-                    "names must thus start with the format 'station_channel': "
-                    "the station (determining the row placement) can be any sequence of characters "
-                    "(even underscores) and the channel (column) can be either HHZ, HHN or HHE. "
-                    "Columns by default are HHZ HHN HHE (displayed in this order in the grid). "
-                    "Example: AM01_HHZ.png and "
-                    "AM01_2_HHZ.png: different rows but same column. AM03_HHN.png and "
-                    "AM03_HHE.png: same row on different columns. "
-                    "Note that everything following the channel will "
-                    "not be parsed, so you should NOT have files like "
-                    "AM01_HHZ.jpg, AM01_HHZ.whatever.jpg, AM01_HHZ_HHE.jpg as they will be "
-                    "considered the same image (which file will be taken, it "
-                    "depends on the inverse order the files are returned from the OS). "
-                    "The rows of the resulting image grid will be sorted alphabetically according "
-                    "to the station name"))
+                    "This option can be given multiple times. All images will be collected "
+                    "from the given option(s) and displayed on a grid "
+                    "(rows=stations, columns=channels). "
+                    "The file names must be in the format [station]?[channel].[ext] "
+                    "where ? indicates one or more non-alphanumeric characters and "
+                    "[ext] is the image file extension (preferably png, or jpeg). "
+                    "Example: AM01.HHZ.png , AM01__BH1.png "
+                    "([channel] can be actually followed by any string starting with "
+                    "a non alphanumeric character, but in case of conflicts the 'best' well "
+                    "formed name will be chosen. E.g. AM01.HHZ_try2.png will work and "
+                    "'_try2' will be ignored, but if a file named AM01.HHZ.png is found, "
+                    "the latter will be chosen and the former discarded)"))
 @click.option('-i', '--inst_uptimes', default=None, multiple=True,
-              help=('The path (directory, file) '
+              help=('The path (directory, file, glob pattern) '
                     'of the instrument uptimes image(s). If multiple files '
                     'are provided, the images will be displayed in a grid of one column '
                     'sorted alphabetically by name'))
 @click.option("-m", "--mv_datafiles", is_flag=True, default=False,
-              help=("Move all specified data files instead of copying"
-                    "them (default False, i.e. missing)"))
+              help=("Move all specified data files (-n and -i options) instead of copying"
+                    "them (default False when missing)"))
 @click.option("-c", "--conffiles_only", is_flag=True, default=False,
-              help=("Copy only conf files (sphinx files + conf.py). Useful for an already edited "
-                    "rst where some configuration changed. This will remove all old configuration "
-                    "files and copy those defined in the package"))
+              help=("Copy only sphinx configuration files (conf dir + conf.py). "
+                    "Useful for updating an already created directory after bug fixes/maintenance, "
+                    "without changing rst and data files (-n and -i options). "
+                    "After supplying the arguments network and start_after, if this flag is "
+                    "given the only required option is -o (and the directory must exist). "
+                    "Note that this option does not synchronize conf files: if any was added "
+                    "or modified in the destination directory, it will be deleted"))
 @click.option("--noprompt", is_flag=True, default=False, is_eager=True,  # <- exec it first. Used?
-              help=("Do not ask before proceeding if the user wants to write to out_path. "
+              help=("Do not ask before proceeding. "
                     "The default, when this flag is missing, is False"
                     "(always ask before writing)"))
 @click.option('-nm', '--network_station_marker', default="^", type=str,
