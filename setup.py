@@ -28,7 +28,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.1.1',
+    version='0.2.0',
 
     description=('A python project to generate html / latex / pdf (via pdflatex) reports using'
                 ' the sphinx library to be used internally at GFZ'),
@@ -130,4 +130,9 @@ setup(
 #             'network-reportgen=gfzreport.templates.network.generator.main:main'
 #         ],
 #     },
+    entry_points={
+        'console_scripts': [
+            'gfzreport=gfzreport.cli:main'
+        ],
+    },
 )

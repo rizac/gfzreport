@@ -19,11 +19,12 @@ from _io import BytesIO
 # from cStringIO import StringIO
 from matplotlib.image import imread
 from urllib2 import URLError
+from shutil import rmtree
 
 # global paths defined once
 DATADIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "testdata")
 
-TEMPLATE_NETWORK = ["template_network"]
+TEMPLATE_NETWORK = ["template", "n"]
 BUILD = ['build']
 
 @contextmanager
@@ -43,7 +44,7 @@ def invoke(*args):
     '''
     argz = list(args)
     for i, a in enumerate(args):
-        if a == '-i' or a == '--inst_uptimes' or a == '-n' or a == '--noise_pdf':
+        if a == '-i' or a == '--inst_uptimes' or a == '-p' or a == '--noise_pdf':
             argz[i+1] = os.path.join(DATADIR, args[i+1])
     runner = CliRunner()
 
@@ -59,7 +60,7 @@ def test_netgen_configonly_flag(mock_urlopen, mock_get_dcs):
     # mock urllib returns our testdata files
     setupurlread(mock_urlopen)
     # set args:
-    args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/*"]
+    args = ['-n', 'ZE', '-s' '2014', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/*"]
 
     with invoke(*args) as _:
         result, outpath, args = _
@@ -167,7 +168,7 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
     # set args, with wildcards
     # mock urllib returns our testdata files
     setupurlread(mock_urlopen)
-    args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/sta1*"]
+    args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/sta1*"]
     with invoke(*args) as _:
         result, outpath, args = _
         assert result.exit_code == 0
@@ -184,8 +185,9 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
         assert 'IN_RANGE -22.47355 45.56681 o #FFFFFF' in rst 
         assert 'OUT_RANGE_LON_75 -22.47355 75.0 o #FFFFFF' in rst 
         assert 'OUT_RANGE_LON_85 -22.47355 85.0 o #FFFFFF' in rst 
-        # assert we do not have margins:
-        assert ':map_mapmargins: 0.0deg, 0.0deg, 0.0deg, 0.0deg' in rst
+        # assert we do have default margins:
+        m = 0.5  # default margin when missing
+        assert (':map_mapmargins: %sdeg, %sdeg, %sdeg, %sdeg') % (m, m, m, m) in rst
         # assert we copied the right files. For noise_pdf, everything except sta2.*
         assert all(not 'sta2' in filename for filename in
                    os.listdir(os.path.join(outpath, 'ZE_2014', 'data', 'noise_pdf')))
@@ -256,7 +258,7 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
         # if we have more than one ret_val possible (some bug when running py.test from the terminal)
         for buildtype, expected_ext, exp_exitcode in [("", '.tex',[0]),
                                                       ("latex", '.tex',[0]),
-                                                      ("pdf", '.pdf', [1]),
+                                                      ("pdf", '.pdf', [0]),
                                                       ("html", '.html', [0]),
                                                       ]:
             btype = 'latex' if buildtype != 'html' else buildtype
@@ -268,15 +270,7 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
             args_ = [indir, outdir]
             if buildtype:
                 args_.extend(['-b', buildtype])
- 
-            # if buildtype is html, WE CREATED THE FILE. This is an interesting test
-            # as sphinx DOES NOT MODIFY THE FILE BUT IS SUCCESSFUL. THEREFORE, ANY WRAPPER WE
-            # MIGHT IMPLEMENT THAT RELIES ON THE FILE MODIFIED FOR SUCCESS IS WRONG
-            # assert that we do have this particular case
-            if buildtype == 'html':
-                assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
-            elif buildtype == 'pdf':
-                sdf = 9
+
 
             result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
             assert os.path.isdir(outdir)
@@ -289,7 +283,28 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
 #                 print(logcontent)
 #                 print("\n\nWTF")
             assert result.exit_code in exp_exitcode
-        
+
+            if buildtype == 'pdf':
+                # if we are running pdf, test a particular thing:
+                # replace ":errorsastext: yes" in gridfigure directive with ":errorsastext: no"
+                # what does it means? that for grid figures we create images also on errors
+                # (file not found). Now, the current grid figure for the current network and start_after
+                # has a lot of stations, thus a lot of pdfs images. Pdflatex breaks
+                # and does not create the pdf if there are more than 100 includegraphics errors
+                # (the 100 is hard-coded in latex and cannot be changed)
+                # Test this case
+                reporttext = os.path.join(indir, 'report.rst')
+                with open(reporttext, 'r') as opn_:
+                    content = opn_.read()
+                content = content.replace(":errorsastext: yes", ":errorsastext: no")
+                with open(reporttext, 'w') as opn_:
+                    opn_.write(content)
+                
+                rmtree(outdir)
+                result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
+                assert result.exit_code == 2
+                assert not os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
+                
     # check if we deleted the temop dir:
     assert not os.path.isdir(outpath)
 
@@ -301,7 +316,7 @@ def test_netgen_ok_sphinxbuild_ok(mock_urlopen, mock_get_dcs):
     # set args, with wildcards
     # mock urllib returns our testdata files
     setupurlread(mock_urlopen)
-    args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/ok*", "-n", "noise_pdf/ok*.png"]
+    args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/ok*", "-p", "noise_pdf/ok*.png"]
     with invoke(*args) as _:
         result, outpath, args = _
         assert result.exit_code == 0
@@ -374,7 +389,7 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
     setupurlread(mock_urlopen)
     # first test some edge cases, e.g. responses are empty:
     setupurlread(mock_urlopen, '')
-    args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/sta1*"]
+    args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/sta1*"]
     with invoke(*args) as _:
         result, outpath, args = _
         assert result.exit_code == 1
@@ -382,7 +397,7 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
         
     # first test some edge cases, e.g. responses are empty:
     setupurlread(mock_urlopen, None, '')
-    args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/sta1*"]
+    args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/sta1*"]
     with invoke(*args) as _:
         result, outpath, args = _
         assert result.exit_code == 1
@@ -391,7 +406,7 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
 
     # responses raise:
     setupurlread(mock_urlopen, Exception('wat?'))
-    args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/sta1*"]
+    args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/sta1*"]
     with invoke(*args) as _:
         result, outpath, args = _
         assert result.exit_code == 1
@@ -402,7 +417,7 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
     # set args,one a directory, the other one file
     # mock urllib returns our testdata files
     setupurlread(mock_urlopen)
-    args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes", "-n", "noise_pdf/sta1_HHE.png"]
+    args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes", "-p", "noise_pdf/sta1_HHE.png"]
     with invoke(*args) as _:
         result, outpath, args = _
         # assert we copied the right files. For noise_pdf, everything except sta2.*
@@ -414,8 +429,8 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
 
     # The same as above but with more than one arg:
     setupurlread(mock_urlopen)
-    args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes", "-n", "noise_pdf/sta1_HHE.png",
-            "-n", "noise_pdf/sta2*.png"]
+    args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes", "-p", "noise_pdf/sta1_HHE.png",
+            "-p", "noise_pdf/sta2*.png"]
     with invoke(*args) as _:
         result, outpath, args = _
         # assert we copied the right files. For noise_pdf, everything except sta2.*
@@ -436,7 +451,7 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
         open(file_, 'a').close()
 
     try:
-        args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/XXX*", "-n", "noise_pdf/xxx*", "-m"]
+        args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/XXX*", "-p", "noise_pdf/xxx*", "-m"]
         with invoke(*args) as _:
             result, outpath, args = _
             assert not os.path.isfile(os.path.join(DATADIR, "noise_pdf", "xxx.png"))
@@ -473,7 +488,7 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
                                   '0.3 0.4 0.1': ':map_mapmargins: 0.3deg, 0.4deg, 0.1deg, 0.4deg',
                                   '0.3 0.4': ':map_mapmargins: 0.3deg, 0.4deg, 0.3deg, 0.4deg'}.iteritems():
                                   
-        args = ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/sta1*",
+        args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/sta1*",
                 '-a', margins]
         with invoke(*args) as _:
             result, outpath, args = _

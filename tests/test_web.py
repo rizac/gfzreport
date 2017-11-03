@@ -26,8 +26,7 @@ from gfzreport.web.app import models
 
 # global paths defined once
 SOURCEREPORTDIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "testdata")
-
-TEMPLATE_NETWORK = ["template_network"]
+TEMPLATE_NETWORK = ["template", "n"]
 BUILD = ['build']
 # SOURCEWEBDIR = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), "tmp")
 
@@ -134,7 +133,7 @@ class Test(unittest.TestCase):
         self.mock_iterdcurl = patch('gfzreport.templates.network.core.iterdcurl').start()
         self.mock_iterdcurl.side_effect=lambda *a, **v: _getdatacenters(*a, **v)
 
-        args = ['ZE', '2012', '--noprompt', '--inst_uptimes', os.path.join(SOURCEREPORTDIR, 'inst_uptimes'),
+        args = ['-n', 'ZE', '-s', '2012', '--noprompt', '--inst_uptimes', os.path.join(SOURCEREPORTDIR, 'inst_uptimes'),
                 '--noise_pdf', os.path.join(SOURCEREPORTDIR, 'noise_pdf'),
                 '-o', os.path.join(self.source, "source")
                 ]
@@ -149,6 +148,18 @@ class Test(unittest.TestCase):
 
     def tearDown(self):
         pass
+
+    def modifyrst(self, find, replace):
+        '''modifies the source rst. If find is falsy, appends replace at the end'''
+        rstfile = os.path.join(self.source, 'source', 'ZE_2012', 'report.rst')
+        with open(rstfile, 'r') as opn_:
+            content = opn_.read()
+        if not find:
+            content += "\n\n%s\n\n" % replace.strip()
+        else:
+            content = content.replace(find, replace)
+        with open(rstfile, 'w') as opn_:
+            content = opn_.write(content)
 
     def get_buildir(self, buildtype):
         '''returns the buil directory. buildype can be 'pdf', 'latex' or 'html' (in the two
@@ -217,11 +228,19 @@ class Test(unittest.TestCase):
             logfile = os.path.join(os.getcwd(), 'build',  'ZE_2012', 'html', get_logfilename())
             with open(logfile, 'r') as opn:
                 logfilecontent = opn.read()
+            assert len(logfilecontent) > 0 and "Build successful" in logfilecontent
 
-            #stupid test, we shouldhave warnings concerning images not found, check we have something
-            # printed out
-            assert len(logfilecontent) > 0 and "WARNING" in logfilecontent
-            g = 9
+            # now put a non-found image:
+            mock_reportbuild_run.reset_mock()
+            self.modifyrst("", ".. figure:: whatever_data_not_found_blabla.png")
+            res = app.get("/ZE_2012/html", follow_redirects=True)
+            # few stupid asserts, the main test is not raising
+            # we should ahve an html page:
+            assert mock_reportbuild_run.call_count == 1
+            logfile = os.path.join(os.getcwd(), 'build',  'ZE_2012', 'html', get_logfilename())
+            with open(logfile, 'r') as opn:
+                logfilecontent = opn.read()
+            assert len(logfilecontent) > 0 and ": WARNING: image" in logfilecontent
 
         mock_reportbuild_run.reset_mock()
         # now test the page content is not re-built:
@@ -320,7 +339,6 @@ class Test(unittest.TestCase):
             # we should have an html page:
             assert res.status_code == 200
             assert mock_reportbuild_run.call_count == 1
-
             # check commits:
             res = app.post("/ZE_2012/get_commits",
                            content_type='application/json')
@@ -330,7 +348,26 @@ class Test(unittest.TestCase):
             assert len(commitz) == 1
             commit = commitz[0]
             assert commit['email'] == 'user1_ok@example.com'
+            assert "pdf: Build successful, no compilation error" in commit['notes']
+            
+            # Now modify the source rst by putting a non-found image:
+            mock_reportbuild_run.reset_mock()
+            self.modifyrst("", ".. figure:: whatever_data_not_found_blabla.png")
+            res = app.get("/ZE_2012/pdf", follow_redirects=True)
+            # few stupid asserts, the main test is not raising
+            # we should have an html page:
+            assert res.status_code == 200
+            assert mock_reportbuild_run.call_count == 1
+            # check commits:
+            res = app.post("/ZE_2012/get_commits",
+                           content_type='application/json')
+            assert res.status_code == 200
+            commitz = json.loads(res.data)
+            assert len(commitz) == 2
+            commit = commitz[0]  # this is the last commit
+            assert commit['email'] == 'user1_ok@example.com'
             assert "pdf: Build successful, with compilation errors" in commit['notes']
+
             
             
             # check logs:

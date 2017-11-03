@@ -77,9 +77,10 @@ def geofonstations_df(network, start_after_year):
 
         return retdict.itervalues()
 
-    # convert to df. Note: rows are sorted alphabetically ascending accoridng to station.code
-    # (station.station in EDIA naming convention)
-    dframe = todf(geofon_inventory, func, funclevel='station', sortkey=lambda val: val['Label'])
+    # convert to df. Note: rows are sorted alphabetically ascending according to station.code
+    # (the station name, or station.station in EDIA naming convention) and THEN by start time
+    # which is stored in strings ISO format (e.g. '2013-04-29')
+    dframe = todf(geofon_inventory, func, funclevel='station', sortby=['Label', 'Start'])
 
     # sort the channels of each row according to `sortchannels`. Put all channels in the
     # `channels` set and sort it at the end into a list, which will populate
@@ -288,43 +289,113 @@ def get_noise_pdfs_content(directory, stations_df, delimiter=" ", quotechar='"')
     '''
 
     channels = stations_df.metadata['channels']
-    channelset = set(channels)
     # setup a dataframe where at each station and channel corresponds a file name
+    # stations_df is already sorted according to 'Label' and then 'Start'
     ret_df = pd.DataFrame(index=stations_df['Label'], columns=channels, dtype=str, data=None)
     splitre = re.compile("[A-Za-z0-9]+|[^A-Za-z0-9]+")
     # store separators used. The most used separator will be set for those files not found
     separators = defaultdict(int)
     extensions = defaultdict(int)
+    # set a dict of location to speedup search: We work with indices cause we might have duplicates
+    col_locations = {c: ret_df.columns.get_loc(c) for c in ret_df.columns}
+    # first sort files according to their chunk: process first those with lower chunks:
+    filez = []
     for fl in os.listdir(directory):
         fname, ext = os.path.splitext(fl)
         extensions[ext] += 1
         # findall, instead of split, returns ALL chunks, also the separators:
         chunks = splitre.findall(fname)
-        if len(chunks) < 3 or chunks[0] not in ret_df.index or chunks[2] not in channelset or \
-                (pd.notnull(ret_df.loc[chunks[0], chunks[2]]) and len(chunks) != 3):
+        stamatch = False
+        chamatch = False
+        index = None
+        if len(chunks) > 2:
+            staname = chunks[0]
+            chaname = chunks[2]
+            if len(chunks) > 4:
+                try:
+                    index = int(chunks[4])
+                except:
+                    index = None
+                try:
+                    sta_slice_or_int = ret_df.index.get_loc(staname)
+                    stamatch = True
+                    cha_index = col_locations[chaname]
+                    chamatch = True
+                except KeyError:
+                    pass
+        else:
+            print("noise pdfs fig. will not display file '%s' (cannot infer station and channel)" %
+                  fl)
             continue
-        separators[chunks[1]] += 1
-        ret_df.loc[chunks[0], chunks[2]] = fl
 
-    # replace null values with the "expected" file name. For that, use the separator most commonly
-    # found
-    sep, ext = None, None
+        if not stamatch:
+            print("noise pdfs fig. will not display file '%s' (no match for station '%s')" %
+                  (fl, staname))
+            continue
+        elif not chamatch:
+            print("noise pdfs fig. will not display file '%s' (no match for channel '%s')" %
+                  (fl, chaname))
+            continue
+
+        separators[chunks[1]] += 1
+        filez.append([fl, sta_slice_or_int, cha_index, index, len(chunks)])
+
+    # sort according to the chunk length (ascending):
+    filez.sort(key=lambda arr: arr[-1])
+
+    # process the files:
+    indices = range(len(ret_df))
+    for fl, sta_slice_or_int, cha_index, index, _ in filez:
+        fname, ext = os.path.splitext(fl)
+
+        idxs = indices[sta_slice_or_int]
+
+        discard_reason = ''
+        if hasattr(idxs, "__len__"):  # multiple stations found
+            if index is None:
+                discard_reason = '%d matching station found, cannot infer index' % (len(idxs))
+            elif index - 1 >= len(idxs):
+                discard_reason = '%d matching station found, %d out of bound' % (len(idxs), index)
+            else:
+                sta_index = idxs[index-1]
+        else:
+            sta_index = idxs
+
+        if not discard_reason and not pd.isnull(ret_df.iloc[sta_index, cha_index]):
+            discard_reason = 'a matching file has already been found'
+
+        if discard_reason:
+            print("noise pdfs fig. will not display file '%s' (%s)" % (fl, discard_reason))
+            continue
+        ret_df.iloc[sta_index, cha_index] = fl
+
+    # replace null values with the "expected" file name.
+    # get most used separator and extension to build a likely file (not found anyway)
+    # supply standard separator and extension if the relative sequences are empty
+    # (max of empty sequence raises)
+    sep = "." if not separators else max(separators.iteritems(), key=lambda _: _[1])[0]
+    ext = ".png" if not extensions else max(extensions.iteritems(), key=lambda _: _[1])[0]
+    # First add incrementing indices:
+    tmpdf = pd.DataFrame(index=ret_df.index, columns=['index'], data='')
+    # check duplicated and assign incremental index:
+    dupes = tmpdf.index[tmpdf.index.duplicated()]
+    for staname in dupes:
+        leng = len(tmpdf.loc[staname, :])
+        tmpdf.loc[staname, 'index'] = ["%s%d" % (sep, i) for i in xrange(1, leng+1)]
+
     for c in ret_df.columns:
         nulls = pd.isnull(ret_df[c])
         if not nulls.any():
             continue
-        if sep is None:
-            # get most used separator and extension to build a likely file (not found anyway)
-            # supply standard separator and extension if the relative sequences are empty
-            # (max of empty sequence raises)
-            sep = "." if not separators else max(separators.iteritems(), key=lambda _: _[1])[0]
-            ext = ".png" if not extensions else max(extensions.iteritems(), key=lambda _: _[1])[0]
         nullfiles_stations = ret_df.index[nulls]
-        ret_df.loc[nulls, c] = nullfiles_stations.str.cat([sep + c + ext] * len(nullfiles_stations))
+        indices = tmpdf[nulls]['index']
+        ret_df.loc[nulls, c] = nullfiles_stations.str.cat([sep + c] * len(nullfiles_stations)).\
+            str.cat(indices).str.cat([ext] * len(nullfiles_stations))
 
-    return ret_df.to_csv(None, sep=delimiter, header=True, index=False, encoding='utf-8',
+    return ret_df.to_csv(None, columns=channels, sep=delimiter, header=True, index=False,
+                         encoding='utf-8',
                          quotechar=quotechar, line_terminator='\n', quoting=csv.QUOTE_MINIMAL)
-    
+
 #     # We want to provide empty delimiter because is more readable from the rst than commas or
 #     # semicolons
 #     # Problem is, empty strings will not be quoted in csvwriter

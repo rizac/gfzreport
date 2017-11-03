@@ -28,7 +28,7 @@ import pytest
 
 # global paths defined once
 SOURCEREPORTDIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "testdata")
-TEMPLATE_NETWORK = ["template_network"]
+TEMPLATE_NETWORK = ["template", "n"]
 BUILD = ['build']
 # SOURCEWEBDIR = os.path.join(os.path.abspath(os.path.dirname(os.path.dirname(__file__))), "tmp")
 
@@ -122,7 +122,7 @@ class Test(unittest.TestCase):
         self.mock_iterdcurl = patch('gfzreport.templates.network.core.iterdcurl').start()
         self.mock_iterdcurl.side_effect=lambda *a, **v: _getdatacenters(*a, **v)
 
-        args = ['ZE', '2012', '--noprompt', '--inst_uptimes', os.path.join(SOURCEREPORTDIR, 'inst_uptimes'),
+        args = ['-n', 'ZE', '-s', '2012', '--noprompt', '--inst_uptimes', os.path.join(SOURCEREPORTDIR, 'inst_uptimes'),
                 '--noise_pdf', os.path.join(SOURCEREPORTDIR, 'noise_pdf'),
                 '-o', os.path.join(self.source, "source")
                 ]

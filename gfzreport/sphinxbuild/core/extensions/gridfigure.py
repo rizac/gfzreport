@@ -58,7 +58,7 @@
 """
 import os
 from docutils.nodes import Element
-from docutils.parsers.rst.directives import path as directive_path_func
+from docutils.parsers.rst import directives
 from gfzreport.sphinxbuild.core.extensions.csvfigure import CsvFigureDirective
 from docutils.nodes import image as img_node
 
@@ -72,7 +72,7 @@ class imggrid(Element):
 class ImgsGridDirective(CsvFigureDirective):
 
     option_spec = CsvFigureDirective.option_spec.copy()  # @UndefinedVariable
-    option_spec.update({'dir': directive_path_func})
+    option_spec.update({'dir': directives.path, 'errorsastext': directives.unchanged})
 
     def run(self):
         nodez = CsvFigureDirective.run(self)
@@ -87,16 +87,27 @@ class ImgsGridDirective(CsvFigureDirective):
 
         base_dir = self.options['dir']
 
+        if 'errorsastext' in self.options:
+            errastext = self.options['errorsastext'].lower().strip() in ('yes', '1', 'true')
+        else:
+            errastext = False
+
+        # base dir is relative to the source directory, so get root dir to check later
+        # if file exists
+        root_dir = os.path.abspath(os.path.join(self.state.inliner.document.settings.env.srcdir,
+                                                base_dir))
         # now replace each string given in the csv (file or table) with an image node
         # with the correct path:
         for row, col, is_row_header, is_stub_column, node, node_text in self.itertable(nodez):
             # node might be None, it is also the case when the csv "cell" was empty string
             if is_row_header or is_stub_column or not node:
                 continue
-            filename = node_text or "[no file name]"
-            imgnode = img_node(**self.options)
-            imgnode.attributes['uri'] = os.path.join(base_dir, filename)
-            node.replace_self(imgnode)
+            filename = node_text
+            fileexists = filename and os.path.isfile(os.path.join(root_dir, filename))
+            if fileexists or not errastext:
+                imgnode = img_node(**self.options)
+                imgnode.attributes['uri'] = os.path.join(base_dir, filename)
+                node.replace_self(imgnode)
 
         ret = imggrid(**self.options)
         nodez.append(ret)

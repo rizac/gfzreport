@@ -431,6 +431,7 @@ References
    :delim: space
    :align: center
    :header-rows: 1
+   :errorsastext: yes
 
    {{ noise_pdfs.content|indent(3) }}
    

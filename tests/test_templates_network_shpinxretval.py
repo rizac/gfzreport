@@ -27,7 +27,7 @@ from gfzreport.sphinxbuild import get_logfilename
 DATADIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "testdata")
 
 
-TEMPLATE_NETWORK = ["template_network"]
+TEMPLATE_NETWORK = ["template", "n"]
 BUILD = ['build']
 
 @contextmanager
@@ -47,7 +47,7 @@ def invoke(*args):
     '''
     argz = list(args)
     for i, a in enumerate(args):
-        if a == '-i' or a == '--inst_uptimes' or a == '-n' or a == '--noise_pdf':
+        if a == '-i' or a == '--inst_uptimes' or a == '-p' or a == '--noise_pdf':
             argz[i+1] = os.path.join(DATADIR, args[i+1])
     runner = CliRunner()
 
@@ -59,17 +59,17 @@ def invoke(*args):
 def test_netgen_bad_path():
     # set args:
     args_ = [
-        # -i points to a non existing path name, -n too
-        ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes-/*", "-n", "noise_pdf/sta1*.pdf"],
-        # -i points to a non existing path name, -n is ok
-        ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes-/*", "-n", "noise_pdf/sta1*"],
-        # -i points to an existing path name, -n no
-        ['ZE', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/sta1*.pdf"]]
+        # -i points to a non existing path name, -p too
+        ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes-/*", "-p", "noise_pdf/sta1*.pdf"],
+        # -i points to a non existing path name, -p is ok
+        ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes-/*", "-p", "noise_pdf/sta1*"],
+        # -i points to an existing path name, -p no
+        ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/sta1*.pdf"]]
     for args in args_:
         with invoke(*args) as _:
             result, outpath, args = _
             assert "ZE_2014" not in os.listdir(outpath)
-            assert "No data file found to copy" in result.output
+            assert "Aborted:" in result.output and " empty" in result.output
             assert result.exit_code != 0
 
 
@@ -139,7 +139,7 @@ def test_netgen_ok_sphinxbuild_retval(mock_urlopen, mock_get_dcs):
     # set args, with wildcards
     # mock urllib returns our testdata files
     setupurlread(mock_urlopen)
-    args = ['ZE', '2012', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/sta1*"]
+    args = ['-n', 'ZE', '-s', '2012', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/sta1*"]
     with invoke(*args) as _:
         result, outpath, args = _
         # Now re-set our mock library to return an exception (the mock_url
@@ -212,7 +212,7 @@ def test_netgen_ok_sphinxbuild_output(mock_urlopen, mock_get_dcs):
     # set args, with wildcards
     # mock urllib returns our testdata files
     setupurlread(mock_urlopen)
-    args = ['ZE', '2012', "--noprompt",  "-i", "inst_uptimes/*", "-n", "noise_pdf/sta1*"]
+    args = ['-n', 'ZE', '-s', '2012', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/sta1*"]
     with invoke(*args) as _:
         result, outpath, args = _
         # Now re-set our mock library to return an exception (the mock_url
@@ -239,7 +239,7 @@ def test_netgen_ok_sphinxbuild_output(mock_urlopen, mock_get_dcs):
         args_ = [RSTDIR,
                  os.path.join(outpath, "build"), "-b", btype]
         result = runner.invoke(gfzreport_main, BUILD + args_)
-        assert result.exit_code == 1
+        assert result.exit_code == 0
         print(result.output)
 
         

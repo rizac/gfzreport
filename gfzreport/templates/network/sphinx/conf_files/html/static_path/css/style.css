@@ -44,6 +44,80 @@ h1, div.body h1, h2, div.body h2, h3, div.body h3 {
 }
 */
 
+/*override alabaster stuff for body*/
+body {  /*alabaster.css:57*/
+    margin: initial;
+    padding: initial;
+}
+
+@media screen and (max-width: 875px)  /*alabaster.css:599*/
+body {
+    margin: initial;
+    padding: initial;
+}
+
+div.document { /*alabaster.css:57*/
+    width: 60em;
+    margin: initial;  /*it was: 30px auto 0 auto; */
+    max-width: 80em;
+}
+
+div.documentwrapper { /*alabaster.css:72*/
+    float: none;
+}
+
+
+/* sidebar and document */
+div.toc{
+	display: flex;
+	flex-direction: column;
+	position: fixed;
+	top: 0px;
+    bottom: 0px;
+	padding-left: 10px;
+    padding-right: 20px;
+    font-size: smaller;
+    box-sizing: border-box;
+}
+
+div.toc .toc-top, div.toc .toc-bottom{
+	flex: 0 0 auto;
+}
+
+div.toc .toc-center{
+	flex: 1 1 auto;
+	overflow: auto;
+}
+
+div.toc{
+	width: 20vw;
+}
+div.document{
+	margin-left: 20vw; /*MUST be equal to the above */
+}
+
+
+div.toc ul{
+	margin-left: 20px; /*decrease margin left of uls */
+}
+div.toc li{
+	text-indent: -4px; /*decrease text indent of lis */
+}
+
+.toc-center *:first-child {
+    margin-top: 0px; /*so that we can control margin top and bottom with the rule below*/
+}
+
+.toc > * {
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.toc-bottom{
+	text-align: right;
+	margin-bottom: 0px;
+}
+
 /* in alabaster, all h# elements have margin: 30px 0px 10px 0px; but then h1 (title) is 
 overridden with margin:0. Restore the original top margin. NOTE THAT IF U UNCOMMENT the haiku
 stuff above the h1 top margin is written there and you should remove this!*/

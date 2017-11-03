@@ -53,7 +53,7 @@ def read_stations(url, timeout=None):
             response.close()
 
 
-def todf(stations_xml, func, funclevel='station', sortkey=None):
+def todf(stations_xml, func, funclevel='station', sortby=None):
     """
         Converts stations_xml to pandas DataFrame: Loops through the `stations_xml`'s
         network(s), station(s) and channel(s) and executes
@@ -85,9 +85,9 @@ def todf(stations_xml, func, funclevel='station', sortkey=None):
           - funclevel='network': `func(network_obj)`,
           - funclevel='station': `func(network_obj, station_obj)`
           - funclevel='channel': `func(network_obj, station_obj, channel_obj)`
-        :param sortkey: Behaves like the python 'key` argument of the `sorted` function:
-        an optional key to be used to sort the rows of the resulting Dataframe.
-        It is applied to each dict prior to its conversion to a DataFrame row
+        :param sortkey (str or list of str): Behaves like the pandas 'by` argument to sort the
+        dataframe before returning it: its the name(s) of the column(s) to sort by. If None
+        (default when missing) no sort takes place
     """
     arr = []
 
@@ -111,10 +111,12 @@ def todf(stations_xml, func, funclevel='station', sortkey=None):
             if funclevel == 'channel':
                 for cha in sta:
                     add(func(net, sta, cha))
-    if sortkey:
-        arr.sort(key=sortkey)
 
-    return pd.DataFrame(arr)
+    ret_df = pd.DataFrame(arr)
+    if sortby:
+        ret_df.sort_values(by=sortby, inplace=True)
+
+    return ret_df
 
 
 def get_query(*urlpath, **query_args):
@@ -231,3 +233,4 @@ def sortchannels(channels, inplace=False):
     else:
         channels = sorted(channels, key=keyfunc)
     return channels
+

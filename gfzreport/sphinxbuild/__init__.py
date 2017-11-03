@@ -26,7 +26,7 @@ _DEFAULT_BUILD_TYPE = 'latex'
 
 
 def pdflatex(texfile, texfolder=None, interaction='batchmode', draftmode=False,
-             file_line_error=True, *args):
+             file_line_error=True, *args, **kwargs):
     """
     Runs pdflatex with the given texfile as input
     :param texfile: (string) the input tex file
@@ -44,9 +44,14 @@ def pdflatex(texfile, texfolder=None, interaction='batchmode', draftmode=False,
     :param file_line_error: boolean (default: True)
         (https://tex.stackexchange.com/questions/27878/pdflatex-bash-script-to-supress-all-output-except-error-messages)
     :param args: (list of strings, or None. Default: None) supplementary arguments passed to
-        python `subprocess.check_output`. None (the default) is equivalent to an empty list: ignore
+        python pdflatex. None (the default) is equivalent to an empty list: ignore
         supplementary arguments. The arguments can be any valid pdflatex arguments in the form
         'a' (for flags) or 'a=b' (options)
+    :param kwargs: supplementary keyword arguments passed to `subprocess.check_output`. If not
+        specified in it, the keys 'cwd' will be set to the directory of texfile, 'shell'
+        will be set to False, and 'env' will be set to the current os.environment PLUS the
+        variable 'max_print_line=999' to avoid pdflatex log file to cut error lines (which we catch
+        later in most cases)
     :return: the tuple return_status (int), stdout (string), stderr (string)
     :raise: OsError in case of file not found, pdflatex not installed etcetera.
     """
@@ -67,7 +72,17 @@ def pdflatex(texfile, texfolder=None, interaction='batchmode', draftmode=False,
         (["-draftmode"] if draftmode else []) + \
         (args if args else []) +\
         [texfile]
-    kwargs = dict(cwd=texfolder, shell=False)
+
+    if 'cwd' not in kwargs:
+        kwargs['cwd'] = texfolder
+    if 'shell' not in kwargs:
+        kwargs['shell'] = False
+    if 'env' not in kwargs or "max_print_line" not in kwargs['env']:
+        my_env = os.environ.copy()
+        my_env["max_print_line"] = "999"
+        kwargs['env'] = my_env
+
+    kwargs2 = dict(cwd=texfolder, shell=False)
 
     with TemporaryFile() as _stderr:
     # https://stackoverflow.com/questions/30937829/how-to-get-both-return-code-and-output-from-subprocess-in-python
@@ -236,6 +251,7 @@ def _run(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE, is_terminal=F
                 break
 
         if ret == 0 and build == 'pdf':
+
             if is_terminal:
                 sys.stdout.write("\nRunning PdfLatex")
 
@@ -245,6 +261,8 @@ def _run(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE, is_terminal=F
             with execwrapper(outdir, master_doc, build) as checker:
                 pdflatex(texfilepath, None, draftmode=True)
 
+            parselog = checker.logmodified
+
             # do NOT check for checker.modified as we did NOT modify anything (-draftmode).
             # However, check if it raised:
             if checker.raised:
@@ -252,33 +270,45 @@ def _run(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE, is_terminal=F
             else:
                 with execwrapper(outdir, master_doc, build, wait=1) as checker:
                     ret_pdflatex, std_out, std_err = pdflatex(texfilepath, None)  # @UnusedVariable
-                    if is_terminal and _:
+                    if is_terminal and std_out:
                         sys.stdout.write("\n%s" % std_out)
                     # we don't do this:
                     # sys.stderr.write(std_err)
                     # because we will rely on pdflatex log file and we want to avoid duplicated
                     # messages (although it seems that std_err is not used by pdflatex, is for
                     # safety)
+                parselog = checker.logmodified
+
                 if not checker.modified:
                     ret = 2
-                else:
-                    if not c_errors:
-                        c_errors = ret_pdflatex != 0
-                    # write pdflatex.log to our log file, changing the pdflatex error lines
-                    # to sphinx error line format:
-                    pdflogfile = os.path.splitext(checker.filepath)[0] + ".log"
-                    if os.path.isfile(pdflogfile):
-                        # write pdflatex log file into our log file, re-formatting pdflatex errors
-                        # to our error format, if any
-                        new_stderr.write("\n*** Pdflatex (latex to pdf) ***\n")  # second newline
-                        # appended in the first line read (see below)
-                        with open(pdflogfile, 'r') as fopen:
-                            for line in fopen:
-                                line = line.strip()
-                                m = re_pdflatex.match(line)
-                                if m and len(m.groups()) == 2:
-                                    line = "%s ERROR: %s" % (m.group(1), m.group(2))
-                                new_stderr.write("\n%s" % line)
+                elif not c_errors:
+                    c_errors = ret_pdflatex != 0
+
+            if parselog:
+                # with the option "-file-line-error", the pdflatex errors are of the form:
+                re_pdflatex = re.compile(r"(.+?:[0-9]+:)\s*(.+)")
+                # whereas the sphinx errors are of the form:
+                # ".+?:[0-9]+:\\s*ERROR\\s*:.+"
+                # Use re_pdflatex to convert pdflatex errors to sphinx errors in order
+                # to normalize them
+
+                # write pdflatex.log to our log file, changing the pdflatex error lines
+                # to sphinx error line format:
+                pdflogfile = os.path.splitext(checker.filepath)[0] + ".log"  # surely exists
+                # write pdflatex log file into our log file, re-formatting pdflatex errors
+                # to our error format, if any
+                new_stderr.write("\n*** Pdflatex (latex to pdf) ***\n")  # second newline
+                # appended in the first line read (see below)
+                with open(pdflogfile, 'r') as fopen:
+                    for line in fopen:
+                        line = line.strip()
+                        m = re_pdflatex.match(line)
+                        if m and len(m.groups()) == 2:
+                            line = "%s ERROR: %s" % (m.group(1), m.group(2))
+                        new_stderr.write("\n%s" % line)
+            else:
+                new_stderr.write("\nlog file not found or not modified")  # second newline
+
             if is_terminal:
                 sys.stdout.write("\n")
 
@@ -368,23 +398,36 @@ class execwrapper(object):
     def __init__(self, outdir, master_doc, buildtype, wait=0):
         '''
         :param wait: (default:0, don't wait) how much to wait, in seconds, when __enter__
-        is called (`time.wait`). Set this number to
-        1 or more if you want to rely on `execwrapper.modified` after __exit__, as in some OSs
-        (e.g., Mac) it seems that file timestamps are rounded (or floored?) to seconds, so fast
-        executions might *erroneously* return `execwrapper.modified=False` if wait is 0
+        is called (`time.wait`).
+        **Set this number >= 1 if you want to rely on `self.modified` or `self.logmodified`
+        after `__exit__`**:
+        in some OSs (e.g., Mac) it seems that file time-stamps are rounded (or floored?) to
+        seconds, so fast executions might *erroneously* return `execwrapper.modified=False`
         '''
         ext = 'tex' if buildtype == 'latex' else buildtype
+
         self.filepath = os.path.join(outdir, master_doc + "." + ext)
         self.mtime = float('-inf')
         if os.path.isfile(self.filepath):
             self.mtime = os.stat(self.filepath).st_mtime
         self._modified = False
+
+        self.logfilepath = os.path.join(outdir, master_doc + ".log")
+        self.mtime_log = float('-inf')
+        if os.path.isfile(self.logfilepath):
+            self.mtime_log = os.stat(self.logfilepath).st_mtime
+        self._logmodified = False
+
         self._raised = False
         self._wait = wait
 
     @property
     def modified(self):
         return self._modified
+
+    @property
+    def logmodified(self):
+        return self._logmodified
 
     @property
     def isfile(self):
@@ -417,6 +460,10 @@ class execwrapper(object):
         # If the context was exited without an exception, all three arguments will be None
         if os.path.isfile(self.filepath) and os.stat(self.filepath).st_mtime > self.mtime:
             self._modified = True
+
+        # If the context was exited without an exception, all three arguments will be None
+        if os.path.isfile(self.logfilepath) and os.stat(self.logfilepath).st_mtime > self.mtime_log:
+            self._logmodified = True
 
         # If an exception is supplied, and the method wishes to suppress the exception
         # (i.e., prevent it from being propagated), it should return a true value

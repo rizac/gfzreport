@@ -29,9 +29,9 @@ However, if in the future we plan to set embedded=False, then uncomment the next
 
 For instance, an option was to remove all javascript and keeping only necessary stuff:
 
-{% set script_files = ["https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML",
+{PERCENT_SIGN set script_files = ["https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML",
 					   "https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular.min.js",
-					   "_static/jquery.js"] %}
+					   "_static/jquery.js"] PERCENT_SIGN}
 -->
 
 {%- block extrahead %}
@@ -72,24 +72,24 @@ For instance, an option was to remove all javascript and keeping only necessary 
 		if(!(window.MathJax)){
 			document.write('<script src="_static/js/MathJax.2.7.1.js?config=TeX-AMS-MML_HTMLorMML"><\/script>');
 		}
+
 	</script>
-
 {% endblock %}
 
 
-<!-- we might remove these blocks right? they are just calling super() -->
-{%- block header %}
-	{{ super() }}
-{% endblock %}
-
-{%- block document %}
-	{{ super() }}
-{% endblock %}
-
-<!--  this hides the search panel (as we set embedded=True, it might be irrelevant. However, for safety... -->
-{% block sidebarsearch %}{% endblock %}
-
-<!-- we might remove these blocks right? they are just calling super() -->
-{%- block footer %}
+{%- block content %}
+	{%- block sidebartoc %}
+            <div class='toc'>
+	            <a ng-show="view=='html'" class='toc-top' href="http://www.gfz-potsdam.de/startseite/" title="Zur Startseite" class="svg">
+					<img src="http://www.gfz-potsdam.de/fileadmin/templates/images/svg/GFZ_Logo_SVG_klein_de.svg">
+				</a>
+				<div class="toc-center">
+					{%- include "localtoc.html" %}
+				</div>
+				<div ng-show="view=='html'" class='toc-bottom'> 
+					<img src="http://www.gfz-potsdam.de/fileadmin/templates/images/svg/GFZ_Wortmarke_SVG_klein_de.svg">
+				</div>
+            </div>
+    {%- endblock %}
 	{{ super() }}
 {% endblock %}
