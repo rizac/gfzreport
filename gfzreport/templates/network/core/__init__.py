@@ -52,9 +52,10 @@ def geofonstations_df(network, start_after_year):
         strfrmt = "%0.4d-%0.2d-%0.2d"
         for cha in sta.channels:
             start = strfrmt % (cha.start_date.year, cha.start_date.month, cha.start_date.day)
-            end = strfrmt % (cha.end_date.year, cha.end_date.month, cha.end_date.day)
+            end = None if cha.end_date is None else \
+                strfrmt % (cha.end_date.year, cha.end_date.month, cha.end_date.day)
             # identify each row by its channel tuple:
-            id_ = (sta.code, start, end)
+            id_ = (sta.code, start)
             mydic = retdict[id_]  # add if does not exist
             mydic['Label'] = sta.code
             mydic['Lat'] = sta.latitude
@@ -115,13 +116,14 @@ def otherstations_df(geofonstations_df, margins_in_deg):
     meta = geofonstations_df.metadata
     kwargs_live_stations = dict(minlat=minlat, maxlat=maxlat, minlon=minlon, maxlon=maxlon,
                                 starttime=meta['start_date'].isoformat(),
-                                endtime=meta['end_date'].isoformat(),
                                 level='station')
-                                # format='xml')
+
+    if hasattr(meta['end_date'], 'isoformat'):  # basically, check is not None
+        kwargs_live_stations['endtime'] = meta['end_date'].isoformat()
 
     kwargs_dead_stations = dict(kwargs_live_stations)
     kwargs_dead_stations['endbefore'] = kwargs_dead_stations.pop('starttime')
-    kwargs_dead_stations.pop('endtime')
+    kwargs_dead_stations.pop('endtime', '')
 
     invs = []
     # use standard python process pool thread:
@@ -478,7 +480,7 @@ def gen_title(networkname, geofonstations_df):
     # =============================================================
     meta = geofonstations_df.metadata
     start = meta['start_date'].year if 'start_date' in meta else None
-    end = meta['end_date'].year if 'end_date' in meta else None
+    end = meta['end_date'].year if 'end_date' in meta and meta['end_date'] else None
     timerange = " %d-%d" % (start, end) if start and end else ""
     title = "%s%s" % (networkname, timerange)
     decorator = "=" * len(title)

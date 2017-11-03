@@ -154,6 +154,9 @@ class Templater(utils.Templater):
                     title=gen_title(network, geofon_df),
                     network_description=get_net_desc(geofon_df),
                     stations_table={'content': geofon_df.to_csv(sep=" ", quotechar='"',
+                                                                na_rep=" ",  # this makes to_csv
+                                                                # quoting it (otherwise it might
+                                                                # result in row misalign)
                                                                 index=False),
                                     },
                     stations_map={'content': map_df.to_csv(sep=" ", quotechar='"', index=False),
