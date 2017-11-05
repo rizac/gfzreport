@@ -150,7 +150,11 @@ class LatexTranslator(LT):
             # preserve also rst newlines so we replace \n with \\ (which becomes \\\\ after
             # escaping, plus a final \n to preserve "visually" the newlines in latex, although it
             # won't be rendered in latex output):
-            latexcommands[latex_command_name] = value.replace("\n", '\\\\\n')
+            latexcommands[latex_command_name] = str(value).replace("\n", '\\\\\n')
+
+            # note above: value moght not be a string. eg. supplying :tocdepth: 3, the 3 is passed
+            # as int to the env
+
             if isdoi:
                 try:
                     text, url = get_citation(self.builder.app, value)

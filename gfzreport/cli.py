@@ -80,6 +80,43 @@ def build(sourcedir, outdir, build, other_sphinxbuild_options, sphinxhelp):
     sys.exit(sphinxbuild_run(sourcedir, outdir, build, *list(other_sphinxbuild_options)))
 
 
+@main.command(context_settings=dict(ignore_unknown_options=True,
+                                    max_content_width=TERMINAL_HELP_WIDTH),
+              options_metavar='[options]')
+@click.argument('outdir', nargs=1, required=False, callback=check_dirs, metavar='outdir')
+@option('-b', '--build',
+        help=('builder to use. You can also type pdf: if this program is correctly '
+              'installed (with all latex libs) then `sphinx-build -b latex ...` is first '
+              'executed and then pdflatex is run on all .tex files in outdir which '
+              'did not exist before (or whose last-modified time changed during) this '
+              'program execution. This usually works fine but might compile also latex '
+              'additional files provided in conf.py, at least after the first build, as they '
+              'will be seen as new: to avoid this, put the string ".dontcompile." in the '
+              '.tex file names. Note that this program has been currently tested '
+              'only for sphinx builds generating a single .tex file in outdir'),
+        default=_DEFAULT_BUILD_TYPE, type=click.Choice(['html', 'pdf', _DEFAULT_BUILD_TYPE]))
+@click.argument('other_sphinxbuild_options', nargs=-1, type=click.UNPROCESSED,
+                metavar='[other_sphinxbuild_options]')
+@option('--sphinxhelp', is_flag=True, default=False,
+        help='print out the sphinx-build help '
+             'to know which options (except -b, --build) or arguments (except sourcedir, outdir) '
+             'can be passed in [other_sphinxbuild_options]')
+def tutorial(outdir, build, other_sphinxbuild_options, sphinxhelp):
+    """Builds the tutorial of this program into PDF/LaTex/HTML. sourcedir is set by default
+    as well as the option -c which should not be specified"""
+    if sphinxhelp:
+        sphinx_build_main(["", "--help"])
+        return 0
+
+    sourcedir = os.path.join(os.path.dirname(__file__), "templates", "tutorial")
+    other_sphinxbuild_options = list(other_sphinxbuild_options)
+    other_sphinxbuild_options.extend(['-c', os.path.join(sourcedir, 'sphinx')])
+    # for info see:
+    # sphinx/cmdline.py, or
+    # http://www.sphinx-doc.org/en/1.5.1/man/sphinx-build.html
+    sys.exit(sphinxbuild_run(sourcedir, outdir, build, *other_sphinxbuild_options))
+
+
 @main.group(short_help="creates templates reports. Type template --help for help")
 def template():
     pass

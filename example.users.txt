@@ -5,8 +5,9 @@
 # Specify below an array of users. Each array element:
 #	- MUST BE A dict
 #	- MUST contain a valid email (@ must be in email, neither in first nor last position)
-# Any other field defined in models.py is optional. path_restriction_reg, if missing, will default to ".*", i.e.
-# will give free access to the given user to all server paths. Otherwise, the regexp will be matched
+# Any other field defined in models.py is optional. path_restriction_reg, if missing, will default
+# to ".*", i.e. will give free access to the given user to all server paths.
+# Otherwise, the regexp will be matched
 # using re.search, which matches if the regex pattern matches ANY portion of a given path
 # (so use ^ and $ if a match from the beginning or until the end is needed)
 

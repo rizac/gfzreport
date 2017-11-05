@@ -20,6 +20,7 @@ import click
 from sphinx import build_main as sphinx_build_main
 from sphinx.util.pycompat import execfile_
 from sphinx.util.osutil import cd
+from itertools import izip
 
 
 _DEFAULT_BUILD_TYPE = 'latex'
@@ -361,10 +362,11 @@ def run(sourcedir, outdir, build=_DEFAULT_BUILD_TYPE, *other_sphinxbuild_options
     run('/me/my/path', '/me/another/path', 'pdf', '-E')
     """
     confdir = sourcedir
+    itr = iter(other_sphinxbuild_options)
     # get conf dir, if any (copied from sphinx cmdline):
-    for i, a in enumerate(other_sphinxbuild_options):
-        if a == '-c' and i < len(other_sphinxbuild_options) - 1:
-            confdir = other_sphinxbuild_options[i + 1]
+    for opt, val in izip(itr, itr):
+        if opt == '-c':
+            confdir = val
             break
     conf_file = os.path.join(confdir, 'conf.py')
 

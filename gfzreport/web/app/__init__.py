@@ -23,7 +23,7 @@ import json
 # FOR STATIC FOLDEERS
 
 
-def get_app(config_obj='gfzreport.web.config.BaseConfig', data_path=None,
+def get_app(config_obj='gfzreport.web.config_example.BaseConfig', data_path=None,
             db_path=None, **custom_config_settings):
     '''
     initializes the app and setups the blueprint on it
@@ -31,7 +31,7 @@ def get_app(config_obj='gfzreport.web.config.BaseConfig', data_path=None,
     Specifying other paths allows us to run tests with a given external python file
     :param data_path: the data source path. The directory should have a 'source' subdirectory
     where any folder not starting with "_" will be interpreted as a report and accessible
-    trhough an endpoint url. If None, the environment variable 'DATA_PATH' must be set, otherwise
+    though an endpoint url. If None, the environment variable 'DATA_PATH' must be set, otherwise
     an Exception is raised
     :param db_path: the path for the Users database. It must denote a directory where the db
     will be retrieved or created. If the file 'users.txt' is also present inside the directory,
