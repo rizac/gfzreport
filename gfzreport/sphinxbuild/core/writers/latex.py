@@ -163,18 +163,28 @@ class LatexTranslator(LT):
                 latexcommands[latex_command_name + "Citation"] = text if not url else \
                     text + " \href{%s}{%s}" % (url, url)
 
-        preamble_wrapper = ("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
-                            "%% NEWCOMMANDS FROM RST BIB.FIELDS GENERATED IN LatexTranslator:\n"
-                            "{}\n"
-                            "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
-                            "%% PREAMBLE DEFINED IN conf.py (if any):\n" +
-                            "%(preamble)s\n"
-                            "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
-                            ).format("\n".join("\\newcommand{%s}{%s}" % (n, v)
-                                               for n, v in latexcommands.iteritems()))
+        # we try to be python 2-3 compliant: first of all, jinja (used in LT.astext(self) below)
+        # wants unicodes, so we need to put unicode variables in self.elements['preamble']
+        # But we want also to avoid u'' or whatever is not python3, so we won't have headaches if
+        # moving to py3. As bytes are non unicode in python2, and non strings in python3,
+        # provide a general function _str and pass every string/bytes
+        # to it before each string operation:
+        def _str(obj):
+            return obj.decode('utf8') if isinstance(obj, bytes) else obj
+
+        preamble_wrapper = _str("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+                                "%% NEWCOMMANDS FROM RST BIB.FIELDS GENERATED IN LatexTranslator:\n"
+                                "{}\n"
+                                "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+                                "%% PREAMBLE DEFINED IN conf.py (if any):\n" +
+                                "%(preamble)s\n"
+                                "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+                                ).format("\n".join("\\newcommand{%s}{%s}" % (_str(n), _str(v))
+                                                   for n, v in latexcommands.iteritems()))
+
         self.elements.update({
             # merge existing preamble:
-            'preamble': preamble_wrapper % {'preamble': self.elements.get("preamble", "")},
+            'preamble': preamble_wrapper % {'preamble': _str(self.elements.get("preamble", ""))},
         })
 
         return LT.astext(self)
