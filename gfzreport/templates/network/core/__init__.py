@@ -481,7 +481,9 @@ def gen_title(networkname, geofonstations_df):
     meta = geofonstations_df.metadata
     start = meta['start_date'].year if 'start_date' in meta else None
     end = meta['end_date'].year if 'end_date' in meta and meta['end_date'] else None
-    timerange = " %d-%d" % (start, end) if start and end else ""
+    timerange = ""
+    if start:
+        timerange = " %d" % start if not end else " %d-%d" % (start, end)
     title = "%s%s" % (networkname, timerange)
     decorator = "=" * len(title)
     return "%s\n%s\n%s" % (decorator, title, decorator)
