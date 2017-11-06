@@ -260,6 +260,7 @@ def _run(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE, is_terminal=F
             # the execwrapper wraps exceptions and prints them to stderr, so we still
             # need the with statement although we will not check for file modifications (see below)
             with execwrapper(outdir, master_doc, build) as checker:
+                sys.stdout.write("\n1st run (-draftmode)")
                 pdflatex(texfilepath, None, draftmode=True)
 
             parselog = checker.logmodified
@@ -270,6 +271,7 @@ def _run(sourcedir, outdir, master_doc, build=_DEFAULT_BUILD_TYPE, is_terminal=F
                 ret = 2
             else:
                 with execwrapper(outdir, master_doc, build, wait=1) as checker:
+                    sys.stdout.write("\n2nd run")
                     ret_pdflatex, std_out, std_err = pdflatex(texfilepath, None)  # @UnusedVariable
                     if is_terminal and std_out:
                         sys.stdout.write("\n%s" % std_out)

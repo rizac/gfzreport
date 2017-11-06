@@ -9,9 +9,9 @@ GfzReport
 =========
 
 
-.. |DIR| image:: ./imgs/32px-Icons8_flat_folder.svg.png
+.. |DIR| image:: ./imgs/24px-Icons8_flat_folder.svg.png
 
-.. |FILE| image:: ./imgs/32px-File_alt_font_awesome.svg.png
+.. |FILE| image:: ./imgs/24px-File_alt_font_awesome.svg.png
    
 .. include:: _chap_overview.rst
 

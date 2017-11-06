@@ -70,7 +70,7 @@ You need root privileges.
 
 .. _serverrootpath:
 
-Root sata path
+Root data path
 --------------
 
 All :ref:`gfzr` data files are located at:
@@ -79,7 +79,7 @@ All :ref:`gfzr` data files are located at:
    
    /data2/gfzreport
 
-The directory structure (see :ref:`webappdatapath`) is:
+The directory structure is:
    
    * |DIR| /data2/gfzreport
   
@@ -88,42 +88,46 @@ The directory structure (see :ref:`webappdatapath`) is:
            
       * |FILE| users.txt (text json file where to add/remove/edit users)
       
-      * |DIR| network (network report directory)
+      * |DIR| network (network report :ref:`webappdatapath`)
       
-         * |DIR| source (:ref:`webappdatapath` for the network report)
+         * |DIR| source [#es1r]_
          
-            * |DIR| ZE_2012
+            - |DIR| ZE_2012 (:ref:`srcdir` of report ZE_2012)
             
-            * |DIR| IQ_2009
+            - |DIR| ...
             
-            * |DIR| ...
-            
-         * |DIR| build  (:ref:`webappdatapath` for the network report)
+         * |DIR| build [#es1r]_
             
             * |DIR| ZE_2012
             
-            * |DIR| IQ_2009
-            
-            * |DIR| ...
+               - |DIR| html  (the html :ref:`builddir` of report ZE_2012)
+               
+               - |DIR| latex (the latex :ref:`builddir` of report ZE_2012)
+              
+            * |DIR| ... 
                 
-      * |DIR| annual (annual report directory)
-         * |DIR| source (:ref:`srcdir`)
+      * |DIR| annual (annual report :ref:`webappdatapath`)
+
+         * |DIR| source [#es1r]_
          
-            * |DIR| 2016
+            - |DIR| 2016 (:ref:`srcdir` of report 2016)
             
-            * |DIR| 2017
+            - |DIR| ... 
             
-            * |DIR| ...
-            
-         * |DIR| build  (:ref:`builddir` s)
+         * |DIR| build [#es1r]_
             
             * |DIR| 2016
             
-            * |DIR| 2017
-            
-            * |DIR| ...
+               - |DIR| html  (the html :ref:`builddir` of report 2016)
+               
+               - |DIR| latex (the latex :ref:`builddir` of report 2016)
+              
+            * |DIR| ... 
 
 
+.. rubric:: Footnotes
+
+.. [#es1r] each sub-directory of this folder is associated to a report
 
 .. _wsgisfiles:
 

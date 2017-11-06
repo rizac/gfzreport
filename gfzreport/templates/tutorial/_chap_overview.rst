@@ -7,13 +7,26 @@ Overview
 reStructuredText
 ----------------
 
-`reStructuredText <http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html#bibliographic-fields>`_
+`reStructuredText <http://docutils.sourceforge.net/rst.html>`_
 (referred also as `rst`) is an easy-to-read, what-you-see-is-what-you-get plaintext markup syntax
 and parser system. It is useful for in-line program documentation (such as Python docstrings), for
 quickly creating simple web pages, and for standalone documents.
 This document is itself an example of reStructuredText (raw, if you are reading the text file, or
 processed, if you are reading an HTML document, for example). The reStructuredText parser is a
 component of `Docutils <http://docutils.sourceforge.net/>`_.
+
+Summary of useful links about :ref:`rst` given also all across the document:
+
+* `rst home page <http://docutils.sourceforge.net/rst.html>`_
+   
+   * `rst overview (sublink of the above) <http://docutils.sourceforge.net/docs/user/rst/quickref.html>`_
+
+   * `rst detailed (sublink of the above) <http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html>`_
+
+* `rst in sphinx (extension of rst, see below), overview <http://www.sphinx-doc.org/en/stable/rest.html>`_
+
+* `rst in sphinx (extension of rst, see below), detailed <http://www.sphinx-doc.org/en/1.5.2/markup/>`_
+
 
 .. _spx:
 

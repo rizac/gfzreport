@@ -31,9 +31,9 @@ and then:
 
 .. code-block:: bash
 
-   pip install . -e
+   pip install -e .
 
-(you can remove the -e option if the pckage has not to be installed as editable, if desired)
+(you can remove the -e option if the package has not to be installed as editable, if desired)
 
 Now you should have all python packages installed, *except*
 `basemap <https://github.com/matplotlib/basemap>`_
