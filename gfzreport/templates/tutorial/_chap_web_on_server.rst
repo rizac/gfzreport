@@ -236,6 +236,16 @@ an existing user.
 
 To have the modification take effect, :ref:`restartserver` 
 
+Update config only
+-----------------
+
+Sometimes, after a bug fix or whatever, we want to update the configuration files only.
+Then do something like this:
+
+.. code-block:: bash
+
+   gfzreport template n -n ZE -s 2012 -c -o /data2/gfzreport/network/source/
+
 
 Cp source directory
 ------------------------

@@ -94,8 +94,9 @@ class ImgsGridDirective(CsvFigureDirective):
 
         # base dir is relative to the source directory, so get root dir to check later
         # if file exists
-        root_dir = os.path.abspath(os.path.join(self.state.inliner.document.settings.env.srcdir,
-                                                base_dir))
+        root_dir = base_dir if os.path.isabs(base_dir) else \
+            os.path.abspath(os.path.join(self.state.inliner.document.settings.env.srcdir,
+                                         base_dir))
         # now replace each string given in the csv (file or table) with an image node
         # with the correct path:
         for row, col, is_row_header, is_stub_column, node, node_text in self.itertable(nodez):

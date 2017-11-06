@@ -139,52 +139,81 @@ class LatexTranslator(LT):
         # in the latex header
         # for commands starting with doi-, build also the citation command with suffix "Citation"
 
+        # The final string should be unicode, as jinja (used by sphinx later) expects unicodes
+        # So perfect, let's work with unicode. But we make use of
+        # "%s%s" % (A, B) and "{}{}".format(A, B) here, and "%s%s" are bytes in py2 and str in py3
+        # So we should convert them as well to unicode
+        # All in all, define a function which is py2 and py3 compatible:
+        def touni(obj):
+            return obj.decode('utf8') if isinstance(obj, bytes) else obj
+
+        LATEX_COMMAND = touni("\\rst{}{}")
+        LATEX_COMMAND_DOICITATION = touni("%sCitation")
+        LATEX_HREF = touni(" \href{%s}{%s}")
+        # value should be already formatted for latex.The only thing is that we want to
+        # preserve also rst newlines so we replace \n with \\ (which becomes \\\\ after
+        # escaping, plus a final \n to preserve "visually" the newlines in latex, although it
+        # won't be rendered in latex output):
+        NEWLINE = touni("\n")
+        LATEX_NEWLINE = touni('\\\\\n')
+        DOI = touni("doi")
+        A, Z = touni("A"), touni("Z")
+
+        def isdoi(uni_str):
+            """ return True if uni_str = 'doi', 'DOI' or is of the form 'doi[A-Z].*'"""
+            return uni_str.lower() == DOI or \
+                (uni_str.startswith(DOI) and uni_str[len(DOI)] >= A and uni_str[len(DOI)] <= Z)
+
+        DOI_ERR_MSG = touni("error getting DOI from '%s': %s")
+        EMPTY_STR = touni("")
+
         latexcommands = {}
         data = self.builder.app.env.metadata[self.builder.app.config.master_doc]
         for name, value in data.iteritems():
+            name, value = touni(name), touni(value)
             # doiCommand will also have a doiCommandCitation which represents the bib citation
             # of that doi
-            isdoi = name.lower().startswith("doi")
-            latex_command_name = "\\rst" + (name[0].upper() + name[1:])
-            # value should be already formatted for latex.The only thing is that we want to
-            # preserve also rst newlines so we replace \n with \\ (which becomes \\\\ after
-            # escaping, plus a final \n to preserve "visually" the newlines in latex, although it
-            # won't be rendered in latex output):
-            latexcommands[latex_command_name] = str(value).replace("\n", '\\\\\n')
+            isdoi_ = isdoi(name)
+            latex_command_name = LATEX_COMMAND.format(name[0].upper(), name[1:])
+            try:
+                value = value.replace(NEWLINE, LATEX_NEWLINE)
+            except AttributeError:
+                # not a string? stringify it:
+                value = touni(str(value))
+            latexcommands[latex_command_name] = value
 
             # note above: value moght not be a string. eg. supplying :tocdepth: 3, the 3 is passed
             # as int to the env
+            if isdoi_:
+                text, url = EMPTY_STR, EMPTY_STR
+                if value:
+                    try:
+                        text, url = get_citation(self.builder.app, value)
+                        text, url = touni(text), touni(url)
+                    except Exception as exc:
+                        exc_msg = touni(str(exc))
+                        text, url = DOI_ERR_MSG % (value, exc_msg), EMPTY_STR
+                latexcommands[LATEX_COMMAND_DOICITATION % latex_command_name] = \
+                    text if not url else text + LATEX_HREF % (url, url)
 
-            if isdoi:
-                try:
-                    text, url = get_citation(self.builder.app, value)
-                except Exception as exc:
-                    text, url = "error getting DOI from '%s': %s" % (value, str(exc)), ""
-                latexcommands[latex_command_name + "Citation"] = text if not url else \
-                    text + " \href{%s}{%s}" % (url, url)
+        LATEX_NEWCOMMAND = touni("\\newcommand{%s}{%s}")
+        newcommands = NEWLINE.join(LATEX_NEWCOMMAND % (n, v) for n, v in latexcommands.iteritems())
 
-        # we try to be python 2-3 compliant: first of all, jinja (used in LT.astext(self) below)
-        # wants unicodes, so we need to put unicode variables in self.elements['preamble']
-        # But we want also to avoid u'' or whatever is not python3, so we won't have headaches if
-        # moving to py3. As bytes are non unicode in python2, and non strings in python3,
-        # provide a general function _str and pass every string/bytes
-        # to it before each string operation:
-        def _str(obj):
-            return obj.decode('utf8') if isinstance(obj, bytes) else obj
+        preamble_wrapper = \
+            touni("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+                  "%% Newcommands converted from rst fields before the title:\n"
+                  "{}\n"
+                  "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+                  "%% Content of latex_elements['preamble'] in conf.py (if defined):\n"
+                  "%(preamble)s\n"
+                  "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+                  ).format(newcommands)
 
-        preamble_wrapper = _str("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
-                                "%% NEWCOMMANDS FROM RST BIB.FIELDS GENERATED IN LatexTranslator:\n"
-                                "{}\n"
-                                "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
-                                "%% PREAMBLE DEFINED IN conf.py (if any):\n" +
-                                "%(preamble)s\n"
-                                "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
-                                ).format("\n".join("\\newcommand{%s}{%s}" % (_str(n), _str(v))
-                                                   for n, v in latexcommands.iteritems()))
-
+        # merge existing preamble:
+        preamble = preamble_wrapper % {touni('preamble'): touni(self.elements.get("preamble", ""))}
+        # update object elements:
         self.elements.update({
-            # merge existing preamble:
-            'preamble': preamble_wrapper % {'preamble': _str(self.elements.get("preamble", ""))},
+            'preamble': preamble,
         })
 
         return LT.astext(self)
