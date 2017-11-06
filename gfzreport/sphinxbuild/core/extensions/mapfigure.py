@@ -130,6 +130,7 @@ class MapImgDirective(CsvFigureDirective):
                            map_figmargins=lambda val: val or 0,
                            map_arcgis_service=lambda val: val,
                            map_arcgis_xpixels=lambda val: int(val),
+                           map_arcgis_dpi=lambda val: int(val),
                            map_urlfail=lambda val: val,
                            map_maxmeridians=lambda val: int(val),
                            map_maxparallels=lambda val: int(val),

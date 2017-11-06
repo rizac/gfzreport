@@ -236,6 +236,28 @@ an existing user.
 
 To have the modification take effect, :ref:`restartserver` 
 
+
+Cp source directory
+------------------------
+
+For each report, you can always navigate into the :ref:`serverrootpath` and copy a :ref:`srcdir`.
+This will create a new report on the web page. This operation is a hack but might be useful
+to copy a report and working on it for debugging. To do that, for instance to copy the annual
+report '2016' into '2016_TEST':
+
+.. code-block:: bash
+   
+   cp -r /data2/gfzreport/annual/source/2016 /data2/gfzreport/annual/source/2016_TEST 
+   cd /data2/gfzreport/annual/source/2016_TEST/
+   rm -rf .git
+
+If you executed the above operations as root, remember to:
+   
+.. code-block:: bash
+   
+   cd /data2/gfzreport/annual/source
+   chown -R sysop:sysop 2016_TEST
+
 Install the web application on Apache
 -------------------------------------
 

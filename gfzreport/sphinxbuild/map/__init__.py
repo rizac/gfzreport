@@ -397,6 +397,7 @@ def plotmap(lons,
             figmargins=2,
             arcgis_service='World_Street_Map',
             arcgis_xpixels=1500,
+            arcgis_dpi=96,
             urlfail='ignore',
             maxmeridians=5,
             maxparallels=5,
@@ -613,7 +614,8 @@ def plotmap(lons,
     bmap = Basemap(**kwa)
 
     try:
-        kwa = _joinargs("arcgis", kwargs, service=arcgis_service, xpixels=arcgis_xpixels)
+        kwa = _joinargs("arcgis", kwargs, service=arcgis_service, xpixels=arcgis_xpixels,
+                        dpi=arcgis_dpi)
         # set the map image via a map service. In case you need the returned values, note that
         # This function returns an ImageAxis (or AxisImage, check matplotlib doc)
         bmap.arcgisimage(**kwa)

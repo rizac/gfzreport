@@ -19,8 +19,11 @@ The web app can be invoked calling (please look at the python dic-strings):
    gfzreport.web.app.get_app(config_obj='gfzreport.web.config_example.BaseConfig', data_path=None,
                              db_path=None, **custom_config_settings):
 
-Let alone the config, which can be set as default (FIXME: document it), the important
-directories are:
+The config can be changed (although not necessarily in most cases)
+by cp 'gfzreport/web/config_example.py' into 'gfzreport/web/config.py'
+(the latter is git ignored), modify 'config.py' and pass 'gfzreport.web.config.BaseConfig'
+to the app.
+The other two arguments are the app data directories which are:
 
 .. _webappdatapath:
 
