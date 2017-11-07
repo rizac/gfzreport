@@ -254,11 +254,12 @@ the field exists and can be used{% endraw %}-->
 			<div class="form-group">
 		    	<input type="text" class="form-control" id="login-email" placeholder="email" name='email'> <!-- NOT USED: ng-model="popups.logIn.email"> -->
 		  	</div>
+		  	<input type=submit class='btn btn-primary center-block' ng-click="logIn()" value="Log in">
 	  	</form>
   	</div>
 	<div>
 		<div>{% raw %}{{ popups.logIn.errMsg }}{% endraw %}</div>
-		<button class='btn btn-primary' ng-click="logIn()">Log in</button>
+		<!-- <button class='btn btn-primary' ng-click="logIn()">Log in</button> -->
 	</div>	
 </div>
 

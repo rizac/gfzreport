@@ -9,6 +9,9 @@ GfzReport-Web
 :command line: None
 
 
+What it does
+------------
+
 :ref:`gfzr` can run on a web server. After creating report templates via :ref:`gfzt`,
 :ref:`gfzw` allows online :ref:`rst` editing and document creation by means of :ref:`gfzb`.
 
@@ -28,7 +31,7 @@ The other two arguments are the app data directories which are:
 .. _webappdatapath:
 
 Data path
----------
+^^^^^^^^^
 
 The web application data directory. **It must have a sub-dicrectory named 'source'**. Therein, all
 directories not starting with "_" will be considered a :ref:`srcdir` and loaded as report
@@ -52,7 +55,7 @@ a single silesystem root for all **necessary and important** application data
 .. _webappdbpath:
 
 Database path
--------------
+^^^^^^^^^^^^^
 
 The web application database directory. It will create (or read from, if already present) the
 following files:
@@ -60,7 +63,7 @@ following files:
 .. _webappdb:
 
 users.sqlite
-^^^^^^^^^^^^
+************
 
 This is the database of the users. It stores information for the application, e.g. users emails,
 passwords (not yet implemented), session login time and authorization to the projects
@@ -68,7 +71,7 @@ passwords (not yet implemented), session login time and authorization to the pro
 .. _webappusers:
 
 users.txt
-^^^^^^^^^
+*********
 
 Thie is the (json) text file whereby initialize the users when starting each new instance of
 the web app. 
@@ -150,3 +153,31 @@ this (the appearence might change in future releases):
    "source" sub-directory of the app data path
 
 Remember to close the app from the terminal (CTRL+C) when finished.
+
+
+Overview of the package
+-----------------------
+
+The package is organized as a classical Flask application. There is a single main package, 'app',
+and in its '__init__.py' file we defined the root function to start the web application:
+
+.. code-block:: python
+   
+   gfzreport.web.app.get_app(config_obj='gfzreport.web.config_example.BaseConfig', data_path=None,
+                             db_path=None, **custom_config_settings):
+
+The config can be changed (although not necessarily in most cases)
+by cp 'gfzreport/web/config_example.py' into 'gfzreport/web/config.py'
+(the latter is git ignored), modify 'config.py' and pass 'gfzreport.web.config.BaseConfig'
+to the app.
+The other two arguments are the :ref:`webappdatapath` the :ref:`webappdbpath` already discussed.
+
+The 'views.py', 'core.py' and 'models.py' are modules containing the app views, the core functionalities
+of 'views.py', anb the users database ORM.
+
+The 'static' path has static js and css files (bootstrap for the css, angular and ace for js), and
+the 'templates' folder contains the jinja templates
+
+
+
+

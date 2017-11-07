@@ -174,6 +174,24 @@ Replace it with (or add the following if no such line was found):
 with this program)
 
 
+
+Another issue (not during installation but during *execution*, e.g., when typing `gfzreport --help`) is the
+following time-consuming and therefore annoying message:
+
+..code-block:: bash
+
+  .../matplotlib/font_manager.py:273: UserWarning: Matplotlib is building the font cache using fc-list. This may take a moment.
+  warnings.warn('Matplotlib is building the font cache using fc-list. This may take a moment.')
+
+To fix this, on Ubuntu14.04, we issued the following command:
+
+.. code-block:: bash
+
+   rm ~/.cache/matplotlib/fontList.cache
+   
+When executing again gfzreport, the message still appears but only the first time. For details see this
+`post <https://stackoverflow.com/questions/34771191/matplotlib-taking-time-when-being-imported>`_.
+
 Install tex packages
 --------------------
 

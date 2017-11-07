@@ -1,5 +1,5 @@
 var app = angular.module('MyApp', []);
-app.controller('MyController', function ($scope, $http, $window, $timeout) {
+app.controller('MyController', function ($scope, $http, $window, $timeout, $rootScope) {
 	$scope._init = true; //basically telling setView to update the commits only the first time
 	$scope._VIEWS = ['html', 'pdf'];
 	$scope.view = null;  // the current view null for the moment
@@ -58,9 +58,45 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 		return $scope.buildExitcode[$scope.view];
 	}
 	
+	$scope.setModified = function(value){
+		/**
+		 * Sets the $scope.modified flag (which disables some buttons in the view)
+	     * and adds/ removes the "prevent leave dialog box" functionality if modified is True/False.
+	     * Although there are 100000 "proper" ways to achieve the same in angular, this low level approach is by far
+	     * the simplest and shortest for our use-case. See https://stackoverflow.com/questions/30571951/angularjs-warning-when-leaving-page
+		 */
+    	$scope.modified = value;
+    	/* the implementation of the onbeforeunload is insane. The following works on Chrome that's enough.
+    	 * See _handleUnloadEvent below for details
+    	 */
+    	var func = $scope._handleUnloadEvent;
+    	var win = $window;
+    	if (value){
+    		win.addEventListener ? win.addEventListener("beforeunload", func): win.attachEvent("onbeforeunload", func);
+    	}else{
+    		win.removeEventListener ? win.removeEventListener("beforeunload", func) :win.detachEvent("onbeforeunload", func);
+    	}
+    };
+    
+    $scope._handleUnloadEvent = function (event) {
+    	/**
+    	 * this function is called when we are about to leave the page and $scope.modified=True.
+    	 * To make the popup appear we need to set event.returnValue' to a non-empty string,
+    	 * which is one of the most counter-intuitive things I've ever seen.
+    	 * Moreover, the string seems NOT shown anymore in most browsers, we leave it just in case.
+    	 * And finally, from here:
+    	 * https://developer.mozilla.org/en-US/docs/Web/Events/beforeunload
+    	 * they claim  most browser ignore the event return value and close the window anyway, which
+    	 * is not true... :D
+    	 */
+    	var msg = "There are unsaved changes in the editor. Leave anyway?";
+    	event.returnValue = msg;
+    	return msg;
+    };
+	
 	$scope.loading = false;
 	$scope.loadingMsgs = [];
-	$scope.modified = false;
+	$scope.setModified(false);
 	$scope.editing = false;
 	
 	$scope.aceEditor = null;  //NOTE: this will be set to an object after we init editing the first time
@@ -105,7 +141,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	    				if ($scope.popups.commits.visible){
 	    					return;
 	    				}
-	    				$scope.modified = true;
+	    				$scope.setModified(true);
 	    			});
 	    		});
 		    };
@@ -146,7 +182,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	    	{headers: { 'Content-Type': 'application/json' }}
     	).then(
 			function(response){ // success callback
-	    		$scope.modified = false;
+	    		$scope.setModified(false);
 			  	$scope.aceEditor.session.getUndoManager().markClean();
 			  	if (response.data){
 			  		for (var i=0; i < $scope._VIEWS.length; i++){
@@ -160,7 +196,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 			}
     	);
     };
-
+    
     $scope.showError = function(response){
     	$scope.popups.errDialog.show();
     	// show first the popup, cause show() cancels the error message by default
@@ -227,6 +263,15 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 			// make errMsg empty, so that previous errors, if any, do not appear when window shows up (misleading)
 			this.errMsg = '';
 			this.visible = true;
+			if (this.focusElmId){
+				var focusElm = $window.document.getElementById(this.focusElmId);
+				if (focusElm){
+					// needs a timeout because angular will digest the changes and show the element
+					// after this function call. And if the element is not visible, the focus does
+					// not work:
+					$window.setTimeout(function(){focusElm.focus();}, 200);
+				}
+			}
 		};
 		this.hide = function(){
 			this.visible = false;
@@ -244,7 +289,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	$scope.popups = {
 		'errDialog': new props({'title': 'Error', 'errMsg': ''}),
 		'commits': new props({'title': 'History (git commits)', 'loading': false}),
-		'logIn': new props({'title': 'Log in'}),
+		'logIn': new props({'title': 'Log in', 'focusElmId': 'login-email'}),
 		'addFig': new props({'label': '', 'keepOpen': false, 'title': 'Add figure', 'insertAtCursor': false}),
 		'logs': new props({'title': 'Build info (log-file)', 'loading': false, 'showFullLog': false})
 	};	
@@ -487,59 +532,4 @@ app.controller('MyController', function ($scope, $http, $window, $timeout) {
 	 */
 	
 	$scope.setView('html');
-
 });
-
-
-/* EXPERIMENTAL (not workong): show keyboard shortcuts:
-
-$scope.toggleKeyboardShortcuts = function(){
-	var editor = $scope.aceEditor;
-	if(editor && $scope.editing){
-		ace.config.loadModule("ace/ext/keybinding_menu", function(module) {
-            module.init(editor);
-            editor.showKeyboardShortcuts()
-        });
-	}
-}
-
-
-$scope.startBuildingListener = function(){
-	var terminate = false;
-	$scope.loadingMsgs = ['Building report (it might take few minutes)'];
-
-    var countUp = function() {
-    	$http.post(
-    		'building_info',
-    		JSON.stringify({}), // not used
-	    	{headers: { 'Content-Type': 'application/json' }}
-    	).then(
-			function(response){ // success callback
-				$scope.loadingMsgs = response.data;
-				if ($scope.loading && !terminate){
-					$timeout(countUp, 1000);
-				}
-				$scope.loadingMsgs = [];
-	    	},
-	    	function(response){ // failure callback. This is actually a safety case
-	    		terminate = true;
-				$scope.loadingMsgs = [];
-			}
-    	);
-    }
-	countUp();
-}
-
-
-
-// experimental: components. PLEASE REMOVE:
-app.component("popup",{
-	selector: '[popup]',
-    template: "<button ng-click='$ctrl.showPopup=true'>{{$ctrl.name}}</button>" +
-    		  "<div class='popup' ng-show='$ctrl.showPopup'><button ng-click='$ctrl.showPopup=false' class='close' data-dismiss='alert' aria-label='close'>&times;</button>" +
-    		  "<div ng-transclude></div>" +
-    		  "</div>",
-    bindings: { name: '@', showPopup: '<' },
-    transclude: true,
-});
-*/

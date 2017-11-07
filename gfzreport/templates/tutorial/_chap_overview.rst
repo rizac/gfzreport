@@ -102,8 +102,8 @@ The :ref:`gfzb` output directory. It contains the HTML/LaTex/PDF output file(s) 
 Generates templates (:ref:`spx` input directories) which can be fed into :ref:`gfzb`
 after editing their pre-formatted :ref:`rst` document  
 
-Gfzreport-webapp
-^^^^^^^^^^^^^^^^
+:ref:`gfzw`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :detailed section: :ref:`gfzw`
 
@@ -113,7 +113,7 @@ A python Flask web application which, if this program is installed on a server, 
  * build (via :ref:`gfzb`) and visualise online their HTML and PDF documents
 
 Pipeline schema of :ref:`gfzr`
---------------------------------------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To summarize, the pipeline schema of :ref:`gfzr` when building a document from e.g., command line
 can be sketched as:

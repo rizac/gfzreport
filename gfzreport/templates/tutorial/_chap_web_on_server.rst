@@ -43,13 +43,12 @@ Then:
    cd /var/www/html/gfz-reportgen
    git pull
    
-The package is installed as editable, meaning that all modifications will take place without the
-need to re-install :ref:`gfzr`. In some rare cases, when something in setup.py has changed,
-you can re-install it via:
+As the package has been installed as editable all modifications will take place without the
+need to re-install :ref:`gfzr`, unless something in `setup.py` has changed. In this case
+you need to re-install it:
 
 .. code-block:: bash
 
-   cd /var/www/html/gfz-reportgen
    pip install -e .
 
 and :ref:`restartserver`
@@ -127,7 +126,7 @@ The directory structure is:
 
 .. rubric:: Footnotes
 
-.. [#es1r] each sub-directory of this folder is associated to a report
+.. [#es1r] Inside these directory, each folder whose name does not start with "_" is associated to a report
 
 .. _wsgisfiles:
 

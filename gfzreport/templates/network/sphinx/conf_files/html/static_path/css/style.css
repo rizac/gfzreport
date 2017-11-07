@@ -57,9 +57,9 @@ body {
 }
 
 div.document { /*alabaster.css:57*/
-    width: 60em;
+    width: initial;
     margin: initial;  /*it was: 30px auto 0 auto; */
-    max-width: 80em;
+    max-width: 70em;
 }
 
 div.documentwrapper { /*alabaster.css:72*/
@@ -158,7 +158,7 @@ iframe{
 /* gfzreport stuff */
 
 body {
-    background-image: url("../img/GFZ_Poster_Muster_pur_en_pdf.png");
+    background-image: url("../img/gfz_background.png");
     background-repeat: no-repeat;
     background-position: center top;
     background-attachment: fixed;

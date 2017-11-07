@@ -34,8 +34,8 @@ Or type for help:
    gfzreport build --help
 
 
-Overview of the package / directory structure
------------------------------------------------
+Overview of the package
+-----------------------
 
 The main function is:
 

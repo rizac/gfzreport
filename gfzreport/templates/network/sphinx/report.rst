@@ -34,6 +34,8 @@
      Note: you should not specify newlines in it (same for subSubtitle below)
    - sub-sub-title (AUTHOR INPUT): self-explanatory. This this is the (optional) sub-sub-subtitle (below the subtitle)
    - strNum (LIBRARY INPUT): the Scientific Technical Report (STR) number
+   - strText (LIBRARY INPUT): the STR text, displayed in the bottom of the title and 2nd page
+   - strSeriesText (LIBRARY INPUT): the STR series text, displayed under the STR text (in smaller font) 
    - urn (LIBRARY INPUT): The urn, e.g.: urn:nbn:de:kobv:b103-xxxxx
      (side-note for developers: the sphinx builder might raise a
      warning if rst interprets it urn as URL. Please ignore the warning)
@@ -64,6 +66,10 @@
 :subSubtitle: 
 
 :strNum: 
+
+:strText: Scientific Technical Report - Data
+
+:strSeriesText: GIPP Experiment and Data Archive
 
 :urn: urn:nbn:de:kobv:b103-xxxxx
 

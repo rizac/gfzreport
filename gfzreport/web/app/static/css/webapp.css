@@ -4,7 +4,7 @@ body, html{
 }
 
 .gfz-bg {
-    background-image: url(../img/GFZ_Poster_Muster_pur_en_pdf.png);
+    background-image: url(../img/gfz_background.png);
     background-repeat: no-repeat;
     background-position: center top;
     background-attachment: fixed;
@@ -35,6 +35,20 @@ body, html{
 div.container{
 	width:100vw;
 	height:100vh;
+}
+
+.logo-top-left, .logo-bottom-right{
+	position: fixed;
+}
+
+.logo-top-left{
+	top: 2em;
+	left: 2em;
+}
+
+.logo-bottom-right{
+	bottom: 2em;
+	right: 2em;
 }
 
 /*
