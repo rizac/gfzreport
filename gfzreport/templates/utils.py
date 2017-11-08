@@ -15,6 +15,8 @@ from glob import glob
 from contextlib import contextmanager
 import errno
 
+from io import BytesIO
+
 import click
 from jinja2 import Environment, BaseLoader
 from jinja2.loaders import FileSystemLoader
@@ -157,6 +159,46 @@ def get_rst_template(src_path, dest_path):
     yield Wrapper(rst_src_file, rst_dest_file)
 
 
+class Logger(object):
+    '''class printing to stdout and to log'''
+
+    def __init__(self):
+        self._tmp_sysout = sys.stdout
+        self.terminal = sys.stdout
+        self.log = BytesIO()  # write everything in bytes to the stream
+
+    def write(self, message):
+        self.terminal.write(message)
+        if not isinstance(message, bytes):
+            message = message.encode('utf8')
+        self.log.write(message)
+
+    def flush(self):
+        # this flush method is needed for python 3 compatibility.
+        # In the example here they pass:
+        # https://stackoverflow.com/questions/14906764/how-to-redirect-stdout-to-both-file-and-console-with-scripting
+        # here we forward the flush:
+        self.terminal.flush()
+        self.log.flush()
+
+    def close(self, fileout=None):
+        '''closes the streams, restores sys.stdout and write the content to fileout, if provided'''
+        sys.stdout = self._tmp_sysout
+        if fileout:
+            with open(fileout, 'wb') as opn:
+                opn.write(self.log.getvalue())
+        try:
+            self.log.close()
+        except:
+            pass
+
+
+def get_logfilename():
+    """Returns the name of the gfzreport sphinx log file when launching the tamplate creation
+    """
+    return "gfzreport.template.log"
+
+
 class Templater(object):
     '''
     Base skeleton class implementation of what a
@@ -249,10 +291,12 @@ class Templater(object):
         src_path = self.srcpath
         destpath = self.getdestpath(self._out_path, *args, **kwargs)
         destdatapath = os.path.join(destpath, 'data')
-        out_path_exists = os.path.isdir(destpath)
-        cleanup = False  # used if we got exceptions and the dir did not exist (so clean it up)
+        destpath_existed = os.path.isdir(destpath)
+        raised = False  # used if we got exceptions and the dir did not exist (so clean it up)
+        logger = Logger()
+        sys.stdout = logger
+        update_config_only = self._update_config_only
         try:
-            update_config_only = self._update_config_only
             confirm = self._confirm
             setupdir(src_path, destpath, confirm, update_config_only)
             if not update_config_only:
@@ -271,11 +315,18 @@ class Templater(object):
             print("Done")
             return 0
         except:
-            cleanup = not out_path_exists and os.path.isdir(destpath)  # for finally (see below)
+            raised = True  # for finally (see below)
             raise
         finally:
-            if cleanup:
-                shutil.rmtree(destpath, ignore_errors=True)
+            if not update_config_only:
+                destpath_exists = os.path.isdir(destpath)
+                if raised and not destpath_existed and destpath_exists:
+                    shutil.rmtree(destpath, ignore_errors=True)
+                logfile = os.path.join(destpath, get_logfilename()) \
+                    if not raised and destpath_exists else None
+                logger.close(logfile)
+                if logfile and os.path.isfile(logfile):
+                    print("\nOutput written to '%s'" % logfile)
 
     def getdestpath(self, out_path, *args, **kwargs):
         '''

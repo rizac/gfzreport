@@ -480,7 +480,7 @@ def get_logfilename():
     This name should be a file name clearly not in conflict with any sphinx additional file, so
     be careful when changing it (for the moment, it's a name most likely not used and clearly
     understandable)"""
-    return "__.gfzreport.__.log"
+    return "gfzreport.build.log"
 
 
 @contextmanager

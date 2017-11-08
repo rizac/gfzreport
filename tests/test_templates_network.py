@@ -8,7 +8,8 @@ import sys
 import glob
 from click.testing import CliRunner
 from gfzreport.cli import main as gfzreport_main
-from gfzreport.sphinxbuild import get_logfilename
+from gfzreport.sphinxbuild import get_logfilename as get_build_logfilename
+from gfzreport.templates.utils import get_logfilename as get_template_logfilename
 # from gfzreport.templates.network.__init__ import main as network_reportgen_main
 # from gfzreport.sphinxbuild.__init__ import main as sphinxbuild_main, get_logfilename
 import shutil
@@ -68,6 +69,14 @@ def test_netgen_configonly_flag(mock_urlopen, mock_get_dcs):
         conf_files_dir = os.path.join(outpath_, 'conf_files')
         data_dir = os.path.join(outpath_, 'data')
         confiles_subdirs = sorted(os.listdir(conf_files_dir))
+        logfile = os.path.join(outpath_, get_template_logfilename())
+        assert os.path.isfile(logfile)
+        #assert logfile content has something:
+        with open(logfile) as opn:
+            logcontent = opn.read()
+        assert len(logcontent) > 0
+        # store modification time 
+        logmtime = os.stat(logfile).st_mtime
         shutil.rmtree(conf_files_dir)
         shutil.rmtree(data_dir)
         assert not os.path.isdir(conf_files_dir)
@@ -106,6 +115,8 @@ def test_netgen_configonly_flag(mock_urlopen, mock_get_dcs):
             assert "\na simple text__" in opn_.read()
         # data dir has not been newly created in update config mode:
         assert not os.path.isdir(data_dir)
+        # assert we did not modify logfile in -c mode:
+        assert logmtime == os.stat(logfile).st_mtime
 
 
 def _getdatacenters(*a, **v):
@@ -240,7 +251,7 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
             else:
                 # in the other cases no report:
                 assert not os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
-                with open(os.path.join(outdir, get_logfilename())) as fopen:
+                with open(os.path.join(outdir, get_build_logfilename())) as fopen:
                     logcontent = fopen.read()
                 assert "ValueError: invalid PNG header" in logcontent
                 assert result.exit_code == 2

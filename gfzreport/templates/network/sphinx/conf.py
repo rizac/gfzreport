@@ -116,7 +116,8 @@ todo_include_todos = False
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files:
-# exclude_patterns = ['_templates/input_rsts']
+# NOTE: After testing, files matching will NOT be copied to the build dir (this is not documented)
+exclude_patterns = ["*.log", 'Thumbs.db', '.DS_Store']
 
 # The reST default role (used for this markup: `text`) to use for all documents:
 # default_role = None
@@ -150,12 +151,12 @@ templates_path = ['conf_files/html/templates']
 html_static_path = ['conf_files/html/static_path']
 
 # The name of an image file (relative to this directory) to place at the top
-# of the sidebar. NOTE: AS LONG AS html_theme='alabaster',
-# IT IS NOT CURRENTLY USED ANYWHERE BECAUSE WE SET embedded = True in
-# layout.html (in templates dir), AS LONG AS OUR THEME IS alabaster!!
+# of the sidebar. 
+# NOTE: IT IS NOT CURRENTLY USED ANYWHERE BECAUSE WE SET embedded = True in
+# layout.html (in the dir 'templates'), AS LONG AS OUR THEME IS alabaster!!
 # For other themes, you should have a look at their path (see our layout.html). For instance haiku
 # seems to ignore embedded
-html_logo = "conf_files/html/GFZ-Logo_eng_RGB.png"
+html_logo = ""
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes. NOTE: NOT ALL THEMES BEHAVE THE SAME. FOR INSTANCE, ALABASTER HAS
