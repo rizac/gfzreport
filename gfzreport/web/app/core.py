@@ -331,17 +331,22 @@ def save_sourcefile(app, reportdirname, unicode_text, user):
             shutil.copy2(filesrc, filedest)
         shutil.rmtree(srcdir)
     # return True if commits where saved, False if 'nothing to commit'
-    return gitcommit(app, reportdirname, user)
+    needsRefresh = gitcommit(app, reportdirname, user)
+    return {'needs_refresh' : needsRefresh,
+            'commit_hash' : get_commits(app, reportdirname, -1)[0]['hash']}
 
 
-def get_commits(app, reportdirname):
+def get_commits(app, reportdirname, revision_range=None):
+    ''':param revision_range: None => include all commits. Otherwise works like git 'revison_range'
+        (e.g.: -1 for the last one only)
+    '''
     def prettify(jsonstr):
         if not jsonstr:
             return jsonstr
         return json.dumps(json.loads(jsonstr), indent=4).replace('"', "").replace("{", "").replace("}", "")
     try:
         commits = []
-        args = gitkwargs(app, reportdirname)
+        kwargs = gitkwargs(app, reportdirname)
 
         # get a separator which is most likely not present in each key:
         # please no spaces in sep!
@@ -349,8 +354,10 @@ def get_commits(app, reportdirname):
         # maybe implement later ...
         sep = "_;<!>;_"
         pretty_format_arg = "%H{0}%an{0}%ad{0}%ae{0}%s{0}%N".format(sep)
-        cmts = subprocess.check_output(["git", "log",
-                                        "--pretty=format:%s" % (pretty_format_arg)], **args)
+        args = ["git", "log", "--pretty=format:%s" % (pretty_format_arg)]
+        if revision_range:
+            args.append(str(revision_range))
+        cmts = subprocess.check_output(args, **kwargs)
         # IMPORTANT: do NOT quote pretty format values (e.g.: "--pretty=format:%N", NOT
         # "--pretty=format:'%N'"), otherwise the quotes
         # will appear in the output (if value has spaces, we did not test it,

@@ -60,12 +60,19 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 	
 	$scope.setModified = function(value){
 		/**
-		 * Sets the $scope.modified flag (which disables some buttons in the view)
+		 * Sets the $scope.modified flag (which disables some buttons in the view),
+		 * the $scope.commitHash if value is true, 
 	     * and adds/ removes the "prevent leave dialog box" functionality if modified is True/False.
 	     * Although there are 100000 "proper" ways to achieve the same in angular, this low level approach is by far
 	     * the simplest and shortest for our use-case. See https://stackoverflow.com/questions/30571951/angularjs-warning-when-leaving-page
 		 */
     	$scope.modified = value;
+    	if (value){ // if modified, current editor content does not match anymore commitHash,
+    		// need to save to fetch the new hash and set it to $scope.commitHash
+    		$scope.commitHash = null;
+    		// if we are setting modified = false we will set $scope.commitHash after this
+    		// function call. See $scope.save and 'iframe.onload' in $scope.toggleEdit
+    	}
     	/* the implementation of the onbeforeunload is insane. The following works on Chrome that's enough.
     	 * See _handleUnloadEvent below for details
     	 */
@@ -98,7 +105,16 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 	$scope.loadingMsgs = [];
 	$scope.setModified(false);
 	$scope.editing = false;
-	
+	/* commitHash: the commit linked to the current editor content. When initializing the editor
+	 * the first time, it is queried to the server. When modifiying the editor, it is set to null,
+	 * when saving the editor, it is returned from the server after git commit.
+	 * When setting an old commit from the commits popup, its value is simply changed
+	 * When commitHash is null, the "history" button is disabled, meaning the editor content has
+	 * been modified and does not point to a server commit hash. It can be null also if the server
+	 * has an error fetching the last commit (rare but not impossible). When non-null, the
+	 * editor content points to a git commit hash, and the history button is clickable (enabled)
+	 */
+	$scope.commitHash = null;
 	$scope.aceEditor = null;  //NOTE: this will be set to an object after we init editing the first time
 	$scope.toggleEdit = function(){
 		$scope.editing = !$scope.editing;
@@ -136,14 +152,32 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 	    		//add listener WHEN LOADED:
 	    		$scope.aceEditor.on("input", function() {
 	    			$scope.$apply(function() {
-	    				// If popup commits is showing, do not mark the editor as modified
-	    				// I.e., do not update save buttons and alike
-	    				if ($scope.popups.commits.visible){
-	    					return;
-	    				}
+	    				// If popup commits is showing, we set the editor value from a commit
+	    				// thus, as setModified will set $scope.commitHash to null, we have to
+	    				// reset it to the current commit:
+	    				var commitRemainder = $scope.popups.commits.visible ? $scope.commitHash : null;
 	    				$scope.setModified(true);
+	    				if (commitRemainder){
+	    					$scope.commitHash = commitRemainder;
+	    					$scope.popups.commits.hide();
+	    				}
 	    			});
 	    		});
+	    		
+	    		//only the first time we load the editor, set currentCommitHash
+	    		$http.post(
+	    	    		'get_last_commit_hash',
+	    	    		JSON.stringify({source_text: $scope.aceEditor.getValue() }),
+	    		    	{headers: { 'Content-Type': 'application/json' }}
+	    	    	).then(
+	    				function(response){ // success callback
+	    		    		$scope.commitHash = response.data;
+	    		    	},
+	    		    	function(response){ // failure callback
+	    		    		$scope.commitHash = null;
+	    				}
+	    	    	);
+	    		
 		    };
 		    iframe.src = "edit";
 		}
@@ -176,6 +210,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
     	if (!$scope.aceEditor){
     		return;
     	}
+    	$scope.commitHash = null;
     	$http.post(
     		'save',
     		JSON.stringify({source_text: $scope.aceEditor.getValue() }),
@@ -183,10 +218,14 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
     	).then(
 			function(response){ // success callback
 	    		$scope.setModified(false);
+	    		$scope.commitHash = response.data.commit_hash;
+	    		var needsRefresh = response.data.needs_refresh;
 			  	$scope.aceEditor.session.getUndoManager().markClean();
 			  	if (response.data){
 			  		for (var i=0; i < $scope._VIEWS.length; i++){
-			  			$scope.needsRefresh[$scope._VIEWS[i]] = true;
+			  			// if $scope.needsRefresh was previously set to true, leave it to true
+			  			// otherwise set it to needsRefresh:
+			  			$scope.needsRefresh[$scope._VIEWS[i]] |= needsRefresh;
 			  		}
 			  	}
 			  	//$scope._setCommits(response.data || [], true); //true: do a check to see if we need to refresh the views (pdf, html)
@@ -288,7 +327,8 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 	
 	$scope.popups = {
 		'errDialog': new props({'title': 'Error', 'errMsg': ''}),
-		'commits': new props({'title': 'History (git commits)', 'loading': false}),
+		'commits': new props({'title': 'History (git commits)', 'loading': false,
+							  'data':{commits:[], selected: {'hash': null, 'diff': []}}}),
 		'logIn': new props({'title': 'Log in', 'focusElmId': 'login-email'}),
 		'addFig': new props({'label': '', 'keepOpen': false, 'title': 'Add figure', 'insertAtCursor': false}),
 		'logs': new props({'title': 'Build info (log-file)', 'loading': false, 'showFullLog': false})
@@ -317,38 +357,58 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 		
 	};
 	
-	/**
-	 * Error popup: Skip: it's everything already defined in popups and in the view (html)
-	 */
 	
 	/**
-	 * COMMITS POPUP callback(s) and data. Commits are loaded in a $scope variable to
-	 * bind them to the view, and a selIndex to bind it to color the panel of the current commit
-	 * But for safety, they are loaded as new data every time we click on the commits/history button
+	 * COMMITS POPUP callback(s)
 	 */
-	
-	$scope.commits = {data:[], selected: {'hash': null, 'diff': []}};
 	$scope.showCommits = function(){
-		$scope.popups.commits.loading = true;
-		$scope.popups.commits.show();
-		$scope.commits.selected.hash = null;
-		$scope.commits.selected.diff = [];
+		/**
+		 * fetches all commits. This function is called if $scope.commitHash is truthy, as
+		 * the button invoking it is enabled only if $scope.commitHash is truthy
+		 */
+		var commits = $scope.popups.commits;
+		commits.loading = true;
+		commits.show();
+		commits.data.selected.hash = null;
+		commits.data.selected.diff = [];
 		$http.post(
 			'get_commits',
 			JSON.stringify({}),
 			{headers: { 'Content-Type': 'application/json' }}
 		).then(
     		function(response){ // success callback
-    			$scope.popups.commits.loading = false;
-    			$scope.commits.data = response.data || [];
-    			$scope.commits.selected.hash = $scope.commits.data[0].hash; //as returned from server `git` command (0=last)
+    			commits.loading = false;
+    			commits.data.commits = response.data || [];
+    			commits.data.selected.hash = $scope.commitHash; 
     		},
     		function(response){ // failure callback
-    			$scope.popups.commits.errMsg = $scope.exc(response);
+    			commits.errMsg = $scope.exc(response);
     		}
 	    );
 	}
-	
+
+	$scope.setSelectedCommitInWindow = function(hash){
+		/**
+		 * This fetches the git diff from the given has vs the latest version.
+		 * IT IS ASSUMED THAT 
+		 * showCommits HAS BEEN CALLED BEFORE THIS FUNCTION
+		 */
+		var commits = $scope.popups.commits;
+		commits.data.selected.hash = hash;
+		$http.post(
+			'get_git_diff', 
+	    	JSON.stringify({'commit1': $scope.commitHash, 'commit2': commits.data.selected.hash}),
+	    	{headers: { 'Content-Type': 'application/json' }}
+    	).then(
+    		function(response){ // success callback
+    			commits.data.selected.diff = response.data;
+    		},
+    		function(response){ // failure callback
+    			commits.errMsg = $scope.exc(response);
+    		}
+    	);
+	}
+
 	$scope.setEditorContentFromCommit = function(hash){
 		/**
 		 * This function sets the editor content from the given commit hash.
@@ -361,10 +421,16 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 	    	{headers: { 'Content-Type': 'application/json' }}
     	).then(
     		function(response){ // success callback
-			   $scope.aceEditor.setValue(response.data, 1);  // 1: moves cursor to the start
-			   $scope.commits.selected.hash = null;
-			   $scope.commits.selected.diff = [];
-			   $scope.popups.commits.hide();
+    			$scope.commitHash = hash;
+    			$scope.aceEditor.setValue(response.data, 1);  // 1: moves cursor to the start
+    			// the command above WILL fire an aceEditor 'input' event
+    			// (probably is in a timeout function) which we handle in a listener L
+    			// (L = '$scope.aceEditor.on("input", ...' in $scope.toggleEdit). In L we
+    			// call $scope.setModified(true), which in turn sets $scope.commitHash = null:
+    			// this is ok when we modify the editor "normally" via key events, but here we
+    			// want to preserve $scope.commitHash. 
+    			// The (not so elegant) way is NOT TO HIDE the popup window here so we will know
+    			// in L that $scope.commitHash has not to be set to null
     		},
     		function(response){ // failure callback
     			$scope.popups.commits.errMsg = $scope.exc(response);
@@ -372,26 +438,6 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
     	);
 	}
 	
-	$scope.setSelectedCommit = function(hash){
-		/**
-		 * This fetches the git diff from the given has vs the latest version
-		 */
-		
-		$http.post(
-			'get_git_diff', 
-	    	JSON.stringify({'commit1': $scope.commits.data[0].hash, 'commit2': hash}),
-	    	{headers: { 'Content-Type': 'application/json' }}
-    	).then(
-    		function(response){ // success callback
-    			$scope.commits.selected.diff = response.data;
-    			$scope.commits.selected.hash = hash;
-    		},
-    		function(response){ // failure callback
-    			$scope.popups.commits.errMsg = $scope.exc(response);
-    		}
-    	);
-	}
-
 	/**
 	 * LOGIN/OUT POPUP(s) callback(s) and data
 	 */

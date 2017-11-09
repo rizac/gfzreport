@@ -260,6 +260,20 @@ def get_source_rst(reportdirname):
     return jsonify(get_sourcefile_content(current_app, reportdirname, commit_hash, as_js=False))
 
 
+@mainpage.route('/<reportdirname>/get_last_commit_hash', methods=['POST'])
+def get_lch(reportdirname):
+    # instead of the decorator @login_required, which handles redirects and makes the view
+    # disabled for non-logged-in users, we prefer a lower level approach. First, because
+    # This view is restricted depending on pagetype, second because we do not want redirects,
+    # but aborting with a 403 (Forbidden) status. It is then the frontend which will handle
+    # this
+    if not current_user.is_authenticated:
+        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+        abort(401)
+
+    return get_commits(current_app, reportdirname, -1)[0]['hash']
+
+
 @mainpage.route('/<reportdirname>/get_logs', methods=['POST'])
 def get_logs(reportdirname):
     '''returns a list of (name, content) tuples, where name is the log name and
