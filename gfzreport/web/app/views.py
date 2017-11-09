@@ -15,7 +15,8 @@ from flask_login.utils import login_user, logout_user
 # from gfzreport.web.app import app
 from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
-    get_fig_directive, get_sourcedir, get_buildfile, get_logs_, lastbuildexitcode, nocache
+    get_fig_directive, get_sourcedir, get_buildfile, get_logs_, lastbuildexitcode, nocache,\
+    get_git_diff
 from gfzreport.web.app.models import User, session as dbsession
 
 
@@ -228,6 +229,18 @@ def get_commits_list(reportdirname):  # dont use get_commits otherwise it overri
         abort(401)
 
     commits = get_commits(current_app, reportdirname)
+    # note that (editable_page.html) we do not actually make use of the returned response value
+    return jsonify(commits)  # which converts to a Response
+
+
+@mainpage.route('/<reportdirname>/get_git_diff', methods=['POST'])
+def get_git_diffs(reportdirname):
+    if not current_user.is_authenticated:
+        # 403 Forbidden (e.g., logged in but no auth), 401: Unauthorized (not logged in)
+        abort(401)
+
+    rjson = request.get_json()
+    commits = get_git_diff(current_app, reportdirname, rjson['commit1'], rjson['commit2'])
     # note that (editable_page.html) we do not actually make use of the returned response value
     return jsonify(commits)  # which converts to a Response
 

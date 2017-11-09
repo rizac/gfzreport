@@ -327,11 +327,12 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 	 * But for safety, they are loaded as new data every time we click on the commits/history button
 	 */
 	
-	$scope.commits = {data:[], selIndex: -1};
+	$scope.commits = {data:[], selected: {'hash': null, 'diff': []}};
 	$scope.showCommits = function(){
 		$scope.popups.commits.loading = true;
 		$scope.popups.commits.show();
-		$scope.commits = {data:[], selIndex: -1};
+		$scope.commits.selected.hash = null;
+		$scope.commits.selected.diff = [];
 		$http.post(
 			'get_commits',
 			JSON.stringify({}),
@@ -340,7 +341,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
     		function(response){ // success callback
     			$scope.popups.commits.loading = false;
     			$scope.commits.data = response.data || [];
-    			$scope.commits.selIndex = $scope.commits.data.length ? 0 : -1; //as returned from server `git` command (0=last)
+    			$scope.commits.selected.hash = $scope.commits.data[0].hash; //as returned from server `git` command (0=last)
     		},
     		function(response){ // failure callback
     			$scope.popups.commits.errMsg = $scope.exc(response);
@@ -348,21 +349,12 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 	    );
 	}
 	
-	$scope.currentCommit = function(hash){
+	$scope.setEditorContentFromCommit = function(hash){
 		/**
-		 * This function is executed from the view (html) in the "commits popup" div.
-		 * Without argument, returns the current commit. With arguments, sets the
-		 * current commit, modifying the editor test accordingly. IT IS ASSUMED THAT 
+		 * This function sets the editor content from the given commit hash.
+		 * IT IS ASSUMED THAT 
 		 * showCommits HAS BEEN CALLED BEFORE THIS FUNCTION
 		 */
-		var cmts = $scope.commits;
-		if (hash === undefined){ // called with no argument, return current commit or null
-			if (!cmts.data || cmts.selIndex<0){
-				return null;
-			}
-			return cmts.data[cmts.selIndex];
-		}
-		
 		$http.post(
 			'get_source_rst', 
 	    	JSON.stringify({'commit_hash': hash}),
@@ -370,13 +362,29 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
     	).then(
     		function(response){ // success callback
 			   $scope.aceEditor.setValue(response.data, 1);  // 1: moves cursor to the start
-			   cmts.selIndex = -1;
-			   for( var i=0 ;i < cmts.data.length; i++){
-					if (cmts.data[i].hash == hash){
-						cmts.selIndex = i;
-						break;
-					}
-				}
+			   $scope.commits.selected.hash = null;
+			   $scope.commits.selected.diff = [];
+			   $scope.popups.commits.hide();
+    		},
+    		function(response){ // failure callback
+    			$scope.popups.commits.errMsg = $scope.exc(response);
+    		}
+    	);
+	}
+	
+	$scope.setSelectedCommit = function(hash){
+		/**
+		 * This fetches the git diff from the given has vs the latest version
+		 */
+		
+		$http.post(
+			'get_git_diff', 
+	    	JSON.stringify({'commit1': $scope.commits.data[0].hash, 'commit2': hash}),
+	    	{headers: { 'Content-Type': 'application/json' }}
+    	).then(
+    		function(response){ // success callback
+    			$scope.commits.selected.diff = response.data;
+    			$scope.commits.selected.hash = hash;
     		},
     		function(response){ // failure callback
     			$scope.popups.commits.errMsg = $scope.exc(response);

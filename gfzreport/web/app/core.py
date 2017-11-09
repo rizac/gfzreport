@@ -351,7 +351,7 @@ def get_commits(app, reportdirname):
         pretty_format_arg = "%H{0}%an{0}%ad{0}%ae{0}%s{0}%N".format(sep)
         cmts = subprocess.check_output(["git", "log",
                                         "--pretty=format:%s" % (pretty_format_arg)], **args)
-        # IMPORTANT: do NOT quote pretty format values (e.g.: "--pretty=format:%N", AVOID
+        # IMPORTANT: do NOT quote pretty format values (e.g.: "--pretty=format:%N", NOT
         # "--pretty=format:'%N'"), otherwise the quotes
         # will appear in the output (if value has spaces, we did not test it,
         # so better avoid it)
@@ -366,6 +366,15 @@ def get_commits(app, reportdirname):
         return commits
     except (OSError, CalledProcessError):
         return []
+
+
+def get_git_diff(app, reportdirname, hash1, hash2):
+    '''returns the git diff between hash1 and hash2'''
+    masterdoc = os.path.basename(get_sourcefile(app, reportdirname))
+    args = gitkwargs(app, reportdirname)
+    cmts = subprocess.check_output(["git", "diff", str(hash1), str(hash2), masterdoc], **args)
+    reg = re.compile("^\\@\\@\s+.+\s+\\@\\@\s+.*$", re.MULTILINE)
+    return reg.split(cmts)[1:]
 
 
 def secure_upload_filepath(app, reportdirname, upfile):

@@ -200,25 +200,41 @@ the parent div is optional (you can remove the whole block)
 	</div>
 	<div>
 		<div ng-show="popups.commits.loading">Loading data, please wait...</div>
-		<table ng-show="!popups.commits.loading">
-		<tr ng-repeat="c in commits.data" >
-			<td>
-			<pre ng-class="{'bg-success' : currentCommit().hash==c.hash}">{% raw %}
+		<div class="row-container">
+			<table ng-show="!popups.commits.loading" class="pos-left">
+			<tr ng-repeat="c in commits.data" ng-click="setSelectedCommit(c.hash)">
+				<td>
+				<pre ng-class="{'bg-success' : commits.selected.hash==c.hash}">{% raw %}
 Date: {{ c.date }}
 Author: {{ c.author }} &lt;{{ c.email }}&gt;
 Commit: {{ c.hash }}
 Notes: {{ c.notes }}
 {% endraw %}</pre>
-<!-- {% raw %}message: {{ c.msg }} NOT USED (message is always the same for the moment, keep it commented to remind that
-the field exists and can be used{% endraw %}-->
-			</td>
-			<td>
-				<button class="btn-sm btn-primary" ng-show="currentCommit().hash!=c.hash" 
-					ng-click="currentCommit(c.hash)">view</button>
-				<span ng-show="currentCommit().hash==c.hash">(current)</span>
- 			</td>
- 			</tr>
- 		</table>
+	<!-- {% raw %}message: {{ c.msg }} NOT USED (message is always the same for the moment, keep it commented to remind that
+	the field exists and can be used{% endraw %}-->
+				</td>
+				<!-- <td>
+					<button class="btn-sm btn-primary" ng-show="currentCommit().hash!=c.hash" 
+						ng-click="currentCommit(c.hash)">view</button>
+					<span ng-show="currentCommit().hash==c.hash">(current)</span>
+	 			</td> -->
+	 			</tr>
+	 		</table>
+	 		<div>
+	 			<div>Diff. with most recent saved version (git committed):</div>
+		 		<div ng-repeat="c in commits.selected.diff"  class="pos-center">
+			 		<pre>{% raw %}...
+{{c}}
+...
+{% endraw %}</pre>
+		 		</div>
+	 		</div>
+ 		</div>
+	</div>
+	<div>
+		<div>{% raw %}{{ popups.commits.errMsg }}{% endraw %}</div>
+		<button class="btn-sm btn-primary" ng-disable="commits.selected.hash == null || commits.selected.hash == commits.data[0].hash" 
+						ng-click="setEditorContentFromCommit(commits.selected.hash)">view</button>
 	</div>	
 </div>
 
