@@ -318,13 +318,20 @@ def get_noise_pdfs_content(directory, stations_df, delimiter=" ", quotechar='"')
                     index = int(chunks[4])
                 except:
                     index = None
+            try:
+                # double try-catch cause file names might be not upper-case
                 try:
                     sta_slice_or_int = ret_df.index.get_loc(staname)
-                    stamatch = True
-                    cha_index = col_locations[chaname]
-                    chamatch = True
                 except KeyError:
-                    pass
+                    sta_slice_or_int = ret_df.index.get_loc(staname.upper())
+                stamatch = True
+                try:
+                    cha_index = col_locations[chaname]
+                except KeyError:
+                    cha_index = col_locations[chaname.upper()]
+                chamatch = True
+            except KeyError:
+                pass
         else:
             print("noise pdfs fig. will not display file '%s' (cannot infer station and channel)" %
                   fl)
