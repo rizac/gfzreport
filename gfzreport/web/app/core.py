@@ -200,7 +200,12 @@ def gitcommit(app, reportdirname, user=None):
         gitauthor = None
 
     if gitauthor is None:
-        gitauthor = "anonymous user"
+        # if author is anonymous (e.g., we are compiling the html for which authorization is
+        # not needed) we want to provide an anonymous author otherwise git user whatever
+        # author is in the list. For server applications, this is misleading as the author
+        # shown from the list did not commit anything in fact. Provide an "anonymous user name.
+        # IMPORTANT: that git wants 'name <email>' format, 'name <>' seems to work
+        gitauthor = "anonymous user <>"
 
     gitinited = False
     k = subprocess.call(['git', 'status'], **args)
