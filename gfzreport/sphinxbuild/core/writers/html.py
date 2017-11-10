@@ -1,8 +1,7 @@
 '''
 Class extending sphinx.writers.html.SmartyPantsHTMLTranslator: it just parses
-the field name 'abstract' (if any) and writes it with capitalized section
-with title "Abstract" (capitalized): technically, it creates a
-centered div at the beginning of the document (if an abstract is set)
+the field name 'authors' (if any) removing all asterixs, whichare intended for 'corresponding
+author' in latex and will not be rendered here
 
 Created on Mar 18, 2016
 
@@ -17,21 +16,25 @@ from docutils import nodes
 
 
 class HTMLTranslator(whtml.SmartyPantsHTMLTranslator):
-    pass
-#     def visit_field(self, node):
-#         if node.children[0].rawsource.lower() not in DISPLAY_FIELDS:
-#             raise SkipNode()
-#         # apparently, we are working with old style classes. Thus this does not work:
-#         # super(HTMLTranslator, self).visit_field(node)
-#         # do this instead:
-#         whtml.SmartyPantsHTMLTranslator.visit_field(self, node)
 
-#     def depart_field(self, node):
-#         whtml.SmartyPantsHTMLTranslator.depart_field(self, node)
-# 
-#     def visit_field_name(self, node):
-#         whtml.SmartyPantsHTMLTranslator.visit_field_name(self, node)
-#     
+    def visit_field_body(self, node):
+        '''just replace all asterix in authors if present'''
+        if getattr(self, "_isauthor__", False):
+            try:
+                node.rawsource = node.rawsource.replace('*', '')
+                textnode = node.children[0].children[0]
+                textnode.parent.children[0] = nodes.Text(textnode.rawsource.replace('*', ''))
+            except Exception:
+                pass
+            del self._isauthor__
+        whtml.SmartyPantsHTMLTranslator.visit_field_body(self, node)
+
+    def visit_field_name(self, node):
+        '''just mark an internal attribute if we are processing authors'''
+        if node.rawsource.lower().strip() in ('author', 'authors'):
+            self._isauthor__ = True
+        whtml.SmartyPantsHTMLTranslator.visit_field_name(self, node)
+#
 #     def visit_field(self, node):
 #         if node.children[0].rawsource == "abstract":
 #             content = node.children[1].children

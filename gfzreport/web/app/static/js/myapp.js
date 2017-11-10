@@ -328,7 +328,10 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 	$scope.popups = {
 		'errDialog': new props({'title': 'Error', 'errMsg': ''}),
 		'commits': new props({'title': 'History (git commits)', 'loading': false,
-							  'data':{commits:[], selected: {'hash': null, 'diff': []}}}),
+							  'data':{commits:[], selected: {'commit': null, 'diff': []}},
+							  		  // navigation: newest, newer, older, oldest. null:
+							  		  // each element is an hash in [commits[0].hash, commits[1].hash,... ]
+							  		  'navigation': [null, null, null, null]}),
 		'logIn': new props({'title': 'Log in', 'focusElmId': 'login-email'}),
 		'addFig': new props({'label': '', 'keepOpen': false, 'title': 'Add figure', 'insertAtCursor': false}),
 		'logs': new props({'title': 'Build info (log-file)', 'loading': false, 'showFullLog': false})
@@ -369,8 +372,9 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 		var commits = $scope.popups.commits;
 		commits.loading = true;
 		commits.show();
-		commits.data.selected.hash = null;
+		commits.data.selected.commit = null;
 		commits.data.selected.diff = [];
+		commits.data.navigation = [null, null, null, null, null];
 		$http.post(
 			'get_commits',
 			JSON.stringify({}),
@@ -379,7 +383,7 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
     		function(response){ // success callback
     			commits.loading = false;
     			commits.data.commits = response.data || [];
-    			commits.data.selected.hash = $scope.commitHash; 
+    			$scope.setSelectedCommitInWindow($scope.commitHash);
     		},
     		function(response){ // failure callback
     			commits.errMsg = $scope.exc(response);
@@ -394,14 +398,49 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 		 * showCommits HAS BEEN CALLED BEFORE THIS FUNCTION
 		 */
 		var commits = $scope.popups.commits;
-		commits.data.selected.hash = hash;
+		commits.data.selected.commit = null;
+		commits.data.selected.diff = [];
+		commits.data.navigation = [null, null, null, null, null];
 		$http.post(
 			'get_git_diff', 
-	    	JSON.stringify({'commit1': $scope.commitHash, 'commit2': commits.data.selected.hash}),
+	    	JSON.stringify({'commit1': $scope.commitHash, 'commit2': hash}),
 	    	{headers: { 'Content-Type': 'application/json' }}
     	).then(
     		function(response){ // success callback
-    			commits.data.selected.diff = response.data;
+    			var diffidx = 1;
+    			// split diffs into a set of arrays for visualization
+    			// each array element is in turn a tuple:
+    			// first element "+", "-" or nothing, second element the diff line of text
+    			response.data.forEach(function callback(currentValue, index, array) {
+    				var lines = []
+    				currentValue.split("\n").forEach(function callback(currentValue, index, array) {
+    					var lineType = currentValue.substring(0, 1);
+    					var line = currentValue.substring(1).trim();
+    					if (!line){
+    						line = " "; //preserve div height ...
+    					}
+    					lines.push([lineType, line]);
+        			});
+    				commits.data.selected.diff.push(lines);
+    			});
+    			// setup newest, newer etecetra (navigation):
+    			var idx = -1;
+    			for (var i = 0; i < commits.data.commits.length; i++){
+    				if (commits.data.commits[i].hash == hash){
+    					commits.data.selected.commit = commits.data.commits[i];
+    					idx = i;
+    					break;
+    				}
+    			}
+    			if(idx > -1){
+    				var lastIndex = commits.data.commits.length - 1;
+    				commits.data.navigation[0] = idx > 0 ? commits.data.commits[0].hash : null;  // newest
+    				commits.data.navigation[1] = idx > 0 ? commits.data.commits[idx-1].hash : null;  // newer
+    				commits.data.navigation[2] = idx < lastIndex ? commits.data.commits[idx+1].hash : null;
+    				commits.data.navigation[3] = idx < lastIndex ? commits.data.commits[lastIndex].hash : null;
+    				commits.data.navigation[4] = idx + 1;
+    			}
+    			
     		},
     		function(response){ // failure callback
     			commits.errMsg = $scope.exc(response);

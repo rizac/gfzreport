@@ -58,7 +58,7 @@
 \lhead{} % no left header
 \rhead{} % no right header
 \chead{} % no center header
-\lfoot{\scriptsize \rstStrNum. GFZ German Research Centre for Geosciences. DOI: \rstDoi}
+\lfoot{\scriptsize\ifnotempty{\rstStrNum}{\rstStrNum.\ }GFZ German Research Centre for Geosciences. DOI: \rstDoi}
 \cfoot{} % no center foot
 \rfoot{\footnotesize \thepage} % print the page
 
@@ -118,7 +118,7 @@
 	% RECALL:
 	% 1st arg: the LEFT of the text box, 2nd argument the TOP of the textbox
 	%author:
-	\PlaceText{5.8cm}{9cm}{\large \par \@author \par}
+	\PlaceText{5.8cm}{9cm}{\large \@author \par}
 	% title+substitles
 	% in principle, when changing the font like {\LARGE ..} the baselineskip when issuing \\ or \newlines should
 	% still be the baseline skip of the normal text. To issue a baselineskip which is the same
@@ -126,12 +126,12 @@
 	% e.g.: {\LARGE \bfseries \color{gfzblue} \@title \\ \par}. The solution below seems to achive the same
 	% with \\[\baselineskip], but we should FIX: is then worth to adda \par at the end? For info google or see:
 	% https://texblog.org/2012/08/29/changing-the-font-size-in-latex/ 
-	\PlaceText{5.8cm}{13cm}{\LARGE \bfseries \color{gfzblue} \@title \\[\baselineskip]
-							\Large \bfseries \color{gfzblue} \rstSubtitle \\[\baselineskip]
-							\large \bfseries \color{gfzblue} \rstSubSubtitle \par}
+	\PlaceText{5.8cm}{13cm}{{\LARGE \bfseries \color{gfzblue} \@title \newline \par}
+							\ifnotempty{\rstSubtitle}{\Large \bfseries \color{gfzblue} \rstSubtitle \newline \par}
+							\ifnotempty{\rstSubSubtitle}{\large \bfseries \color{gfzblue} \rstSubSubtitle \newline \par}}
 	 %title footer:
-	\PlaceText{5.8cm}{22cm}{\Large \rstStrText \rstStrNum \\
-	  					   \normalsize \rstStrSeriesText \par}
+	\PlaceText{5.8cm}{22cm}{\ifnotempty{\rstStrText}{\Large \rstStrText\ \rstStrNum \newline \par}
+	  					    \ifnotempty{\rstSubSeriesText}{\normalsize \rstSubSeriesText \par}}
 	
 	% FIXME: what are these? (uncomment all but setcounter, which makes sense)
   	% \py@authoraddress \par
@@ -181,7 +181,7 @@
 				and electronically available at GFZ website \\
 				\href{http://www.gfz-potsdam.de}{{\color{black}{www.gfz-potsdam.de}}} \\
 				\\
-				\href{http://creativecommons.org/licenses/by-sa/4.0/}{\includegraphics{creativecommon_80x15.png}}
+				\href{http://creativecommons.org/licenses/by/4.0/}{\includegraphics{creativecommon_80x15.png}}
 			\end{tabular}
 		\end{flushright}
 	}
@@ -194,19 +194,19 @@
 	% 1st arg: the LEFT of the text box, 2nd argument the TOP of the textbox
 	% see notes in title+substitles above about \par at the end
 	%author:
-	\PlaceText{4cm}{6.5cm}{\large \par \@author \par}
+	\PlaceText{4cm}{6.5cm}{\large \rstAuthorsWithAffiliations \par}
 	 %title+substitles
-	\PlaceText{4cm}{10cm}{\LARGE \bfseries \@title \\[\baselineskip]
-						  \Large \bfseries \rstSubtitle \\[\baselineskip]
-						  \large \bfseries \rstSubSubtitle \par}
+	\PlaceText{4cm}{10cm}{{\LARGE \bfseries \@title \newline \par}
+						  \ifnotempty{\rstSubtitle}{\Large \bfseries \rstSubtitle \newline \par}
+						  \ifnotempty{\rstSubSubtitle}{\large \bfseries \rstSubSubtitle \newline \newline \par}
+						  \ifnotempty{\rstAffiliations}{\normalsize \mdseries \rstAffiliations\par}
+						  }
 	 %title footer:
-	\PlaceText{4cm}{23.5cm}{\Large \rstStrText \rstStrNum \\
-	  					   \normalsize \rstStrSeriesText \par}
+	\PlaceText{4cm}{23.5cm}{\ifnotempty{\rstStrText}{\Large \rstStrText\ \rstStrNum \newline \par}
+	  					    \ifnotempty{\rstSubSeriesText}{\normalsize \rstSubSeriesText \par}}
 
 	\thispagestyle{empty}
 	\clearpage
 	
 	\endgroup
 }
-
-

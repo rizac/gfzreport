@@ -200,41 +200,43 @@ the parent div is optional (you can remove the whole block)
 	</div>
 	<div>
 		<div ng-show="popups.commits.loading">Loading data, please wait...</div>
-		<div class="row-container">
-			<table ng-show="!popups.commits.loading" class="pos-left">
-			<tr ng-repeat="c in popups.commits.data.commits" ng-click="setSelectedCommitInWindow(c.hash)">
-				<td>
-				<pre ng-class="{'bg-success' : popups.commits.data.selected.hash==c.hash}">{% raw %}
-Date: {{ c.date }}
-Author: {{ c.author }} &lt;{{ c.email }}&gt;
-Commit: {{ c.hash }}
-Notes: {{ c.notes }}
+		<div class="commit-popup-divheader" style="display: flex; justify-content: space-between;">
+			<div>
+				{% raw %}
+					{{popups.commits.data.selected.commit.hash == commitHash ? 'Current version:' : 'Selected version:' }}
+					{{ " (" + popups.commits.data.navigation[4] + ' of ' + popups.commits.data.commits.length +")" }}
+				{% endraw %}
+			</div>
+			<div>
+				<button class="btn btn-sm btn-default" ng-disabled="!popups.commits.data.navigation[0]"
+					ng-click="setSelectedCommitInWindow(popups.commits.data.navigation[0])">&laquo; newest</button>
+				<button class="btn btn-sm btn-default" ng-disabled="!popups.commits.data.navigation[1]"
+					ng-click="setSelectedCommitInWindow(popups.commits.data.navigation[1])">&lsaquo; newer</button>
+				<button class="btn btn-sm btn-default" ng-disabled="!popups.commits.data.navigation[2]"
+					ng-click="setSelectedCommitInWindow(popups.commits.data.navigation[2])">&rsaquo; older</button>
+				<button class="btn btn-sm btn-default" ng-disabled="!popups.commits.data.navigation[3]"
+					ng-click="setSelectedCommitInWindow(popups.commits.data.navigation[3])">&raquo; oldest</button>
+			</div>
+		</div>
+		<pre ng-class="bg-success" ng-show='popups.commits.data.selected.commit'>{% raw %}
+Date: {{ popups.commits.data.selected.commit.date }}
+Author: {{ popups.commits.data.selected.commit.author }} &lt;{{ popups.commits.data.selected.commit.email }}&gt;
+Commit: {{ popups.commits.data.selected.commit.hash }}
+Notes: {{ popups.commits.data.selected.commit.notes }}
 {% endraw %}</pre>
-	<!-- {% raw %}message: {{ c.msg }} NOT USED (message is always the same for the moment, keep it commented to remind that
-	the field exists and can be used{% endraw %}-->
-				</td>
-				<!-- <td>
-					<button class="btn-sm btn-primary" ng-show="currentCommit().hash!=c.hash" 
-						ng-click="currentCommit(c.hash)">view</button>
-					<span ng-show="currentCommit().hash==c.hash">(current)</span>
-	 			</td> -->
-	 			</tr>
-	 		</table>
-	 		<div>
-	 			<div>Diff. with most recent saved version (git committed):</div>
-		 		<div ng-repeat="c in popups.commits.data.selected.diff"  class="pos-center">
-			 		<pre>{% raw %}...
-{{c}}
-...
-{% endraw %}</pre>
-		 		</div>
-	 		</div>
- 		</div>
+		<div class="commit-popup-divheader">
+		{% raw %}{{popups.commits.data.selected.commit.hash == commitHash ? '' :
+		(popups.commits.data.selected.diff.length ? 'Differences with current version:' : 'No differences with current version')
+		   }}{% endraw %}</div>
+		<div ng-repeat="lines in popups.commits.data.selected.diff" class="commit-chunk-diff commit-popup-divheader">
+			<div ng-repeat="type_line in lines" class="gitdiff-line"
+				ng-class="{'gitdiff-add' : type_line[0]=='+', 'gitdiff-rem' : type_line[0]=='-'}">{% raw %}{{type_line[1]}}{% endraw %}</div>
+		</div>
 	</div>
 	<div>
 		<div>{% raw %}{{ popups.commits.errMsg }}{% endraw %}</div>
-		<button class="btn btn-primary" ng-disabled="popups.commits.data.selected.hash == commitHash" 
-						ng-click="setEditorContentFromCommit(popups.commits.data.selected.hash)">Restore selected version</button>
+		<button class="btn btn-primary" ng-disabled="popups.commits.data.selected.commit.hash == commitHash" 
+						ng-click="setEditorContentFromCommit(popups.commits.data.selected.commit.hash)">Restore selected version</button>
 	</div>	
 </div>
 

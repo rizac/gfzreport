@@ -293,14 +293,38 @@ div.popup > div:nth-of-type(1) > div:nth-of-type(1){ /* title div (top panel) */
 div.popup > div:nth-of-type(1) > button{ /* close button (top panel) */
 	font-size: x-large;
 }
+
 /* other popup stuff (specific) */
 
-div#commits_popup td, div#commits_popup table{
-	border:0px;
+.gitdiff-add{
+	color: #5cb85c;
 }
 
-div#commits_popup td:not(:first-child){
-	padding-left: 1ex;
+.gitdiff-rem{
+	color: #d9534f;
+	text-decoration: line-through;
 }
 
+.gitdiff-line{
+	white-space: pre;
+	font-family: Menlo,Monaco,Consolas,"Courier New",monospace;  /* copied from bootstrap <pre> */
+}
 
+div.commit-popup-divheader{
+	margin-bottom:10px;	
+}
+
+div.commit-chunk-diff{
+    display: block;
+    padding: 9.5px;
+    margin: 0 0 10px;
+    font-size: 13px;
+    line-height: 1.42857143;
+    color: #333;
+    word-break: break-all;
+    word-wrap: break-word;
+    /* background-color: #f5f5f5; */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+	overflow: auto;
+}

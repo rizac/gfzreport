@@ -15,26 +15,10 @@ Created on Apr 4, 2016
 # from docutils.nodes import SkipNode
 from sphinx.writers.latex import LaTeXTranslator as LT  # , FOOTER, HEADER
 import re
-from gfzreport.sphinxbuild.core.writers.latexutils import get_citation
+from gfzreport.sphinxbuild.core.writers.latexutils import get_citation, parse_authors
 
 
 class LatexTranslator(LT):
-
-#     def __init__(self, document, builder):
-#         # Apparently, we are working with old-style classes, super does not work as expected, do
-#         # this instead:
-#         LT.__init__(self, document, builder)
-# 
-#         # Side note:
-#         # If we want to add custom stuff to our latex, add in the config.py under 'latex_elements'
-#         # the desired key, e.g., 'epilog', and then type here:
-#         # self.elements.update({'epilog': builder.config.latex_elements.get("epilog", "")})
-#         # then do something with that element key cause sphinx will ignore it (See e.g.
-#         # self.astext() where sphinx sets up the doc)
-#         self.field_list_start = []
-#         self.rst_bib_fields = {}
-#         # list of bib fields not to be included in latex \newcommand:
-#         self.no_newcommand = set(['abstract', 'author', 'authors'])
 
     def visit_field_list(self, node):
         # set a flag telling that we enter the field list: all operations
@@ -64,7 +48,11 @@ class LatexTranslator(LT):
         if field_name.lower() in ('author', 'authors', 'abstract', 'revision'):
             field_value = "".join(self.body[self._bodylen_remainder1:]).strip()
             if field_name in ("author", "authors"):
-                self.elements.update({'author': field_value})  # FIXME: raw text or field value??
+                auth, auth_affil, affil = parse_authors(field_value)
+                envdict = self.builder.app.env.metadata[self.builder.app.config.master_doc]
+                envdict['authorsWithAffiliations'] = auth_affil
+                envdict['affiliations'] = affil
+                self.elements.update({'author': auth})  # FIXME: raw text or field value??
             elif field_name == "revision":
                 self.elements.update({'release': field_value})
             elif field_name == "abstract":
@@ -79,42 +67,6 @@ class LatexTranslator(LT):
         if hasattr(self, "_abstract_text_reminder"):
             self.body.extend([r'\begin{abstract}', '\n',
                               self._abstract_text_reminder, '\n', r'\end{abstract}'])
-
-#     def visit_field_list(self, node):
-#         self.field_list_start = len(self.body)
-#         LT.visit_field_list(self, node)
-# 
-#     def depart_field_list(self, node):
-#         LT.depart_field_list(self, node)
-#         # remove all biblio fields, they are handled below
-#         self.body = self.body[:self.field_list_start]
-# 
-#         if hasattr(self, "abstract_text_reminder"):
-#             self.body.extend([r'\begin{abstract}', '\n',
-#                               self.abstract_text_reminder, '\n', r'\end{abstract}'])
-# 
-#     def depart_field_name(self, node):
-#         LT.depart_field_name(self, node)
-#         field_name = str(node.children[0])  # be consistent with depart field_body
-#         # (use the same method!)
-#         self.rst_bib_fields[field_name] = len(self.body)
-# 
-#     def depart_field_body(self, node):
-#         LT.depart_field_body(self, node)
-#         field_name = str(node.parent.children[0].children[0])
-#         start = self.rst_bib_fields[field_name]
-#         field_value = "".join(self.body[start:]).strip()
-#         self.rst_bib_fields[field_name] = field_value
-#         if field_name in ("author", "authors"):
-#             self.elements.update({'author': field_value})  # FIXME: raw text or field value??
-# 
-#         if field_name == "revision":
-#             self.elements.update({'release': field_value})
-#             # raise SkipNode()  # do not call the children node rendering, and do not call depart
-#             # node
-# 
-#         if field_name == "abstract":
-#             self.abstract_text_reminder = field_value
 
     def depart_table(self, node):
         """

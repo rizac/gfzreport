@@ -120,11 +120,27 @@ def get_sourcefile_content(app, reportdirname, commit_hash='HEAD', as_js=True):
 
 
 def get_reports(basedir):
+    '''returns all the report folders in `basedir`, sorted from most recent to
+    oldest (i.e., sorted descending according to their
+    modification time: max modification time of all files in the directory)'''
     ret = []
     for subdir in os.listdir(basedir):
-        if subdir[0] != "_" and os.path.isdir(os.path.join(basedir, subdir)):
-            ret.append('%s' % subdir)
-    return ret
+        if subdir[0] == "_":
+            continue
+        dirpath = os.path.join(basedir, subdir)
+        if not os.path.isdir(dirpath):
+            continue
+        mtime = None
+        for fle in (os.path.join(dirpath, _) for _ in os.listdir(dirpath)):
+            if os.path.isfile(fle):
+                mtime_ = os.stat(fle).st_mtime
+                if mtime is None or mtime_ < mtime:
+                    mtime = mtime_
+        if mtime is None:
+            continue
+        ret.append([subdir, mtime])
+    ret.sort(key=lambda obj: obj[1], reverse=True)
+    return [_[0] for _ in ret]
 
 
 def get_sourcedir(app, reportdirname):
@@ -332,8 +348,8 @@ def save_sourcefile(app, reportdirname, unicode_text, user):
         shutil.rmtree(srcdir)
     # return True if commits where saved, False if 'nothing to commit'
     needsRefresh = gitcommit(app, reportdirname, user)
-    return {'needs_refresh' : needsRefresh,
-            'commit_hash' : get_commits(app, reportdirname, -1)[0]['hash']}
+    return {'needs_refresh': needsRefresh,
+            'commit_hash': get_commits(app, reportdirname, -1)[0]['hash']}
 
 
 def get_commits(app, reportdirname, revision_range=None):
@@ -380,8 +396,9 @@ def get_git_diff(app, reportdirname, hash1, hash2):
     masterdoc = os.path.basename(get_sourcefile(app, reportdirname))
     args = gitkwargs(app, reportdirname)
     cmts = subprocess.check_output(["git", "diff", str(hash1), str(hash2), masterdoc], **args)
-    reg = re.compile("^\\@\\@\s+.+\s+\\@\\@\s+.*$", re.MULTILINE)
-    return reg.split(cmts)[1:]
+    reg = re.compile("^\\@\\@\\s+.+\\s+\\@\\@\\s*$", re.MULTILINE)
+    val = reg.split(cmts)[1:]
+    return [_.strip("\r\n") for _ in val]
 
 
 def secure_upload_filepath(app, reportdirname, upfile):

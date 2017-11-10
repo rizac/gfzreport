@@ -35,7 +35,7 @@
    - sub-sub-title (AUTHOR INPUT): self-explanatory. This this is the (optional) sub-sub-subtitle (below the subtitle)
    - strNum (LIBRARY INPUT): the Scientific Technical Report (STR) number
    - strText (LIBRARY INPUT): the STR text, displayed in the bottom of the title and 2nd page
-   - strSeriesText (LIBRARY INPUT): the STR series text, displayed under the STR text (in smaller font) 
+   - subSeriesText (LIBRARY INPUT): the sub-series text, displayed under the STR text (in smaller font) 
    - urn (LIBRARY INPUT): The urn, e.g.: urn:nbn:de:kobv:b103-xxxxx
      (side-note for developers: the sphinx builder might raise a
      warning if rst interprets it urn as URL. Please ignore the warning)
@@ -69,7 +69,7 @@
 
 :strText: Scientific Technical Report - Data
 
-:strSeriesText: GIPP Experiment and Data Archive
+:subSeriesText: GIPP Experiment and Data Archive
 
 :urn: urn:nbn:de:kobv:b103-xxxxx
 
@@ -111,10 +111,14 @@
      you need to input "\:abc\:def\:")
 
 
-.. authors (AUTHOR INPUT). Provide the authors as comma separated items. Affiliations should be
-   included here if needed, e.g. in round brackets after the author:
+.. authors (AUTHOR INPUT). Provide the author(s) as comma separated items. Affiliations should be
+   included here if needed in round brackets after each author. Affiliations shared by more
+   authors need to be re-typed. Authors followed by an asterix will be marked and displayed as
+   "corresponding author". The program will parse and correctly layout of all these informations in latex/pdf.
+   In html there is no such processing and the text below will be displayed
+   as it is, after removing all asterixs.
 
-:authors: Author1, author2, author3
+:authors: Author1* (Institute1), Author2 (Institute2), Author3 (Institute1)
 
 .. The abstract (AUTHOR INPUT):
 
