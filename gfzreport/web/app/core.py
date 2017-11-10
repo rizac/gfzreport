@@ -199,6 +199,9 @@ def gitcommit(app, reportdirname, user=None):
     except AttributeError:
         gitauthor = None
 
+    if gitauthor is None:
+        gitauthor = "anonymous user"
+
     gitinited = False
     k = subprocess.call(['git', 'status'], **args)
     if k == 128:
