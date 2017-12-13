@@ -42,8 +42,26 @@ Then:
 
    cd /var/www/html/gfz-reportgen
    git pull
-   
-As the package has been installed as editable all modifications will take place without the
+
+and :ref:`restartserver`
+
+
+Notes
+*****
+
+1. If you get a error: "insufficient permission for adding an object to repository..."
+after issuing the `git pull`, it might be that a git pull has been previosuly issued with root privileges
+(which might happen when restarting the server and forgotting to exit).
+In that case, issue a
+
+.. code-block:: bash
+   su
+   Password: [TYPE PASSWORD]
+   sudo chown -R sysop:sysop .
+   exit
+   git pull
+
+2. After issuing `git pull`, as the package has been installed as editable all modifications will take place without the
 need to re-install :ref:`gfzr`, unless something in `setup.py` has changed. In this case
 you need to re-install it:
 
@@ -51,7 +69,6 @@ you need to re-install it:
 
    pip install -e .
 
-and :ref:`restartserver`
 
 .. _restartserver:
 
@@ -202,10 +219,15 @@ which has also useful information on how the directory has been created.
 If there are users who need to edit the resport and do not have authorization, then
 :ref:`modifydbusers`, otherwise :ref:`restartserver`.
 
-Check that at http://st161dmz/gfzreport/network there is the button
-corresponding to the newly created report
+Please remember to **check visually** the result. Go at http://st161dmz/gfzreport/network and check that
+there is the button corresponding to the newly created report. Then click on that button and check
+the report template (e.g., all pdf figures are correctly in the grid, the station map is correctly displaying the
+stations, and so on)
 
-Note: the program accepts wildcards, but UNIX expands wildcards into the list of matching files
+Notes
+*****
+
+The program accepts wildcards, but UNIX expands wildcards into the list of matching files
 before calling our program, and that breaks the program functionality. Solution:
 Escape wildcards with backslash, or avoid wildcards at all
 
