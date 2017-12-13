@@ -80,14 +80,14 @@ For instance, an option was to remove all javascript and keeping only necessary 
 {%- block content %}
 	{%- block sidebartoc %}
             <div class='toc'>
-	            <a ng-show="view=='html'" class='toc-top' href="http://www.gfz-potsdam.de/startseite/" title="Zur Startseite" class="svg">
-					<img src="http://www.gfz-potsdam.de/fileadmin/templates/images/svg/GFZ_Logo_SVG_klein_de.svg">
+	            <a class='toc-top' href="http://www.gfz-potsdam.de/startseite/" style='display: flex; flex-direction: row; justify-content: flex-start;'>
+					<img style='max-height: 4em' src="http://www.gfz-potsdam.de/fileadmin/gfz/GFZ.svg">
 				</a>
 				<div class="toc-center">
 					{%- include "localtoc.html" %}
 				</div>
-				<div ng-show="view=='html'" class='toc-bottom'> 
-					<img src="http://www.gfz-potsdam.de/fileadmin/templates/images/svg/GFZ_Wortmarke_SVG_klein_de.svg">
+				<div class='toc-bottom' style='display: flex; flex-direction: row; justify-content: flex-end;'> 
+					<img style='max-height: 3em' src="http://www.gfz-potsdam.de/fileadmin/gfz/HelmholtzBrand.svg">
 				</div>
             </div>
     {%- endblock %}

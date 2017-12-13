@@ -4,18 +4,22 @@
 
 {%- block center %}
 {{ super() }}
-		<a class='logo-top-left' href="http://www.gfz-potsdam.de/startseite/" title="Zur Startseite" class="svg">
-			<img src="http://www.gfz-potsdam.de/fileadmin/templates/images/svg/GFZ_Logo_SVG_klein_de.svg">
+		<a class='logo-top-left' href="http://www.gfz-potsdam.de/startseite/">
+			<img style='width:9em' src="http://www.gfz-potsdam.de/fileadmin/gfz/GFZ.svg">
 		</a>
 		<div class='logo-bottom-right'> 
-			<img src="http://www.gfz-potsdam.de/fileadmin/templates/images/svg/GFZ_Wortmarke_SVG_klein_de.svg">
+			<img style='width:16em' src="http://www.gfz-potsdam.de/fileadmin/gfz/HelmholtzBrand.svg">
 		</div>
 
 		<div style='align-items:center;display: flex;flex-direction: column;justify-content: center; position:fixed; top:0;bottom:0;left:0;right:0'>
 			<h2>Reports</h2>
 			<div style='padding:15px; max-width:90vw; max-height:90vh; overflow:auto; background-color:transparent'>
 				{%- for rep in reports %}
-				<a class='btn btn-primary' style='margin-bottom:10px; display:block' href="{{rep}}">{{rep}}</a>
+				<a class='btn btn-primary' style='margin-bottom:10px; display:block' href="{{rep[0]}}">{{rep[0]}}
+				{%- if not rep[1] %}
+					<img style='float:right; height: 1.4em' src="/static/img/locked-white.png"/>
+				{%- endif %}
+				</a>
 				{% endfor %}
 			</div>
 		</div>

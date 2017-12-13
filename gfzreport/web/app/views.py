@@ -16,7 +16,7 @@ from flask_login.utils import login_user, logout_user
 from gfzreport.web.app.core import get_reports, build_report, get_sourcefile_content, \
     get_builddir, save_sourcefile, get_commits, secure_upload_filepath,\
     get_fig_directive, get_sourcedir, get_buildfile, get_logs_, lastbuildexitcode, nocache,\
-    get_git_diff
+    get_git_diff, is_editable, set_editable
 from gfzreport.web.app.models import User, session as dbsession
 
 
@@ -57,7 +57,7 @@ def handle_invalid_usage(error):
 def index():
     return render_template("home.html",
                            title=current_app.config['DATA_PATH'],
-                           reports=get_reports(current_app.config['SOURCE_PATH']))
+                           reports=get_reports(current_app))
 
 
 # FIXME: WITH THIS ROUTE /reportdirname is redirected here, AND ALSO
@@ -77,6 +77,7 @@ def get_report(reportdirname):
     return render_template("report.html",
                            title=reportdirname,
                            report_id=reportdirname,
+                           is_editable=is_editable(current_app, reportdirname),
                            pagetype="html")
 
 
@@ -410,3 +411,15 @@ def _logout(user_id):
             return True
         else:
             return False
+
+
+@mainpage.route("/<reportdirname>/set_editable", methods=["POST"])
+def set_editable_(reportdirname):
+    """View to process login form data and login user in case.
+    """
+    value = request.get_json()['editable']
+    ret = set_editable(current_app, reportdirname, value)
+    if not ret:
+        raise AppError("Unable to set the report as %s" %
+                       ("editable" if value else "non-editable"), 500)
+    return jsonify({})

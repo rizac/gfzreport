@@ -119,10 +119,16 @@ def get_sourcefile_content(app, reportdirname, commit_hash='HEAD', as_js=True):
             fpoint.close()
 
 
-def get_reports(basedir):
+def get_reports(app):
     '''returns all the report folders in `basedir`, sorted from most recent to
     oldest (i.e., sorted descending according to their
-    modification time: max modification time of all files in the directory)'''
+    modification time: max modification time of all files in the directory)
+
+    :return: a list of tuples (report_directory_name, is_editable) where the first item is
+    a string, the second one is a boolean telling if the report is editable
+
+    '''
+    basedir = get_sourceroot(app)
     ret = []
     for subdir in os.listdir(basedir):
         if subdir[0] == "_":
@@ -138,21 +144,52 @@ def get_reports(basedir):
                     mtime = mtime_
         if mtime is None:
             continue
-        ret.append([subdir, mtime])
-    ret.sort(key=lambda obj: obj[1], reverse=True)
-    return [_[0] for _ in ret]
+        ret.append([subdir, is_editable(app, subdir), mtime])
+    ret.sort(key=lambda obj: obj[-1], reverse=True)
+    return [_[:-1] for _ in ret]
+
+
+def _get_locked_file(app, reportdirname):
+    '''returns a file indicating that the current report is locked (not editable)'''
+    return get_sourcedir(app, reportdirname) + ".locked"
+
+
+def is_editable(app, reportdirname):
+    return not os.path.isfile(_get_locked_file(app, reportdirname))
+
+
+def set_editable(app, reportdirname, value):
+    iseditable = is_editable(app, reportdirname)
+    if value is iseditable:
+        return True
+    locked_file = _get_locked_file(app, reportdirname)
+    if value:
+        os.remove(locked_file)
+        return not os.path.isfile(locked_file)
+    else:
+        with open(_get_locked_file(app, reportdirname), 'w') as _:
+            pass
+        return os.path.isfile(locked_file)
+
+
+def get_sourceroot(app):
+    return app.config['SOURCE_PATH']
 
 
 def get_sourcedir(app, reportdirname):
-    return os.path.join(app.config['SOURCE_PATH'], reportdirname)
+    return os.path.join(get_sourceroot(app), reportdirname)
 
 
 def get_sourcefile(app, reportdirname):
     return os.path.join(get_sourcedir(app, reportdirname), master_doc(app, reportdirname) + ".rst")
 
 
+def get_buildroot(app):
+    return app.config['BUILD_PATH']
+
+
 def get_builddir(app, reportdirname, buildtype):
-    return os.path.join(app.config['BUILD_PATH'],
+    return os.path.join(get_buildroot(app),
                         reportdirname, 'latex' if buildtype == 'pdf' else buildtype)
 
 
@@ -167,7 +204,7 @@ def get_logfile(app, reportdirname, buildtype):
 
 
 def get_updloaddir(app, reportdirname, tmp=True, mkdir=True):
-    basedir = os.path.join(app.config['BUILD_PATH'], reportdirname) if tmp else \
+    basedir = os.path.join(get_buildroot(app), reportdirname) if tmp else \
         get_sourcedir(app, reportdirname)
     upload_dir = os.path.join(basedir, app.config['UPLOAD_DIR_BASENAME'])
     if not os.path.isdir(upload_dir) and mkdir:

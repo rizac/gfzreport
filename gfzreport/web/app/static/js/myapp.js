@@ -201,6 +201,32 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 		$scope.editorShowSettingsMenu = !$scope.editorShowSettingsMenu;
 	};
 	
+	$scope.isEditable = true; //note that if the project is not editable, this flag stays true
+	// but it will be useless as the button invoking the function below will be hidden and
+	// thus the function below will never be called. Note also that although we implemented
+	// a setEditable(value) function, the argument value can only be false currently
+	$scope.setEditable = function(value, promptConfirm){
+		if(!promptConfirm || 
+			confirm('Do you want to lock the report and make it non-editable by any user?')){
+			$http.post(
+    	    		'set_editable',
+    	    		JSON.stringify({editable: value}),
+    		    	{headers: { 'Content-Type': 'application/json' }}
+    	    	).then(
+    				function(response){ // success callback
+    					if (!value && $scope.editing){
+    						$scope.toggleEdit();
+    					}
+    					$scope.isEditable=value;
+    		    	},
+    		    	function(response){ // failure callback
+    		    		alert((response.data.message || 'A server error occurred') +
+    		    				'\n\nPlease retry later or contact the administrator');
+    				}
+    	    	);
+		}
+	};
+	
     $scope.save = function(){
     	/**
     	 * Saves the content of the editor on the server, which returns the new commits

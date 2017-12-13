@@ -46,15 +46,22 @@
 	  				{% raw %}{{ v + (view==v && needsRefresh[v] && !_init ? ' (Click to refresh)' : '') }}{% endraw %}
 	  			</a>
 	  		</li>
-	  		<li ng-show="!editing && isLoggedIn">
+	  		{%- if is_editable %}
+	  		<li ng-show="!editing && isLoggedIn && isEditable">
 	  			<a href ng-click="toggleEdit()">Edit source</a>
 	  		</li>
+			{%- endif %}
 		</ul>
 		
 		<div id='top-right-div'>
 			<button ng-click="showLogs()" ng-show="!loading && editing && isLoggedIn" id="logs" class='btn btn-xs'
 			ng-class="{'btn-success' : getCurrentViewExitcode()==0, 'btn-warning' : getCurrentViewExitcode()==1, 'btn-danger' : getCurrentViewExitcode()==2, 'btn-default' : getCurrentViewExitcode()==-1}">
 			Build info</button>
+			{%- if is_editable %}
+			<button ng-click="setEditable(false, true)" ng-show="!loading && isLoggedIn && isEditable" id="lock" class='btn btn-default'>
+				<img style='height:1em' src='../static/img/locked.png' />
+			</button>
+			{%- endif %}
 			<button ng-click="popups.logIn.show()" ng-show="!loading && !isLoggedIn" id="loginout" class='btn btn-default'>
 			Log in
 			</button>
