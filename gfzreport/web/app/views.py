@@ -128,6 +128,8 @@ def get_report_type(reportdirname, pagetype):
         abort(401)
 
     if pagetype == 'edit':
+        if not is_editable(current_app, reportdirname):
+            raise AppError("The report is not editable", 500)
         # force non cache. Note that get requests can be cached, whereas post requests are
         # never cached (unless we set the appropriate content headers). Thus, let's be sure
         # that we never cache "edit", "pdf" and "html" pages cause they are get requests
@@ -209,8 +211,8 @@ def save_report(reportdirname):
         result = save_sourcefile(current_app, reportdirname, unicode_text, current_user)
     except Exception as exc:
         # raises if gitcommit raises
-        appendix = ("This is an unexpected server error: we suggest you to select the editor "
-                    "text and copy it to keep your changes, log out and log in again. "
+        appendix = ("Hint: Try to copy the editor text, log-out and re-log in, paste "
+                    "the copied content and save. "
                     "If the problem persists, please contact the administrator")
         raise AppError("%s. %s" % (str(exc), appendix), 500)
 

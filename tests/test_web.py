@@ -198,9 +198,10 @@ class Test(unittest.TestCase):
     @patch('gfzreport.web.app.core._run', side_effect = _reportbuild_run_orig)
     def test_report_views(self, mock_reportbuild_run):
         with self.app.test_request_context():
+            # test main page and assert we have the button for the ZE 2012 report:
             app = self.app.test_client()
             res = app.get("/")
-            m = re.compile(r">ZE_2012</a>", re.DOTALL | re.MULTILINE).search(res.data)
+            m = re.compile(r">ZE_2012\s*</a>", re.DOTALL | re.MULTILINE).search(res.data)
             assert m
 
         with self.app.test_request_context():
@@ -579,8 +580,74 @@ class Test(unittest.TestCase):
             assert res.status_code == 200
             assert int(res1.data) == 0
             assert os.path.isfile(htmlfile)
-            
-
+    
+    @patch('gfzreport.web.app.core._run', side_effect = _reportbuild_run_orig)
+    def test_set_editable(self, mock_reportbuild_run):
+        
+        # test the page pdf. We are unauthorized, so this should give us error:
+        with self.app.test_request_context():
+            app = self.app.test_client()
+            # login:
+            # now try to login:
+            # with a registered email and good write permission
+            res = app.post("/ZE_2012/login", data={'email' :'user1_ok@example.com'})
+            assert res.status_code == 200
+            # thus, we DO access the pdf creation:
+            # test set_editable NOW
+            sourcedir = os.path.join(self.source, 'source')
+            # compile html
+            res = app.get("/ZE_2012/", follow_redirects=True)
+            # status code is still 200, as we redirect to the error page
+            assert res.status_code == 200
+            # assert we have the edit button in the html file
+            assert """<a href ng-click="toggleEdit()">Edit source</a>""" in res.data
+            assert """<button ng-click="setEditable(false, true)""" in res.data
+            res = app.get("/ZE_2012/edit", follow_redirects=True)
+            assert res.status_code == 200
+            res1 = app.post("/ZE_2012/save",
+                            data=json.dumps({'source_text': 'some text'}),
+                            content_type='application/json')
+            assert res1.status_code == 200
+            content = open(os.path.join(sourcedir, 'ZE_2012', 'report.rst')).read()
+            assert content == 'some text'
+            res1 = app.post("/ZE_2012/set_editable",
+                            data=json.dumps({'editable': True}),
+                            content_type='application/json')
+            assert not os.path.isfile(os.path.join(sourcedir, 'ZE_2012.locked'))
+            # test editable false:
+            res1 = app.post("/ZE_2012/set_editable",
+                            data=json.dumps({'editable': False}),
+                            content_type='application/json')
+            assert os.path.isfile(os.path.join(sourcedir, 'ZE_2012.locked'))
+            # test again we removed the file:
+            res1 = app.post("/ZE_2012/set_editable",
+                            data=json.dumps({'editable': True}),
+                            content_type='application/json')
+            assert not os.path.isfile(os.path.join(sourcedir, 'ZE_2012.locked'))
+            # and make it non editable again
+            res1 = app.post("/ZE_2012/set_editable",
+                            data=json.dumps({'editable': False}),
+                            content_type='application/json')
+            # now test the html and see what happens:
+            res = app.get("/ZE_2012", follow_redirects=True)
+            # status code is still 200, as we redirect to the error page
+            assert res.status_code == 200
+            # assert we do NOT have the edit button in the html file
+            assert """<a href ng-click="toggleEdit()">Edit source</a>""" not in res.data
+            assert """<button ng-click="setEditable(false, true)""" not in res.data
+            res = app.get("/ZE_2012/edit", follow_redirects=True)
+            assert res.status_code == 500
+            res1 = app.post("/ZE_2012/save",
+                            data=json.dumps({'source_text': 'some OTHER text'}),
+                            content_type='application/json')
+            assert res1.status_code == 500
+            content = open(os.path.join(sourcedir, 'ZE_2012', 'report.rst')).read()
+            assert content == 'some text'  # content has NOT been modified
+            # # test main page and assert we have the button for the ZE 2012 report WITH the locked icon:
+            app = self.app.test_client()
+            res = app.get("/")
+            m = re.compile(r">ZE_2012\s*<img ", re.DOTALL | re.MULTILINE).search(res.data)
+            assert m
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

@@ -376,7 +376,9 @@ def save_sourcefile(app, reportdirname, unicode_text, user):
     This is not checked here
     :return: True if git commit was issued, False if nothing to commit
     """
-    # raise ValueError('Intentional error!')
+    if not is_editable(app, reportdirname):
+        raise ValueError('The report is not editable')
+
     filepath = get_sourcefile(app, reportdirname)
 
     with open(filepath, 'w') as fopen:

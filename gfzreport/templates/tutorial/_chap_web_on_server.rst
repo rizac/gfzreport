@@ -151,11 +151,11 @@ All Apache configuration files are located at:
 Create a new report template (network report)
 ---------------------------------------------
 
-This is the same operation described in :ref:`createnewtemplate`, but specific the (semi-automatic)
-creation of web-editable Gfz network reports.
+This is the same operation described in :ref:`createnewtemplate`, but specific for the currently
+installed Gfz network reports application.
 
 We assume that a network name (e.g., 'ZE') and a network start year are given (e.g., 2012).
-Ask the GEOFON responsible (currently Susanne) to produce the noise pdfs
+Ask the GEOFON responsible (currently Susanne) to produce the noise pdf(s)
 and the instrument uptimes figure for you (this procedure could be in the future automatized and
 implemented in :ref:`gfzt`)
 Pdfs should have the format:
@@ -164,11 +164,11 @@ Pdfs should have the format:
 
 or, for stations with the same name:
 
-[station]-[channel]-1.png, [station]-[channel]-1.png
+[station]-[channel]-1.png, [station]-[channel]-2.png
 
-(the number indicates the station start time, in increasing order).
+(the number should match the station start time, e.g. between "AW-HHZ-1" and "AW-HHZ-5", the latter is more recent).
 
-Actually, "-" needs to be a sequence of one or more non-alphanumeric characters.
+Actually, "-" can be any sequence of one or more non-alphanumeric characters (using "-" is maybe better to remember).
 
 The instrument uptime figure can have any name.
 
@@ -187,16 +187,17 @@ So for instance assuming the following data directories:
    /home/sysop/tmp_ZE/uptime.png  [file of the instrument uptime]
    
 
-You MUST :ref:`activatevirtualenv` and proceed as in :ref:`createnewtemplate` but with the
--o option pointing to the 'source' directory of the network :ref:`webappdatapath`,
-:ref:`serverrootpath`/network/source:
+You MUST :ref:`activatevirtualenv` and proceed as in :ref:`createnewtemplate`. Note that
+the -o option points to the parent folder of the directory which is up to be created. E.g.:
 
 .. code-block:: bash
    
    gfzreport template n -n ZE -s 2012 -p /home/sysop/tmp_ZE/pdfs -i /home/sysop/tmp_ZE/uptime.png \
       -o /data2/gfzreport/network/source
 
-This creates the directory :ref:`serverrootpath`/network/source/ZE_2012
+creates the directory /data2/gfzreport/network/source/ZE_2012. Therein, a file named
+`gfzreport.template.log` will be also written: the file captures the standard output of the command,
+which has also useful information on how the directory has been created. 
 
 If there are users who need to edit the resport and do not have authorization, then
 :ref:`modifydbusers`, otherwise :ref:`restartserver`.
@@ -204,10 +205,9 @@ If there are users who need to edit the resport and do not have authorization, t
 Check that at http://st161dmz/gfzreport/network there is the button
 corresponding to the newly created report
 
-
-Notes: DO NOT USE WILDCARDS IN UNIX IT EXPANDS , OR escape them IN UNIX
-SOLVE PROBLEM ‘’UserWarning: Matplotlib is building the font cache using fc-list. This may take a moment.”:
-TODO: output template creation written to vim /data2/gfzreport/network/source/_template_gen_outputs.txt
+Note: the program accepts wildcards, but UNIX expands wildcards into the list of matching files
+before calling our program, and that breaks the program functionality. Solution:
+Escape wildcards with backslash, or avoid wildcards at all
 
 .. _modifydbusers:
 
@@ -266,6 +266,33 @@ If you executed the above operations as root, remember to:
    
    cd /data2/gfzreport/annual/source
    chown -R sysop:sysop 2016_TEST
+
+
+Toggle report editability
+-------------------------
+
+From within the gui, a report can be "locked", i.e. the report cannot be edited anymore. This
+function has no particular consequence or security requirement, it is simply a feature requested
+from the library. As such, we made a very simple implementation: for any report directory,
+if a file with the same name and the suffix ".locked" exists, the report will be non-editable from within
+the GUI. For instance, ZE_2012 is non -editable:
+
+* |DIR| source 
+
+   - |DIR| ZE_2012
+   
+   - |FILE| ZE_2012.locked
+   
+   - |DIR| IQ_2009
+   
+   - |DIR| ...
+
+(see :ref:`serverrootpath` for details).
+
+This makes relatively easy to un-lock a report after has been set non-editable (simply remove the relative .locked file),
+as I suspect this
+feature might be more dangerous than useful 
+
 
 Install the web application on Apache
 -------------------------------------
