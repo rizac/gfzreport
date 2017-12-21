@@ -309,8 +309,14 @@ References
    and limitations. Csv-tables have the advantage to be easily editable here.
 
 .. first of all, we show the "raw" directive, which might comes handy to put
-   html or latex specific commands: in this case we decrease the size of the table
-   to avoid page horizontal overflow. Remove the directive or change '\scriptsize' if you need it.
+   html or latex specific commands: in this case we clear the page to start figures and tables on a new page
+   
+.. raw:: latex
+
+   \clearpage
+
+.. Then, we decrease the size of the table to avoid page horizontal overflow.
+   Remove the directive or change '\scriptsize' if you need it.
    
 .. raw:: latex
 
