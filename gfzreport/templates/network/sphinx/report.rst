@@ -250,18 +250,19 @@ Acknowledgments
 .. (AUTHOR INPUT) 
 
 
-References
-==========
-
-.. Example: [RYBERG14] Trond Ryberg. Cube timing errors introduced by long periods without gps
-   reception, 2014. URL http://www.gfz-potsdam.de/fileadmin/gfz/sec22/pdf_doc/GIPP/cube/Cube_timing_errors_no_gps.pdf .
-
-
-.. end of the document content. Below figures and tables added by means of rst directives
-
 .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. DIRECTIVES:
 .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. Below are figures and tables added by means of rst directives.
+   First of all, we show the "raw" directive, which might comes handy to put
+   html or latex specific commands: in this case we clear the page to start figures and tables on a
+   new page
+   
+.. raw:: latex
+
+   \clearpage
+
 
 .. Rst "directives" are explicit markup blocks for generating special document objects, like
    figures and tables. They are in the form ".. directivetype::" and includes all subsequent
@@ -308,12 +309,6 @@ References
    There are several ways to display tables in RsT. Curiously, none of them is free from drawbacks
    and limitations. Csv-tables have the advantage to be easily editable here.
 
-.. first of all, we show the "raw" directive, which might comes handy to put
-   html or latex specific commands: in this case we clear the page to start figures and tables on a new page
-   
-.. raw:: latex
-
-   \clearpage
 
 .. Then, we decrease the size of the table to avoid page horizontal overflow.
    Remove the directive or change '\scriptsize' if you need it.
@@ -408,10 +403,10 @@ References
    looks like a figure spanning over several pages (if needed) BUT it might need some arrangment
    as the figure caption might be placed on a different page. Being a table and a figure, all
    figure + table options, as well as all figure + table latex pre-customization (e.g.
-   'tabularcolumns', 'includegraphics') apply also to a 'gridfigure'
-
-.. first issue a raw latex command (You can remove the lines if the layout does not need a clear
-   page):
+   'tabularcolumns', 'includegraphics') apply also to a 'gridfigure'.
+   Given that, first issue a raw latex command to be safer that pending floats (if any)
+   are rendered NOW. This makes the 'gridfigure' caption more likely to be placed after the
+   longtable 
 
 .. raw:: latex
 
@@ -627,6 +622,10 @@ References
     .. Citations are identical to footnotes except that their labels
        must be case-insensitive single words of alphanumerics plus internal hyphens,
        underscores, and periods. No whitespace, no numeric only. E.g., CIT2002:
+      
+    .. NOTE: Citations are automatically placed in latex in a "References" section at the
+       end of the document, regardless of where they are input. Conversely, in HTML they are
+       rendered where they are input
     
     .. [CIT2002] Deep India meets deep Asia: Lithospheric indentation, delamination and break-off
        under Pamir and Hindu Kush (Central Asia). http://doi.org/10.1016/j.epsl.2015.11.046

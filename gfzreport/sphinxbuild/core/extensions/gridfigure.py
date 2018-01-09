@@ -61,6 +61,7 @@ from docutils.nodes import Element
 from docutils.parsers.rst import directives
 from gfzreport.sphinxbuild.core.extensions.csvfigure import CsvFigureDirective
 from docutils.nodes import image as img_node
+import re
 
 _DIRECTIVE_NAME = 'gridfigure'
 
@@ -150,21 +151,67 @@ def visit_imggrid_node_latex(self, node):
                             table = self.body[j: i+1]
                             # set the remaining figure:
                             fig_end = self.body[i+1:]
-                            # replace the longtable header line where we write references to the
-                            # current table number. The reference is to the NEXT figure number
-                            # (use \thefigure providing \addtocounter later)
+                            # Inspect the 'table' list, which is the latex table we use. It might
+                            # be a longtable. In case, sphinx uses the longtable \endfirsthead,
+                            # \endhead etc... commands which issue strings when the longtable
+                            # overflows the page.
+                            # By default, tables have the caption BEFORE the table, whilst
+                            # figures not. Thus longtables have a header in the form of:
+                            # "Table 3 -- continued from previous page"
+                            # and a footer in the form of
+                            # "Continued on next page"
+                            # As said, headers and footer strings appear if the longtable overflows 
+                            # Now, as this is a figure-like directive, we put the
+                            # caption at the bottom, and consequently we want to have headers
+                            # of the form:
+                            # "Continued from previous page"
+                            # and footers of the form:
+                            # "Table 3 -- continued on next page"
+                            # Final Note: if these headers are present, i.e. the variable 'table'
+                            # hosts a latex longtable, then we need to set the
+                            # figure counter forward in the table, so that \thefigure{} points
+                            # to the next latex figure, which is in fact an empty figure
+                            # used for the caption (use latex \addtocounter)
+                            reset_counter_fig = 0  # when non-zero, 'table' hosts a latex longtable
+                            # when 2, we can break the loop below (nothing more to be replaced)
+                            
+                            # define longtable header and footer (search and replace strings):
+                            # note that we search for tablecontinued and NOT \tablecontinued
+                            # to be compliant with future versions where \sphinxtablecontinued
+                            # might be used
+                            
+                            # lt_header replaces e.g.
+                            # "Table 1 -- continued from previous page" with
+                            # "Continued from previous page" (no fig number in the header):
+                            # Note that this will NOT appear on the FIRST header of the longtable
+                            lt_header = [r'tablecontinued{\tablename\ \thetable{} -- continued '
+                                         r'from previous page}',
+                                         r'tablecontinued{Continued from previous page}']
+                            # lt_footer replaces e.g. "Continued on next page" with
+                            # "Fig. 7 -- continued on next page" (fig num. in the footer):
+                            # Note that this will NOT appear on the LAST footer of the longtable
+                            lt_footer = [r'tablecontinued{Continued on next page}',
+                                         r'tablecontinued{\figurename\ \thefigure{} -- '
+                                         r'continued on next page}']
+
                             for x in xrange(len(table)):
-                                if table[x].strip().startswith(r'{{\tablecontinued{\tablename\ '
-                                                               r'\thetable{} '):
-                                    table[x] = table[x].replace(r'\tablename\ \thetable{}',
-                                                                r'\figurename\ \thefigure{}')
-                                    # we added \thefigure{} (Why curly brakets?
-                                    # why sphinx does that and we don't have time to investigate)
-                                    # but \thefigure needs to point to our NEXT figure. So
-                                    # add counter:
-                                    table = ["\n\n\\addtocounter{figure}{1}\n\n"] + table + \
-                                        ["\n\n\\addtocounter{figure}{-1}\n\n"]
+                                if lt_header[0] in table[x]:
+                                    table[x] = table[x].replace(lt_header[0], lt_header[1])
+                                    reset_counter_fig += 1
+
+                                elif lt_footer[0] in table[x]:
+                                    table[x] = table[x].replace(lt_footer[0], lt_footer[1])
+                                    reset_counter_fig += 1
+                                        
+                                if reset_counter_fig == 2:
                                     break
+
+                            if reset_counter_fig:
+                                # hack reset figure counter so that the command \thefigure points
+                                # to the correct number:
+                                table = ["\n\n\\addtocounter{figure}{1}\n\n"] + table + \
+                                        ["\n\n\\addtocounter{figure}{-1}\n\n"]
+
                             # move the figure up of a \textfloatsep length, so to give the
                             # impression it's the caption
                             self.body = self.body[:k] + table + \
