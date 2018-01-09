@@ -127,14 +127,6 @@ div.body h1{
 
 /* my stuff */
 
-table.docutils td, table.docutils th {   /*tables with just vert lines are nicer*/
-    padding: 1px 8px 1px 5px;
-    border-top: 0;
-    border-left: 0;
-    border-right: 0;
-    border-bottom: 1px solid #ccc;
-}
-
 div.documentwrapper{
 	background-color: rgba(255,255,255,.5);
 	/* box-shadow: 0px 0px 14px #ccc; */  /*this was nice but in a single page (no double page
@@ -147,6 +139,7 @@ div.documentwrapper{
     	padding: 0 30px 0 30px; /*preserve alabaster default*/
 	}
 }
+
 div.body{
 	background-color: transparent !important; /*override alabaster*/
 }
@@ -164,19 +157,60 @@ body {
     background-attachment: fixed;
 }
 
-/* control overflow in width of tables:
+/* control overflow in width of tables: First, we might add display:block
 https://stackoverflow.com/questions/5533636/add-horizontal-scrollbar-to-html-table
+But this messes up the row lines, that do not span the whole width
+A better solution is to add table-layout:fixed; and width: 100%;
+BUT NOTE THAT WE NEED TO RESTORE SPECIFIC TABLES (see below)
 */
 table.docutils {
-    display: block;
-    overflow: auto;
-    /* and remove all borders and shadows (maps still have shadows, that's nice): */
-    border: 0px;
-    -moz-box-shadow: none;
-    -webkit-box-shadow: none;
-    box-shadow: none;
+    table-layout:fixed;
+    width: 100%;
+    /* add margins top and bottom. Cusiously, in chrome, when a p and a table are next, only
+    one of the two vertical margins applies*/ 
+    margin-top: 1em;
+    margin-bottom: 1em;
 }
 
+/* caption in tables is inside a <caption> tag, placed at the top. Increase margin bottom
+(margin -top is already set on the table)*/
+table.docutils caption {
+    margin-bottom: 1em;
+}
+
+/* layout for specific tables is restored */
+table.field-list, table.footnote, table.citation{
+	table-layout: initial !important;
+	width: initial !important;
+	border: initial !important;
+    -moz-box-shadow:  initial !important;
+    -webkit-box-shadow:  initial !important;
+    box-shadow: initial !important;
+}
+/* now that we have table layout fixed, we need not to make cells overflow*/
+table.docutils td, table.docutils th {
+	overflow:hidden;
+    text-overflow: ellipsis;
+}
+/* and again, cells overflow for specific tables is restored */
+table.field-list td, table.footnote td, table.citation td,
+table.field-list th, table.footnote th, table.citation th{
+	overflow: initial !important;
+	text-overflow: initial !important;
+}
+/* Table borders and colors */
+/* NOTE: when modify these values, look at div.leaflet-container below for consistency! */
+/* Fix a bug in alabaster: (Leave border and box shadow commented and uncomment if u want to change it)*/
+table.docutils {
+    border: 1px solid #AAA; /* in alabaster is #888, make it consistent with the table #AAA */
+    -moz-box-shadow: 2px 2px 4px #DDD; /* in alabaster.css is #EEE (BUG!) */
+    -webkit-box-shadow: 2px 2px 4px #DDD; /* in alabaster.css is #EEE (BUG!) */
+    box-shadow: 2px 2px 4px #DDD;
+}
+table.docutils td, table.docutils th {
+    border: 1px solid #AAA; /* in alabaster is #888, make it consistent with the table #AAA */
+    padding: 0.25em 0.35em; /* horiz-padding from 0.7em to 0.35 */
+}
 
 /* our map */
 div.map{
@@ -184,10 +218,10 @@ div.map{
 }
 
 div.leaflet-container {
-    border: 1px solid #888;
-    -moz-box-shadow: 2px 2px 4px #eee;
-    -webkit-box-shadow: 2px 2px 4px #eee;
-    box-shadow: 2px 2px 4px #eee;
+    border: 1px solid #AAA;
+    -moz-box-shadow: 2px 2px 4px #DDD;
+    -webkit-box-shadow: 2px 2px 4px #DDD;
+    box-shadow: 2px 2px 4px #DDD;
 }
 
 p{
@@ -196,11 +230,11 @@ p{
 
 /* our directives */
 
-table.source_imggrid_directive, table.source_imggrid_directive td{
+table.gridfigure th, table.gridfigure td{
 	border: 0px !important;
-	box-shadow: none !important;
 }
-
-
+table.gridfigure th {
+    border-bottom: 1px solid #AAA !important; 
+}
 
 

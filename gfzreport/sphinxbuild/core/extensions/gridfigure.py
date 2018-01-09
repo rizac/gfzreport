@@ -85,6 +85,8 @@ class ImgsGridDirective(CsvFigureDirective):
         table_atts = nodez[0].children[0].attributes
         if 'longtable' not in table_atts['classes']:
             table_atts['classes'].append('longtable')
+        if 'gridfigure' not in table_atts['classes']:
+            table_atts['classes'].append('gridfigure')
 
         base_dir = self.options['dir']
 
