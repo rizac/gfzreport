@@ -7,9 +7,9 @@
    This portion of text (".. " followed by INDENTED text) is a comment block and will not
    be rendered. The comment block ends at the first non-indented line found
 
-.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. FIELD LIST (LATEX METADATA)
-.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. FIELD LIST (BEFORE THE TITLE)
+.. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  
 .. Field lists are two-column table-like structures resembling database records
    in the form :name: value (note the space before value). E.g.:
@@ -17,14 +17,12 @@
    :Date: 2001-08-16
    :Version: 1
    
-   Fields in a Field list placed before the title:
-   - Will never be rendered in any document
-   - Can not have comments before or after (Sphinx bug?)
-   - Must have values in plain text only, as markup in there will not be
-     recognized (However, in this program newlines will be rendered)
-   - Have to be considered as document metadata: their value will be placed in specific portions
-     of the latex layout
-   
+   Fields in a Field list placed before the title, as the ones listed below, act as sort of document
+   metadata, as they will never be rendered in any document. 
+   We exploit this by using these field list to render specific portions of the latex document only.
+   (Note that they can NOT have comments before or after - Sphinx bug? -
+   and must have values in plain text only, as markup in there will not be
+   recognized. However, in this program newlines will be rendered).
    Here below a description of these fields:
 
    - doi (LIBRARY OR AUTHOR OR GIPP/GEOFON INPUT): the DOI of this report
@@ -32,7 +30,7 @@
    - doiSupplementaryDataset (LIBRARY INPUT): the DOI of the report supplementary data, if any
    - subtitle (AUTHOR INPUT): self-explanatory. Filled automatically by default with the network description.
      Note: you should not specify newlines in it (same for subSubtitle below)
-   - sub-sub-title (AUTHOR INPUT): self-explanatory. This this is the (optional) sub-sub-subtitle (below the subtitle)
+   - sub-sub-title (AUTHOR INPUT): self-explanatory. This is the (optional) sub-sub-subtitle (below the subtitle)
    - strNum (LIBRARY INPUT): the Scientific Technical Report (STR) number
    - strText (LIBRARY INPUT): the STR text, displayed in the bottom of the title and 2nd page
    - subSeriesText (LIBRARY INPUT): the sub-series text, displayed under the STR text (in smaller font) 
@@ -109,12 +107,14 @@
    - Can have values in rst syntax, as markup in there will be recognized. Thus remember to escape
      special characters with a backslash, if needed (e.g. to render ":abc:def:" as it is
      you need to input "\:abc\:def\:")
+   Here below a description of these fields:
 
 
 .. authors (AUTHOR INPUT). Provide the author(s) as comma separated items. Affiliations should be
    included here if needed in round brackets after each author. Affiliations shared by more
-   authors need to be re-typed. Authors followed by an asterix will be marked and displayed as
-   "corresponding author". The program will parse and correctly layout of all these informations in latex/pdf.
+   authors need to be re-typed. "corresponding author(s)" should be followed by an asterix.
+   The program will parse and correctly layout of all these informations in latex/pdf (e.g., 
+   avoiding repeated affiliations, and rendering "corresponding author" if an asterix is found).
    In html there is no such processing and the text below will be displayed
    as it is, after removing all asterixs.
 
@@ -255,8 +255,8 @@ Acknowledgments
 .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. Below are figures and tables added by means of rst directives.
-   First of all, we show the "raw" directive, which might comes handy to put
-   html or latex specific commands: in this case we clear the page to start figures and tables on a
+   Before going into details, as an example we show the "raw" directive, which might comes handy to
+   put latex specific commands: in this case we clear the page to start figures and tables on a
    new page
    
 .. raw:: latex
@@ -497,11 +497,11 @@ Acknowledgments
 ..  RST syntax help
     ===============
     
-    (delete this section when no longer needed / after completion of editing)
+    (you can delete this section when no longer needed / after completion of editing)
     
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    .. TEXT FORMATTING:
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    TEXT FORMATTING:
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     
     This is an example of "normal" body text. It's not in a comment block.
     Remeber that indentation is a special RsT command and that newlines are actually not rendered
@@ -510,74 +510,72 @@ Acknowledgments
     But you can type a new paragraph by adding an empty line above it (like in
     this case)
     
-    .. italic can be rendered by wrapping text within two asterix, bold by wrapping
-       text within two couples of asterix:
+    Italic can be rendered by wrapping text within two asterix, bold by wrapping
+    text within two couples of asterix:
        
     *This is rendered in italic*, **this is rendered in bold**
     
     
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    .. HYPERLINKS:
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    HYPERLINKS:
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     
-    .. Hyperlink (inline): simply type them: Urls are automatically recognized and linked:
+    Hyperlink (inline): simply type them: Urls are automatically recognized and linked:
     
-    Hyperlink (inline): http://www.python.org/
+    http://www.python.org/
     
-    .. Hyperlink with substitution text: point to the same url as above but render 'Python' as text:
+    Hyperlink with substitution text: point to the same url as above but render 'Python' as text:
     
-    Hyperlink with subsitution text: `Python <http://www.python.org/>`_
+    `Python <http://www.python.org/>`_
     
-    .. Hyperlink with substitution text, if it has to be referenced more than once.
-       Define the hyperlink as follows (note that the line below is NOT rendered but is NOT
-       a comment):
+    Hyperlink with substitution text, if it has to be referenced more than once.
+    Define the hyperlink as follows (note that the line below is NOT rendered but is NOT
+    a comment):
        
     .. _Wikipedia: https://www.wikipedia.org/
     
-    Hyperlinks with subsitution text referenced more than once: Wikipedia_, and again, Wikipedia_ 
+    And then reference them like this: Wikipedia_, and again, Wikipedia_ 
     
     
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    .. TEXT SUBSTITUTIONS:
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    TEXT SUBSTITUTIONS:
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     
-    .. When the a text is repeated many times throughout one or more documents,
-       especially if it may need to change later
-       (note that the line below is NOT rendered but is NOT a comment):
+    When the a text is repeated many times throughout one or more documents,
+    especially if it may need to change later, define a text substitution like this
+    (note that the line below is NOT rendered but is NOT a comment):
     
     .. |RsT| replace:: ReStructuredText
     
-    Text substitution: |RsT|
+    Then, to see "ReStructuredText", type: |RsT|
     
-    .. Note that by placing a backslash before a character, you render that character
-       literally. E.g., concerning the text substitution just descirbed:
+    Note that by placing a backslash before a character, you render that character
+    literally. To see "|RsT|", type "\|RsT\|", e.g.:
     
     |RsT| was obtained by typing \|RsT\|
     
     
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    .. MATH FORMULAE:
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    MATH FORMULAE:
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     
-    .. Inline math formulae, use :math:`...` or latext dollar sign with latex syntax inside
-       (the latter is not standard rst, but is implemented in this report):
+    Inline math formulae, use :math:`...` or latext dollar sign with latex syntax inside
+    (the latter is not standard rst, but is implemented in this report):
     
     Here an inline math expression: :math:`(\alpha > \beta)` = $(\alpha > \beta)$
     
-    .. More complex math formulae, use ..math:: then new empty line and INDENTED text:
-    
-    Here a more complex math expression:
+    More complex math formulae, use ..math:: then new empty line and INDENTED text, e.g.:
     
     .. math::
     
        n_{\mathrm{offset}} = \sum_{k=0}^{N-1} s_k n_k
     
     
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    .. FOOTNOTES:
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    FOOTNOTES:
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     
-    .. Footnotes with manual numbering:
+    Footnotes with manual numbering:
     
     .. [1] First footnote
     
@@ -586,7 +584,7 @@ Acknowledgments
     
     Here a ref to the first footnote [1]_ and here to the second [2]_.
     
-    .. Footnotes with auto numbering (newlines must be INDENTED of at least three spaces):
+    Footnotes with auto numbering (newlines must be INDENTED of at least three spaces):
     
     .. [#] First footnote (autonumbered)
     
@@ -595,7 +593,7 @@ Acknowledgments
     
     Here a ref to the first footnote [#]_ and here to the second [#]_.
     
-    .. Footnotes with auto numbering, referenced more than once (newlines must be INDENTED of at
+    Footnotes with auto numbering, referenced more than once (newlines must be INDENTED of at
        least three spaces):
     
     .. [#firstnote] First footnote (autonumbered, referenced more than once)
@@ -605,7 +603,7 @@ Acknowledgments
     
     Here a ref to the first footnote [#firstnote]_, again [#firstnote]_ and here to the second [#secondnote]_.
     
-    .. Footnotes with auto symbols. DEPRECATED: seems they are buggy in latex:
+    Footnotes with auto symbols. DEPRECATED: seems they are buggy in latex:
     
     .. [*] First footnote (autosymbol)
     
@@ -615,58 +613,55 @@ Acknowledgments
     Here a ref to the first footnote [*]_, and here to the second [*]_.
     
     
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    .. CITATIONS:
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    CITATIONS:
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     
-    .. Citations are identical to footnotes except that their labels
-       must be case-insensitive single words of alphanumerics plus internal hyphens,
-       underscores, and periods. No whitespace, no numeric only. E.g., CIT2002:
-      
-    .. NOTE: Citations are automatically placed in latex in a "References" section at the
-       end of the document, regardless of where they are input. Conversely, in HTML they are
-       rendered where they are input
-    
+    Citations are identical to footnotes except that their labels
+    must be case-insensitive single words of alphanumerics plus internal hyphens,
+    underscores, and periods. No whitespace, no numeric only. E.g.:
+          
     .. [CIT2002] Deep India meets deep Asia: Lithospheric indentation, delamination and break-off
        under Pamir and Hindu Kush (Central Asia). http://doi.org/10.1016/j.epsl.2015.11.046
     
     Here a reference to a publication: [CIT2002]_. And here another reference to it ([CIT2002]_)
     
+    IMPORTANT NOTE: Citations are automatically placed in latex in a "References" section at the
+    end of the document, regardless of where they are input. Conversely, in HTML they are
+    rendered where they are input.
+
     
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    .. NUMERIC REFERENCES TO FIGURES AND TABLES:
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    NUMERIC REFERENCES TO FIGURES AND TABLES:
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     
-    .. Providing a label to a specific directive (e.g. figure, table, see below):
-       .. _labelname
-       you can reference it in the text with:
-       :numref:`labelname`
-       
-       For instance, here you can reference the auto-generated figures and tables
-       (more on this below, if you are interested)
+    Providing a label placed IMMEDIATELY BEFORE a specific directive (e.g. figure, table, see below):
+
+    .. _labelname
+
+    you can reference it in the text with
     
-    Here a reference to :numref:`stations_table`. Here a reference to :numref:`stations_figure`.
-    Here a reference to :numref:`inst_uptimes_figure`. Here a reference to :numref:`noise_pdfs_figure`
-       
+    :numref:`labelname`
+      
     
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    .. LIST ITEMS:
-    .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    LIST ITEMS:
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     
-    .. bullet lists (blank line before and after the list):
+    Bullet lists (blank line before and after the list):
     
     - This is a bullet list.
     
     - Bullets can be "*", "+", or "-".
     
-    .. enumerated lists (blank line before and after the list):
+    Enumerated lists (blank line before and after the list):
     
     1. This is an enumerated list.
     
     2. Enumerators may be arabic numbers, letters, or roman
        numerals.
        
-    .. nested lists (blank lines are optional between items on the same level):
+    Nested lists (blank lines are optional between items on the same level):
     
     * About RsT syntax:
     
@@ -678,7 +673,9 @@ Acknowledgments
     
       - http://www.sphinx-doc.org/en/stable/rest.html#rst-primer
         
-    **More detailed tutorials**:
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    FOR DETAILS:
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     
     - About RsT syntax:
       
