@@ -9,8 +9,9 @@ import os
 import json
 import urllib2
 
+from gfzreport.sphinxbuild.core.writers import DOI_BASE_URL
+
 _ROLE_NAME = "doi-citation"
-_BASE_URL = "https://doi.org/"
 # doi.org takes forever sometimes. Use a cache json file which we write into the dest directory
 # its name is:
 _CACHE_FILENAME = "doi_citations_cache.json"
@@ -47,12 +48,12 @@ def get_citation_from_web(doi):
     try:
         if not doi:
             raise ValueError('empty')
-        req = urllib2.Request(_BASE_URL + doi,
+        req = urllib2.Request(DOI_BASE_URL + doi,
                               headers={'Accept': 'text/x-bibliography', 'style': 'apa',
                                        'locale': 'en-US'})
         response = urllib2.urlopen(req)
         cit = response.read()
-        idx = cit.find(_BASE_URL)
+        idx = cit.find(DOI_BASE_URL)
         if idx > -1 and cit[idx:].strip().lower().endswith(doi.lower()):
             return cit[:idx].strip(), cit[idx:].strip()
         return cit.strip(), ""

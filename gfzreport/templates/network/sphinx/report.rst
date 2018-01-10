@@ -11,19 +11,18 @@
 .. FIELD LIST (BEFORE THE TITLE)
 .. ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  
-.. Field lists are two-column table-like structures resembling database records
-   in the form :name: value (note the space before value). E.g.:
+.. Field lists are two-column table-like structures resembling database records. Each Field in a field
+   list is in the form :name: value (note the space before value). E.g.:
    
    :Date: 2001-08-16
    :Version: 1
    
-   Fields in a Field list placed before the title, as the ones listed below, act as sort of document
-   metadata, as they will never be rendered in any document. 
-   We exploit this by using these field list to render specific portions of the latex document only.
-   (Note that they can NOT have comments before or after - Sphinx bug? -
-   and must have values in plain text only, as markup in there will not be
-   recognized. However, in this program newlines will be rendered).
-   Here below a description of these fields:
+   In Sphinx, fields placed before the title, as the ones listed below, will never be rendered in
+   any document (developer note: they cannot have comments before or after -Sphinx bug? - and no markup -
+   i.e., plain text only - in their value) and act as metadata.
+   In this program, they define text variables which will be rendered in specific places
+   of the document. The user has not to care about "where", just fill the relative values.
+   First a description of these fields:
 
    - doi (LIBRARY OR AUTHOR OR GIPP/GEOFON INPUT): the DOI of this report
    - doiDataset (LIBRARY INPUT): the DOI of the report dataset, if any
@@ -101,13 +100,10 @@
 .. FIELD LIST (AFTER TITLE)
 .. ^^^^^^^^^^^^^^^^^^^^^^^^
  
-.. Fields in a Field list placed after the title:
-   - Will be rendered in all documents (where and how, it depends on the output, e.g. LaTex vs HTML)  
-   - Can have comments before or after
-   - Can have values in rst syntax, as markup in there will be recognized. Thus remember to escape
-     special characters with a backslash, if needed (e.g. to render ":abc:def:" as it is
-     you need to input "\:abc\:def\:")
-   Here below a description of these fields:
+.. In Sphinx, fields placed after the title will be rendered in all documents
+   (developer note: they can have comments before or after and no markup in their value)  
+   In this program they might be ignored, or pre-processed before rendering their value
+   (for details see descriptions below)
 
 
 .. authors (AUTHOR INPUT). Provide the author(s) as comma separated items. Affiliations should be
@@ -120,7 +116,8 @@
 
 :authors: Author1* (Institute1), Author2 (Institute2), Author3 (Institute1)
 
-.. The abstract (AUTHOR INPUT):
+.. The abstract (AUTHOR INPUT). In LaTeX, this will be rendered inside a \begin{abstract}\end{abstract}
+   commands
 
 :Abstract: write your abstract here, you can add newlines but remeber:
            you should indent

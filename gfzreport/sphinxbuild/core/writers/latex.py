@@ -15,58 +15,64 @@ Created on Apr 4, 2016
 # from docutils.nodes import SkipNode
 from sphinx.writers.latex import LaTeXTranslator as LT  # , FOOTER, HEADER
 import re
+
+from gfzreport.sphinxbuild.core.writers import touni
 from gfzreport.sphinxbuild.core.writers.latexutils import get_citation, parse_authors
 
 
 class LatexTranslator(LT):
 
-    def visit_field_list(self, node):
-        # set a flag telling that we enter the field list: all operations
-        # will take place if this attribute is present
-        self._inside_fieldlist = True 
-        LT.visit_field_list(self, node)
+    def __init__(self, document, builder):
+        LT.__init__(self, document, builder)
+        # define our variables:
+        self._abstract_text_reminder__ = None
+        self._current_field_start__ = -1
+        self._current_fieldbody_start__ = -1
+        self._current_field_name__ = ''
+        self._ignored_fieldnames__ = {'author', 'authors', 'abstract', 'revision'}
 
     def visit_field(self, node):
-        # flag telling the start of the field. If we are inside a field list,
-        # and this attribute has to be deleted (e.g. author, abstract), fix the
-        # starting point of the deletion
-        self._bodylen_remainder0 = len(self.body)
+        # set flags and call super
+        self._current_field_name__ = str(node.children[0].children[0])
+        self._current_field_start__ = len(self.body)
         LT.visit_field(self, node)
+        
+    def depart_field(self, node):
+        # call super and reset flags (removing field if in ignore list)
+        LT.depart_field(self, node)
+        if self._current_field_name__ in self._ignored_fieldnames__:
+            self.body = self.body[:self._current_field_start__]
+        self._current_field_name__ = ''
+        self._current_field_start__ = -1
 
     def visit_field_body(self, node):
-        # flag telling the start of the field body. If we are inside a field list,
-        # and this attribute has to be used somewhere (e.g. author, abstract),
-        # let the super class do its work and we can
-        # get the rendered formatted text later from this index on
-        self._bodylen_remainder1 = len(self.body)
+        # set flags and call super
+        self._current_fieldbody_start__ = len(self.body)
         LT.visit_field_body(self, node)
 
     def depart_field_body(self, node):
         LT.depart_field_body(self, node)
-        field_name = str(node.parent.children[0].children[0])
+        field_name = self._current_field_name__
         # is a particular field which has to be rendered somewhere else?
-        if field_name.lower() in ('author', 'authors', 'abstract', 'revision'):
-            field_value = "".join(self.body[self._bodylen_remainder1:]).strip()
-            if field_name in ("author", "authors"):
-                auth, auth_affil, affil = parse_authors(field_value)
-                envdict = self.builder.app.env.metadata[self.builder.app.config.master_doc]
-                envdict['authorsWithAffiliations'] = auth_affil
-                envdict['affiliations'] = affil
-                self.elements.update({'author': auth})  # FIXME: raw text or field value??
-            elif field_name == "revision":
-                self.elements.update({'release': field_value})
-            elif field_name == "abstract":
-                self._abstract_text_reminder = field_value
-            self.body = self.body[:self._bodylen_remainder0]
+        field_value = "".join(self.body[self._current_fieldbody_start__:]).strip()
+        if field_name in ("author", "authors"):
+            auth, auth_affil, affil = parse_authors(field_value)
+            envdict = self.builder.app.env.metadata[self.builder.app.config.master_doc]
+            envdict['authorsWithAffiliations'] = auth_affil
+            envdict['affiliations'] = affil
+            self.elements.update({'author': auth})  # FIXME: raw text or field value??
+        elif field_name == "revision":
+            self.elements.update({'release': field_value})
+        elif field_name == "abstract":
+            self._abstract_text_reminder__ = field_value
+           
 
     def depart_field_list(self, node):
         LT.depart_field_list(self, node)
-        # set a flag telling that we enter the field list: prevent all operations on fields
-        # from here on
-        delattr(self, '_inside_fieldlist')
-        if hasattr(self, "_abstract_text_reminder"):
+        if self._abstract_text_reminder__ is not None:
             self.body.extend([r'\begin{abstract}', '\n',
-                              self._abstract_text_reminder, '\n', r'\end{abstract}'])
+                              self._abstract_text_reminder__, '\n', r'\end{abstract}'])
+            self._abstract_text_reminder__ = None
 
     def depart_table(self, node):
         """
@@ -95,13 +101,10 @@ class LatexTranslator(LT):
         # So perfect, let's work with unicode. But we make use of
         # "%s%s" % (A, B) and "{}{}".format(A, B) here, and "%s%s" are bytes in py2 and str in py3
         # So we should convert them as well to unicode
-        # All in all, define a function which is py2 and py3 compatible:
-        def touni(obj):
-            return obj.decode('utf8') if isinstance(obj, bytes) else obj
-
+        # All in all, we use the touni function which is py2 and py3 compatible
         LATEX_COMMAND = touni("\\rst{}{}")
         LATEX_COMMAND_DOICITATION = touni("%sCitation")
-        LATEX_HREF = touni(" \href{%s}{%s}")
+        LATEX_HREF = touni(" \\href{%s}{%s}")
         # value should be already formatted for latex.The only thing is that we want to
         # preserve also rst newlines so we replace \n with \\ (which becomes \\\\ after
         # escaping, plus a final \n to preserve "visually" the newlines in latex, although it
