@@ -56,7 +56,7 @@ table.docutils, li{
 	line-height: 1.4em; /* same as alabaster.css p tag. NOTE: do not set line-height on the body, it messes up h* tags */
 }
 div.body h1 { font-size: 300%; } /* 240% */
-div.body h2 { font-size: 200%; } /* 180% */
+div.body h2 { font-size: 230%; } /* 180% */
 div.body h3 { font-size: 180%; } /* 150% */
 div.body h4 { font-size: 150%; } /* 130% */
 div.body h5 { font-size: 130%; } /* 100% */
@@ -247,13 +247,14 @@ p{
 	text-align: justify;
 }
 
-/* our directives */
-
-table.gridfigure th, table.gridfigure td{
+/* our directives. Comment out: any attempt to customize the gridfigure results in glitches of borders.
+Let it behave like a table */
+/* table.gridfigure th, table.gridfigure td{
 	border: 0px !important;
 }
 table.gridfigure th {
     border-bottom: 1px solid #AAA !important; 
 }
+*/
 
 
