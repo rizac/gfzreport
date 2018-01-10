@@ -44,6 +44,21 @@ h1, div.body h1, h2, div.body h2, h3, div.body h3 {
 }
 */
 
+/* fonts stuff. Copied from GFZ (see eg.:) */
+div.body h1, div.body h2, div.body h3, div.body h4, div.body h5, div.body h6 {
+    font-family: "Myriad Pro Condensed", "Arial Narrow", sans-serif;
+}
+body{
+	font-family: Trebuchet, "Trebuchet MS", sans-serif;
+	line-height: 1.4em; /* same as alabaster.css p tag */
+}
+div.body h1 { font-size: 300%; } /* 240% */
+div.body h2 { font-size: 200%; } /* 180% */
+div.body h3 { font-size: 180%; } /* 150% */
+div.body h4 { font-size: 150%; } /* 130% */
+div.body h5 { font-size: 130%; } /* 100% */
+div.body h6 { font-size: 110%; } /* 100% */
+
 /*override alabaster stuff for body*/
 body {  /*alabaster.css:57*/
     margin: initial;
