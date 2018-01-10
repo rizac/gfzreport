@@ -44,13 +44,16 @@ h1, div.body h1, h2, div.body h2, h3, div.body h3 {
 }
 */
 
-/* fonts stuff. Copied from GFZ (see eg.:) */
+/* fonts stuff. Copied from GFZ (see eg.: http://gfzpublic.gfz-potsdam.de/pubman/faces/viewItemOverviewPage.jsp?itemId=escidoc:2801894) */
 div.body h1, div.body h2, div.body h3, div.body h4, div.body h5, div.body h6 {
     font-family: "Myriad Pro Condensed", "Arial Narrow", sans-serif;
 }
 body{
 	font-family: Trebuchet, "Trebuchet MS", sans-serif;
-	line-height: 1.4em; /* same as alabaster.css p tag */
+	font-size: 16px; /* it's 17px in alabaster. Note that on chrome initial=16px actually */;
+}
+table.docutils, li{
+	line-height: 1.4em; /* same as alabaster.css p tag. NOTE: do not set line-height on the body, it messes up h* tags */
 }
 div.body h1 { font-size: 300%; } /* 240% */
 div.body h2 { font-size: 200%; } /* 180% */
@@ -187,10 +190,11 @@ table.docutils {
     margin-bottom: 1em;
 }
 
-/* caption in tables is inside a <caption> tag, placed at the top. Increase margin bottom
-(margin -top is already set on the table)*/
+/* caption in tables is inside a <caption> tag, placed at the top. Increase margin bottom and top
+(Note: there is also a margin-top is already set on the table, doubling it is nicer)*/
 table.docutils caption {
     margin-bottom: 1em;
+    margin-top: 1em;
 }
 
 /* layout for specific tables is restored */
