@@ -1,0 +1,346 @@
+
+.. _webserver:
+
+gfzReport-web (on current server)
+=================================
+
+The :ref:`gfzw` is currently installed at GFZ on ``st161dmz``. This is a fast tutorial
+explaining how to do most common operations
+
+.. _logintoserver:
+
+Login to server
+---------------
+
+Assuming you have `generated an ssh key <https://www.digitalocean.com/community/tutorials/how-to-set-up-ssh-keys--2>`_
+
+.. code-block:: bash
+   
+   ssh sysop@st161dmz
+
+.. _activatevirtualenv:
+
+Activate virtualenv
+-------------------
+
+:ref:`gfzr` runs in an isolated python virtual environment. That is, the necessary python packages
+(with needed versions) are not installed system wide to not create conflicts.
+To Activate the virtualenv:
+
+.. code-block:: bash
+   
+   source /home/sysop/gfz-reportgen/bin/activate
+
+      
+Update the python package
+-------------------------
+
+When the package is modified, we need to update the server version. Firs :ref:`activatevirtualenv`.
+Then:
+
+.. code-block:: bash
+
+   cd /var/www/html/gfz-reportgen
+   git pull
+
+and :ref:`restartserver`
+
+
+Notes
+*****
+
+1. If you get a error: "insufficient permission for adding an object to repository..."
+after issuing the ``git pull``, it might be that a ``git pull`` has been previosuly issued with root privileges
+(which might happen when restarting the server and forgotting to exit).
+In that case, issue a
+
+.. code-block:: bash
+   su
+   Password: [TYPE PASSWORD]
+   sudo chown -R sysop:sysop .
+   exit
+   git pull
+
+2. After issuing ``git pull``, as the package has been installed as editable all modifications will take place without the
+need to re-install :ref:`gfzr`, unless something in ``setup.py`` has changed. In this case
+you need to re-install it:
+
+.. code-block:: bash
+
+   pip install -e .
+
+
+.. _restartserver:
+
+Restart the server
+------------------
+
+You need root privileges.
+
+.. code-block:: bash
+
+   su
+   Password: [TYPE PASSWORD]
+   service apache2 reload
+
+.. raw:: latex
+
+   \clearpage
+
+.. _serverrootpath:
+
+Root data path
+--------------
+
+All :ref:`gfzr` data files are located at:
+
+.. code-block:: bash
+   
+   /data2/gfzreport
+
+The directory structure is:
+   
+|DIR| /data2/gfzreport
+
++ |FILE| users.sqlite (the db storing users and sessions)
+     
++ |FILE| users.txt (text json file where to add/remove/edit users)
+
++ |DIR| network (network report :ref:`webappdatapath`)
+
+  - |DIR| source
+  
+    * |DIR| ZE_2012 (:ref:`srcdir` of report ZE_2012)
+    
+    * |DIR| ...
+     
+  - |DIR| build
+     
+    * |DIR| ZE_2012
+    
+      + |DIR| html  (the |html| :ref:`builddir` of report ZE_2012)
+
+      + |DIR| latex (the |latex| and |pdf| :ref:`builddir` of report ZE_2012)
+      
+    * |DIR| ... 
+          
++ |DIR| annual (annual report :ref:`webappdatapath`)
+
+  - |DIR| source
+   
+    * |DIR| 2016 (:ref:`srcdir` of report 2016)
+
+    * |DIR| ... 
+      
+  - |DIR| build
+      
+    * |DIR| 2016
+    
+      + |DIR| html  (the |html| :ref:`builddir` of report 2016)
+       
+      + |DIR| latex (the |latex| and |pdf| :ref:`builddir` of report 2016)
+      
+    * |DIR| ... 
+
+
+Each :ref:`webappdatapath` (e.g. ``/data2/gfzreport/network``) denotes a report type directory and
+is currently associated to a specific url. When the url is typed in a browser, :ref:`gfzw` shows the report type
+homepage by scanning the ``source`` sub-directory (e.g. ``/data2/gfzreport/network/source``): therein,
+*each folder whose name does not start with "_"* is associated to a report :ref:`srcdir` and shown as a button in the homepage.
+Clicking the button you have access to the report for visualization or editing (if you are authorized)
+
+.. _wsgisfiles:
+
+Wsgis directory
+---------------
+
+All :ref:`gfzw` wsgis files are located at:
+
+.. code-block:: bash
+   
+   /var/www/html/gfz-reportgen/wsgis/
+   
+Apache conf directory
+---------------------
+
+All Apache configuration files are located at:
+
+.. code-block:: bash
+   
+   /etc/apache2/conf-available/
+
+Create a new report template (network report)
+---------------------------------------------
+
+This is the same operation described in :ref:`createnewtemplate`, but specific for 
+application currently installed on the server.
+
+You can always get the program help described here by typing in the terminal (remember to :ref:`activatevirtualenv` first):
+ 
+.. code-block:: bash
+   
+   gfzreport template n --help
+
+To create a new report template, we assume that a network name (e.g., 'ZE') and a network start year are given (e.g., 2012).
+Ask the GEOFON person responsible to produce the input figures, i.e. noise probability density functions (pdfs)
+and the instrument uptimes figure (this procedure could be in the future automatized and
+implemented in :ref:`gfzt`).
+
+Being all pdfs to be arranged in the document as a grid of images, their file names should have the format:
+
+[station]-[channel].png
+
+or, for stations with the same name:
+
+[station]-[channel]-1.png, [station]-[channel]-2.png
+
+where the number should match the station start time, e.g. between "AW-HHZ-1" and "AW-HHZ-5", the latter is more recent.
+Actually, "-" can be any sequence of one or more non-alphanumeric characters (using "-" is maybe better to remember).
+
+The input figures can be created in any directory with any tree structure.
+By convention, we use directories of the type "`/home/sysop/tmp_*`". 
+Assuming, e.g., the following input figures directory:
+
+.. code-block:: bash
+   
+   /home/sysop/tmp_ZE/pdfs [directory of the noise pdfs]
+   /home/sysop/tmp_ZE/uptime.png  [file of the instrument uptime]
+
+Then, in order to create a new report template you MUST first :ref:`activatevirtualenv` and then run
+(for details remember to type `gfzreport template n --help` on the terminal):
+
+.. code-block:: bash
+   
+   gfzreport template n -n ZE -s 2012 -p /home/sysop/tmp_ZE/pdfs -i /home/sysop/tmp_ZE/uptime.png -o /data2/gfzreport/network/source
+
+This creates the directory "/data2/gfzreport/network/source/ZE_2012" (note that the -o option points
+to the parent folder of the directory).
+
+That's all. But please remember also to:
+
+* read the output of the program, it is intended to be a first check for capturing errors which
+  prevent the template creatiojn correctly (e.g. internet connection
+  while retrieving all network stations metadata for the maps and tables).
+  The output of the program is in any case written to ``gfzreport.template.log`` (inside the output directory)
+ 
+* :ref:`modifydbusers`, if there are users who need to edit the report and do not have authorization
+  (otherwise skip this step)
+
+* check visually the result. Go at http://st161dmz/gfzreport/network and check that
+  there is the button corresponding to the newly created report. Then click on that button and check
+  the report template (e.g., all pdfs figures are correctly in the grid, the station map and table correctly
+  display the stations, and so on). You should not need to :ref:`restartserver`. However, if something is wrong, try
+  that and check again in the browser before reporting the error.
+
+Notes
+^^^^^
+
+The program ``-p`` and ``-i`` options accept wildcards, but UNIX expands wildcards into the list of matching files
+before calling our program, and that breaks the program functionality. Solution:
+Escape wildcards with backslash, or avoid wildcards at all
+
+.. _modifydbusers:
+
+Modify users
+------------
+
+Go to :ref:`serverrootpath` and open with (e.g. vim) :ref:`webappusers`.
+It is an json-like array (list) of user, each
+user being a json object (python dict). 
+
+You normally want to add a user. Then add a line to the list such as:
+
+.. code-block:: python
+
+   [
+     ...
+     {"email": "tom@mysite.com", "path_restriction_reg": "/abc*$"}
+   ]
+
+Where "path_restriction_reg" is a regular expression pattern indicating the authorization of the given
+user 'tom': for a given report, when the
+user tries to log in for editing, it will be authorized if its "path_restriction_reg" matches
+(using python `re.search`) against the report :ref:`srcdir` (e.g. '/data2/gfzreport/network/source/ZE_2012'.
+See :ref:`serverrootpath` for the program root directory structure).
+If "path_restriction_reg" is missing, the user is authorized to edit any report (no restriction).
+
+You can also delete a line to delete a given user, or change "path_restriction_reg" for
+an existing user.
+
+To have the modification take effect, :ref:`restartserver` 
+
+Update config only
+-----------------
+
+Sometimes, after a bug fix or whatever, we want to update the configuration files only, not overriding
+any data file (including the source |rst|). Then run :ref:`gfzt` with the -c option, e.g.: 
+
+.. code-block:: bash
+
+   gfzreport template n -n ZE -s 2012 -c -o /data2/gfzreport/network/source/
+
+
+Cp source directory
+------------------------
+
+For each report, you can always navigate into the :ref:`serverrootpath` and copy a :ref:`srcdir`.
+This will create a new report on the web page. This operation is a hack but might be useful
+to copy a report and working on it for debugging. To do that, for instance to copy the annual
+report '2016' into '2016_TEST':
+
+.. code-block:: bash
+   
+   cp -r /data2/gfzreport/annual/source/2016 /data2/gfzreport/annual/source/2016_TEST 
+   cd /data2/gfzreport/annual/source/2016_TEST/
+   rm -rf .git
+
+If you executed the above operations as root, remember to:
+   
+.. code-block:: bash
+   
+   cd /data2/gfzreport/annual/source
+   chown -R sysop:sysop 2016_TEST
+
+
+Toggle report editability
+-------------------------
+
+From within the gui, a report can be "locked", i.e. the report cannot be edited anymore. This
+function has no particular consequence or security requirement, it is simply a feature requested
+from the library. As such, we made a very simple implementation: for any report directory,
+if a file with the same name and the suffix ".locked" exists, the report will be non-editable from within
+the GUI. For instance, ZE_2012 is non -editable:
+
+* |DIR| source 
+
+   - |DIR| ZE_2012
+   
+   - |FILE| ZE_2012.locked
+   
+   - |DIR| IQ_2009
+   
+   - |DIR| ...
+
+(see :ref:`serverrootpath` for details).
+
+This makes relatively easy to un-lock a report after has been set non-editable (simply remove the relative .locked file).
+
+
+Possible unused files
+---------------------
+
+As of November 2017, the following files and directories are not used anymore and should be deleted:
+
+.. code-block:: bash
+
+   /data2/gfz-reportgen_annual/
+   /data2/gfz-reportgen/rizac  (but we should also remove the conf available. This I guess was the first report (not editable)
+   /data2/gfz-report/  (old directory with the report data)
+   /home/sysop/tmp_cesca_report/  (when simone report is done)
+   /home/sysop/tmp_conffiles/  (or keep it, if we want to copy again conf_files and config.py in there from our sphinx directory)
+   
+
+
+
+
+

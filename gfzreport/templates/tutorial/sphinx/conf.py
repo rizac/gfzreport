@@ -57,7 +57,7 @@ extensions = [
 # For info see:
 # http://www.sphinx-doc.org/en/1.5.2/config.html#confval-master_doc (current as of July 2017), or
 # http://www.sphinx-doc.org/en/latest/config.html#confval-master_doc
-master_doc = 'tutorial'
+master_doc = 'index'
 
 # This is the suffix(es) of source filenames. You can specify multiple suffix as a list of string:
 # source_suffix = ['.rst', '.md']
