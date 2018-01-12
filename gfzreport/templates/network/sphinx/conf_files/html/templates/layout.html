@@ -29,9 +29,9 @@ However, if in the future we plan to set embedded=False, then uncomment the next
 
 For instance, an option was to remove all javascript and keeping only necessary stuff:
 
-{PERCENT_SIGN set script_files = ["https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML",
+{% set script_files = ["https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML",
 					   "https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular.min.js",
-					   "_static/jquery.js"] PERCENT_SIGN}
+					   "_static/jquery.js"] %}
 -->
 
 {%- block extrahead %}

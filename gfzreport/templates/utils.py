@@ -384,13 +384,12 @@ class Templater(object):
             message displayed printed
         '''
 
-        raise NotImplemented(('`getdatafiles` not implemented in %s: '
-                              'you should return two lists: the first a list of destination '
-                              'directories subdirs of `self.destdatadir`, and the second a list of '
-                              'files, directories or glob patterns denoting the files to be '
-                              'copied or moved in the '
-                              'corresponding destination directory') %
-                             self.__class__.__name__)
+        raise NotImplementedError(('`getdatafiles` not implemented in %s: '
+                                   'you should return two lists: the first a list of destination '
+                                   'directories subdirs of `self.destdatadir`, and the second a '
+                                   'list of files, directories or glob patterns denoting the '
+                                   'files to be copied or moved in the corresponding destination '
+                                   'directory') % self.__class__.__name__)
 
     def getrstkwargs(self, destpath, destdatapath, datafiles, *args, **kwargs):
         '''
@@ -419,10 +418,10 @@ class Templater(object):
             This function can safely raise as Exceptions will be caught and displayed in their
             message displayed printed
         '''
-        raise NotImplemented(('`getrstkwargs` not implemented in %s: '
-                              'you should return the arguments as dict for rendering the rst.'
-                              'You can also pass if there is nothing rst is not a jinja template') %
-                             self.__class__.__name__)
+        raise NotImplementedError(('`getrstkwargs` not implemented in %s: '
+                                   'you should return the arguments as dict for rendering the rst.'
+                                   'You can also pass if there is nothing rst is not a jinja '
+                                   'template') % self.__class__.__name__)
 
     def render_rst(self, destpath, *args, **kwargs):
         rst_filename = self.masterdoc + ".rst"

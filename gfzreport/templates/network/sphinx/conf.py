@@ -267,7 +267,7 @@ latex_elements = {
     'pointsize': '12pt',
     # Latex figure (float) alignment
     'figure_align': '!ht',
-    'geometry': '\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}',
+    'geometry': r'\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}',
     # Sphinx has too fancy stuff: titles as \sfseries\bfseries,
     # and title colors (which applies to ALL section titles) a sort of blue
     # set the former as normal bfseries, and the latter as black

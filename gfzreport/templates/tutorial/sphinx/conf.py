@@ -14,6 +14,9 @@
 
 import os
 
+# add default root dir pointing to network sphinx 
+_root_ = "../../network/sphinx/conf_files"
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here
@@ -142,12 +145,13 @@ exclude_patterns = ['_*.rst', "*.log", 'Thumbs.db', '.DS_Store']
 # -- Options for HTML output ----------------------------------------------
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['conf_files/html/templates']
+templates_path = ['conf_files']  # this points to our layout.html not the network one. It's basically the same
+# as network's layout.html we just added few lines of style rules and commented all code loading leaflet
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['conf_files/html/static_path']
+html_static_path = ['%s/html/static_path' % _root_]
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar. NOTE: AS LONG AS html_theme='alabaster',
@@ -155,7 +159,7 @@ html_static_path = ['conf_files/html/static_path']
 # layout.html (in templates dir), AS LONG AS OUR THEME IS alabaster!!
 # For other themes, you should have a look at their path (see our layout.html). For instance haiku
 # seems to ignore embedded
-html_logo = "conf_files/html/GFZ-Logo_eng_RGB.png"
+html_logo = ""
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes. NOTE: NOT ALL THEMES BEHAVE THE SAME. FOR INSTANCE, ALABASTER HAS
@@ -254,26 +258,27 @@ html_use_opensearch = ''
 # A list of file names, relative to the configuration directory, to copy to the build directory
 # when building LaTeX output. (Note: changed in version 1.2: This overrides the files which is
 # provided from Sphinx such as sphinx.sty):
-latex_additional_files = [os.path.join('conf_files/latex/additional_files', c)
-                          for c in os.listdir("conf_files/latex/additional_files")]
+latex_additional_files = [os.path.join('%s/latex/additional_files' % _root_, c)
+                          for c in os.listdir("%s/latex/additional_files" % _root_)]
 
 latex_elements = {
-    # not toc:
+    # empty = not toc:
     'tableofcontents': u'',
     # The paper size ('letterpaper' or 'a4paper'):
     'papersize': 'a4paper',
     # The font size ('10pt', '11pt' or '12pt'):
-    'pointsize': '12pt',
+    'pointsize': '10pt',
     # Latex figure (float) alignment
     'figure_align': '!ht',
-    'geometry': '\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}',
-    # Sphinx has too fancy stuff: titles as \sfseries\bfseries,
+    'geometry': r'\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}',
+    # Sphinx has too fancy stuff: titles as \sfseries\bfseries (http://www.sphinx-doc.org/en/1.5.1/latex.html),
     # and title colors (which applies to ALL section titles) a sort of blue
-    # set the former as normal bfseries, and the latter as black
+    # change here these values if u want
     # (NOTE THAT Title Color applies to ALL section/chapter titles in sphinx 1.5.1):
-    'sphinxsetup': "HeaderFamily=\\bfseries,TitleColor={rgb}{0,0,0}",
+    'sphinxsetup': "TitleColor={RGB}{0,88,156}, VerbatimColor={RGB}{252,252,252}, VerbatimBorderColor={RGB}{180,180,180}", # same as gfzblue defined in latex preamble,
     # sphinx preamble (http://www.sphinx-doc.org/en/stable/config.html#confval-latex_elements):
-    'preamble': r'\makeatletter\input{latex.preamble.tex}\makeatother',
+    # Increase also line space and make sans serif the default font
+    'preamble': r'\renewcommand{\baselinestretch}{1.5}\makeatletter\input{latex.preamble.tex}\makeatother',
     # latex epilog (http://www.sphinx-doc.org/en/stable/config.html#confval-latex_elements):
     'atendofbody': r'\makeatletter\input{latex.atendofbody.tex}\makeatother',
 }
