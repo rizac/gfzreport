@@ -345,14 +345,14 @@ This makes relatively easy to un-lock a report after has been set non-editable (
 Updating this tutorial
 ----------------------
 
-To update this tutorial online you need to :ref:`gainrootprivileges` first.
-Then :ref:`updatepythonpackage` (do not restart the server yet) and execute:
+To update this tutorial online you need to :ref:`updatepythonpackage` first
+(do not restart the server yet). Then :ref:`gainrootprivileges`, :ref:`activatevirtualenv` and execute:
 
 .. code-block:: bash
 
    gfzreport tutorial -b html /var/www/gfzreport/tutorial/html
 
-And finally, :ref:`restartserver`.
+:ref:`restartserver` and ``exit`` as root user.
 
 Note: the apache configuration file is ``gfzreport-tutorial.conf`` under :ref:`apacheconfavaldir`:
 
