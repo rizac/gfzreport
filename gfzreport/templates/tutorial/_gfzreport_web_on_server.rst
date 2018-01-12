@@ -1,7 +1,7 @@
 
 .. _webserver:
 
-gfzReport-web (on current server)
+gfzreport-web (on current server)
 =================================
 
 The :ref:`gfzw` is currently installed at GFZ on ``st161dmz``. This is a fast tutorial
