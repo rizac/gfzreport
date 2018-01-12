@@ -31,7 +31,9 @@ To Activate the virtualenv:
    
    source /home/sysop/gfz-reportgen/bin/activate
 
-      
+
+.. _updatepythonpackage:
+
 Update the python package
 -------------------------
 
@@ -43,7 +45,7 @@ Then:
    cd /var/www/html/gfz-reportgen
    git pull
 
-and :ref:`restartserver`
+Before checking modifications in the browser, remember to :ref:`restartserver`
 
 
 Notes
@@ -52,12 +54,11 @@ Notes
 1. If you get a error: "insufficient permission for adding an object to repository..."
 after issuing the ``git pull``, it might be that a ``git pull`` has been previosuly issued with root privileges
 (which might happen when restarting the server and forgotting to exit).
-In that case, issue a
+In that case, first :ref:`gainrootprivileges` and then issue a:
 
 .. code-block:: bash
-   su
-   Password: [TYPE PASSWORD]
-   sudo chown -R sysop:sysop .
+
+   chown -R sysop:sysop .
    exit
    git pull
 
@@ -69,18 +70,30 @@ you need to re-install it:
 
    pip install -e .
 
+.. _gainrootprivileges:
+
+Gain root privileges
+--------------------
+
+For certain operations, you might need to gain root privileges. Provided you know the root password (otherwise
+ask), then type:
+
+.. code-block:: bash
+
+   su
+   Password: [TYPE PASSWORD]
+
+do your stuff and eventually type ``exit`` to restore the ``sysop`` user.
 
 .. _restartserver:
 
 Restart the server
 ------------------
 
-You need root privileges.
+You need to :ref:`gainrootprivileges` first, and then:
 
 .. code-block:: bash
 
-   su
-   Password: [TYPE PASSWORD]
    service apache2 reload
 
 .. raw:: latex
@@ -159,7 +172,10 @@ All :ref:`gfzw` wsgis files are located at:
 .. code-block:: bash
    
    /var/www/html/gfz-reportgen/wsgis/
-   
+
+
+.. _apacheconfavaldir:
+
 Apache conf directory
 ---------------------
 
@@ -324,6 +340,29 @@ the GUI. For instance, ZE_2012 is non -editable:
 (see :ref:`serverrootpath` for details).
 
 This makes relatively easy to un-lock a report after has been set non-editable (simply remove the relative .locked file).
+
+
+Updating this tutorial
+----------------------
+
+To update this tutorial online you need to :ref:`gainrootprivileges` first.
+Then :ref:`updatepythonpackage` (do not restart the server yet) and execute:
+
+.. code-block:: bash
+
+   gfzreport tutorial -b html /var/www/gfzreport/tutorial/html
+
+And finally, :ref:`restartserver`.
+
+Note: the apache configuration file is ``gfzreport-tutorial.conf`` under :ref:`apacheconfavaldir`:
+
+.. code-block:: apache
+
+   Alias /gfzreport/tutorial "/var/www/gfzreport/tutorial/html"
+   <Directory "/var/www/gfzreport/tutorial/html">
+        Order allow,deny
+        Allow from all
+   </Directory>
 
 
 Possible unused files
