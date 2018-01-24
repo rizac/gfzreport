@@ -116,7 +116,7 @@ todo_include_todos = False
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files:
-# NOTE: After testing, files matching will NOT be copied to the build dir (this is not documented)
+# NOTE: matching files will NOT be copied to the build dir (we tested that, it this is not documented)
 exclude_patterns = ["*.log", 'Thumbs.db', '.DS_Store']
 
 # The reST default role (used for this markup: `text`) to use for all documents:
