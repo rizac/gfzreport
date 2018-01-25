@@ -194,12 +194,27 @@ C extensions (see :ref:`basemapnotes`).
 Basemap installation notes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-We skipped some of the basemap requirements `pyproj <https://github.com/jswhit/pyproj>`_ and `pyshp <https://github.com/GeospatialPython/pyshp>`_ as they do not seem to be mandatory for this program to run (keep it in mind in case of troubles though). Moreover, note that there are two optional packages which might be useful if you mean to use basemap outside this program:
+- We skipped some of the basemap requirements `pyproj <https://github.com/jswhit/pyproj>`_ and `pyshp <https://github.com/GeospatialPython/pyshp>`_ as they do not seem to be mandatory for this program to run (keep it in mind in case of troubles though). Moreover, note that there are two optional packages which might be useful if you mean to use basemap outside this program:
 
-  * `OWSLib <https://github.com/geopython/OWSLib>`_ (optional) It is needed for the BaseMap.wmsimage function
+  1 `OWSLib <https://github.com/geopython/OWSLib>`_ (optional) It is needed for the BaseMap.wmsimage function
 
-  * `Pillow <https://python-pillow.github.io/>`_ (optional)  It is needed for Basemap warpimage, bluemarble, shadedrelief, and etop methods. PIL should work on Python 2.x.  Pillow is a maintained fork of PIL
+  2 `Pillow <https://python-pillow.github.io/>`_ (optional)  It is needed for Basemap warpimage, bluemarble, shadedrelief, and etop methods. PIL should work on Python 2.x.  Pillow is a maintained fork of PIL
 
+- On Mac El Capitan, after upgrading with ``homebrew`` we had this issue:
+
+  .. code-block:: python
+  
+     ImportError: dlopen(/Users/riccardo/work/.virtualenvwrapper/envs/gfz-gfzreport/lib/python2.7/site-packages/_geoslib.so, 2): Library not loaded: /usr/local/opt/geos/lib/libgeos-3.5.0.dylib
+     Referenced from: /Users/riccardo/work/.virtualenvwrapper/envs/gfz-gfzreport/lib/python2.7/site-packages/_geoslib.so
+     Reason: image not found
+  
+  After googling a lot, re-installing several times ``basemap`` and ``geos`` without success,
+  as there was a libgeos library named
+  ``libgeos-3.6.2.dylib`` in the specified path, we tried this horrible hack which surprisingly worked:
+  
+  .. code-block:: python
+  	 
+  	 cp /usr/local/opt/geos/lib/libgeos-3.6.2.dylib /usr/local/opt/geos/lib/libgeos-3.5.0.dylib
 
 Install tex packages
 --------------------

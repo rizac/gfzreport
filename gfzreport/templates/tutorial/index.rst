@@ -14,6 +14,10 @@ GfzReport
 
 :author: Riccardo Zaccarelli (GFZ: German Research Centre for Geosciences)
 
+.. raw:: html
+
+   <a href='latex/index.pdf'>PDF version</a>
+
 
 .. |DIR| image:: ./imgs/24px-Icons8_flat_folder.svg.png
 

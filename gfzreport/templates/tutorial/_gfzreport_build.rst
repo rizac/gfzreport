@@ -23,16 +23,15 @@ claim that :ref:`sphinxbuild` can build |pdf| documents, well... no, you can not
 As of mid 2016, when the :ref:`gfzr` project started, the available python extensions where buggy
 and with very poor flexibility compared to ``pdflatex``.
 
-:ref:`gfzb` also extends :ref:`spx` (which in turn extends :ref:`rst`) by adding new extensions and new
-bibliographic fields behavior:
-
 .. _sphinxbuildextensions:
 
 New extensions
 ^^^^^^^^^^^^^^
 
-:ref:`spx` features new `directives <http://www.sphinx-doc.org/en/1.5.2/extdev/tutorial.html>`_ and
-interpreted text roles (e.g. '$' for math typing, as in |latex|) to match requirements for the Network reports generated with :ref:`gfzt`
+:ref:`gfzb` also extends :ref:`spx` (which in turn extends :ref:`rst`) by adding new extensions and new
+bibliographic fields behavior. Extensions are `directives <http://www.sphinx-doc.org/en/1.5.2/extdev/tutorial.html>`_ and
+interpreted text roles (e.g. '$' for math typing, as in |latex|) to match requirements for the
+Network reports generated with :ref:`gfzt`
 
 .. _bibliographicfieldsbehaviour:
 
@@ -113,14 +112,14 @@ located at:
 
 
 The functions does what :ref:`sphinxbuild` does, it just calls ``pdflatex`` after :ref:`sphinxbuild`
-if ``build='pdf'`` and writes a custom log file (currently ``__.gfzreport.__.log``) in the
+if ``build='pdf'`` and writes a log file (``gfzreport.build.log``) in the
 :ref:`builddir`. The log has normalized :ref:`spx` and ``pdflatex`` errors (both with the format: 
 :regexp:`.+?:[0-9]+:\\s*ERROR\\s*:.+`).
 Note that those errors do not prevent in most cases the creation of the document; thus, they might be
 regarded as warnings, excepts that :ref:`spx` uses already the word "WARNINGS" for other kind of
 messages.
 Nevertheless, they are useful especially in :ref:`gfzw` to show information to the users after
-the build, in a formatted way (e.g., catch all error-like lines and show them in red)
+the build, in a formatted way after parsing the log file (e.g., catch all error-like lines and show them in red).
 
 
 Other packages are:
@@ -143,10 +142,12 @@ Note that if upgrading to newer :ref:`spx` versions (we use 1.5.1, as of October
 we might probably look at the writers as, especially for |latex|, :ref:`spx` *is going* into a more
 customizable direction and thus some patches might be useless (or buggy).
 
+Finally, the package
+
 .. code-block:: python
 
    gfzreport.sphinxbuild.map
    
-where we implemented the package creating a scatter map of stations (image, e.g. png). This is
+implements the code for creating a scatter map of stations (image, e.g. png). This is
 used in one of our custom extensions
 

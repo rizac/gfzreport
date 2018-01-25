@@ -10,7 +10,16 @@ gfzreport-web
 
 
 :ref:`gfzr` can run on a web server. After creating report templates via :ref:`gfzt`,
-:ref:`gfzw` allows online :ref:`rst` editing and document creation by means of :ref:`gfzb`.
+:ref:`gfzw` allows online :ref:`rst` editing by means of :ref:`gfzb`.
+
+When saving after editing, the web application also executes a ``git commit`` on the :ref:`srcdir`
+to allow a revision system
+which can be exploited from within the GUI. When building a document by means of :ref:`gfzb`,
+its ``.log`` file is parsed and shown formatted in a browser window.
+
+The editor is configured to give authorization to certain users only, configurable in a ``users.txt`` file (see below).
+Moreover, the user can upload images and the application takes care of inserting the relative :ref:`rst` syntax
+in order to render them when building the document.
 
 
 I/O Directory structure

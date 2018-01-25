@@ -5,11 +5,11 @@ gfzreport-template
 
 :package: ``gfzreport.templates``
 
-:command line: ``gfzreport template [template_type] [options]``
+:command: ``gfzreport template [template_type] [options]``
 
-:command line help: ``gfzreport template --help``
-
-:command line help (specific template type, e.g. ``n``): ``gfzreport template n --help``
+:help:  ``gfzreport template --help`` (general help)
+	
+	   ``gfzreport template n --help`` (specific to a template type, in this case the network template)
 
 
 :ref:`gfzr` can generate templates. A template is basically a :ref:`srcdir` with data and a

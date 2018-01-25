@@ -100,8 +100,6 @@ You need to :ref:`gainrootprivileges` first, and then:
 
    \clearpage
 
-.. _serverrootpath:
-
 Debug from terminal (View Apache error log)
 -------------------------------------------
 
@@ -110,6 +108,8 @@ Debug from terminal (View Apache error log)
    tail -f /var/log/apache2/error.log
    
 (Ctrl+C to exit)
+
+.. _serverrootpath:
 
 Root data path
 --------------
@@ -213,11 +213,11 @@ implemented in :ref:`gfzt`).
 
 Being all pdfs to be arranged in the document as a grid of images, their file names should have the format:
 
-[station]-[channel].png
+``[station]-[channel].png``
 
 or, for stations with the same name:
 
-[station]-[channel]-1.png, [station]-[channel]-2.png
+``[station]-[channel]-1.png, [station]-[channel]-2.png``
 
 where the number should match the station start time, e.g. between "AW-HHZ-1" and "AW-HHZ-5", the latter is more recent.
 Actually, "-" can be any sequence of one or more non-alphanumeric characters (using "-" is maybe better to remember).
@@ -232,37 +232,37 @@ Assuming, e.g., the following input figures directory:
    /home/sysop/tmp_ZE/uptime.png  [file of the instrument uptime]
 
 Then, in order to create a new report template you MUST first :ref:`activatevirtualenv` and then run
-(for details remember to type `gfzreport template n --help` on the terminal):
+(for details remember to type `gfzreport template n --help` on the terminal [#wcrd]_):
 
 .. code-block:: bash
    
    gfzreport template n -n ZE -s 2012 -p /home/sysop/tmp_ZE/pdfs -i /home/sysop/tmp_ZE/uptime.png -o /data2/gfzreport/network/source
 
-This creates the directory "/data2/gfzreport/network/source/ZE_2012" (note that the -o option points
+This creates the directory "/data2/gfzreport/network/source/ZE_2012" (note that the ``-o`` option points
 to the parent folder of the directory).
 
-That's all. But please remember also to:
+Important Notes
+^^^^^^^^^^^^^^^
 
-* read the output of the program, it is intended to be a first check for capturing errors which
-  prevent the template creatiojn correctly (e.g. internet connection
+* Read the output of the program: it is intended to be a first check for capturing errors which
+  prevent the template creation correctly (e.g. internet connection
   while retrieving all network stations metadata for the maps and tables).
   The output of the program is in any case written to ``gfzreport.template.log`` (inside the output directory)
  
 * :ref:`modifydbusers`, if there are users who need to edit the report and do not have authorization
   (otherwise skip this step)
 
-* check visually the result. Go at http://st161dmz/gfzreport/network and check that
+* Check visually the result. Go at http://st161dmz/gfzreport/network and check that
   there is the button corresponding to the newly created report. Then click on that button and check
   the report template (e.g., all pdfs figures are correctly in the grid, the station map and table correctly
   display the stations, and so on). You should not need to :ref:`restartserver`. However, if something is wrong, try
   that and check again in the browser before reporting the error.
 
-Notes
-^^^^^
 
-The program ``-p`` and ``-i`` options accept wildcards, but UNIX expands wildcards into the list of matching files
-before calling our program, and that breaks the program functionality. Solution:
-Escape wildcards with backslash, or avoid wildcards at all
+.. [#wcrd] As specified in the terminal help, the program ``-p`` and ``-i`` options accept wildcards
+   Note however that UNIX expands wildcards into the list of matching files
+   before calling our program, and that breaks the program functionality. Solution:
+   Escape wildcards with backslash, or avoid wildcards at all
 
 .. _modifydbusers:
 
