@@ -243,6 +243,16 @@ div.leaflet-container {
     box-shadow: 2px 2px 4px #DDD;
 }
 
+/* style also figures with the same border for tables and maps, but do not apply this to
+e.g. images inside a grid-figure (because the parent grid table has already these border settings) */
+div.figure > img, div.figure > a.reference.internal > img {
+    border: 1px solid #AAA; /* in alabaster is #888, make it consistent with the table #AAA */
+    -moz-box-shadow: 2px 2px 4px #DDD; /* in alabaster.css is #EEE (BUG!) */
+    -webkit-box-shadow: 2px 2px 4px #DDD; /* in alabaster.css is #EEE (BUG!) */
+    box-shadow: 2px 2px 4px #DDD;
+    padding: 10pt; /* this prevents images with no padding to look nicer */
+}
+
 p{
 	text-align: justify;
 }
