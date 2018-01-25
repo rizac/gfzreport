@@ -549,14 +549,13 @@ def get_logs_(app, reportdirname, buildtype):
                 del logfileerrors[-1]
             # if it's the first error, remove the last line 'No error found'
             logfileerrors.append(line)
-    # now, weridly enough, it seems logfilecontent and logfileerrors mix unicode and strings
-    # to be py2-3 consistent, let's convert each string to unicode separately
-    #First define a unicode newline (py2-3 compatible):
-    N = "\n".decode('utf8') if isinstance("\n", bytes) else "\n"
-    # now convert each line:
-    logfilecontent = [l.decode('utf8') if isinstance(l, bytes) else l for l in logfilecontent]
-    logfileerrors = [l.decode('utf8') if isinstance(l, bytes) else l for l in logfileerrors]
-    return N.join(logfilecontent), N.join(logfileerrors)
+    # we should dig into python2 to understand why sometimes the file gives us
+    # unicode / decode erros. Probably it's due to how we write it, However this is
+    # just for showing logs so 'errors=ignore' might be ok. Moreover, we are stuck to python2
+    # but let's not try to solve again this problem again in 2018. This has been solved already
+    # in py3:
+    return "\n".join(logfilecontent).decode('utf8', errors='replace'), \
+        "\n".join(logfileerrors).decode('utf8', errors='replace')
 
 
 def lastbuildexitcode(app, reportdirname, buildtype):
