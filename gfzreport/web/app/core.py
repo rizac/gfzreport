@@ -549,7 +549,14 @@ def get_logs_(app, reportdirname, buildtype):
                 del logfileerrors[-1]
             # if it's the first error, remove the last line 'No error found'
             logfileerrors.append(line)
-    return "\n".join(logfilecontent).decode('utf8'), "\n".join(logfileerrors).decode('utf8')
+    # now, weridly enough, it seems logfilecontent and logfileerrors mix unicode and strings
+    # to be py2-3 consistent, let's convert each string to unicode separately
+    #First define a unicode newline (py2-3 compatible):
+    N = "\n".decode('utf8') if isinstance("\n", bytes) else "\n"
+    # now convert each line:
+    logfilecontent = [l.decode('utf8') if isinstance(l, bytes) else l for l in logfilecontent]
+    logfileerrors = [l.decode('utf8') if isinstance(l, bytes) else l for l in logfileerrors]
+    return N.join(logfilecontent), N.join(logfileerrors)
 
 
 def lastbuildexitcode(app, reportdirname, buildtype):
