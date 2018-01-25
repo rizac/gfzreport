@@ -3,7 +3,12 @@ Latex translator overriding default sphinx one:
 
 1. It provides latex commands for any bibliographic fields input at the start of the document
 BEFORE the title in the form '\newcommand{rst<FIELDNAME>}{<FIELDVALUE>}',
-2. Removes the hlines in longtable headers which sphinx 1.5.1
+2. Processes the 'author' bib. field by parsing its content and making available the commands:
+```
+'rstAuthorsWithAffiliations'
+'rstAffiliations' 
+```
+2. Removes the hlines in longtable headers which sphinx 1.5.1 adds by default (thanks...)
 
 Created on Apr 4, 2016
 
@@ -14,13 +19,16 @@ Created on Apr 4, 2016
 # import sphinx.directives
 # from docutils.nodes import SkipNode
 from sphinx.writers.latex import LaTeXTranslator as LT  # , FOOTER, HEADER
-import re
 
 from gfzreport.sphinxbuild.core.writers import touni
 from gfzreport.sphinxbuild.core.writers.latexutils import parse_authors
 
 
 class LatexTranslator(LT):
+
+    _ignored_fieldnames__ = {'author', 'authors', 'abstract', 'revision', 'citation', 'citations'}
+    '''fields that will not be rendered (NOTE: case insensitive). Some of them might be processed
+    (e.g., usually added to the app metadata dict) other completely ignored'''
 
     def __init__(self, document, builder):
         LT.__init__(self, document, builder)
@@ -29,33 +37,45 @@ class LatexTranslator(LT):
         self._current_field_start__ = -1
         self._current_fieldbody_start__ = -1
         self._current_field_name__ = ''
-        self._ignored_fieldnames__ = {'author', 'authors', 'abstract', 'revision', 'citation',
-                                      'citations'}
+        self._current_field_body__ = ''
 
+    # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    # Bib. Fields management methods (in "chronological" order)
+    # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    
     def visit_field(self, node):
-        # set flags and call super
+        '''Simply stores informations here about the current field in order to remove it
+        later in `depart_field`, if the current field has not to be rendered,
+        and then calls the super method
+        '''
         self._current_field_name__ = str(node.children[0].children[0])
         self._current_field_start__ = len(self.body)
         LT.visit_field(self, node)
         
-    def depart_field(self, node):
-        # call super and reset flags (removing field if in ignore list)
-        LT.depart_field(self, node)
-        if self._current_field_name__ in self._ignored_fieldnames__:
-            self.body = self.body[:self._current_field_start__]
-        self._current_field_name__ = ''
-        self._current_field_start__ = -1
-
     def visit_field_body(self, node):
+        '''Stores the length of self.body in order to retrieve the
+        rendered field body, if needed for processing it, and then calls the super method'''
         # set flags and call super
         self._current_fieldbody_start__ = len(self.body)
         LT.visit_field_body(self, node)
 
     def depart_field_body(self, node):
+        '''Simply calls the super method and then stores the rendered field body for later use'''
         LT.depart_field_body(self, node)
-        field_name = self._current_field_name__
+        self._current_field_body__ = "".join(self.body[self._current_fieldbody_start__:]).strip()
+           
+
+    def depart_field(self, node):
+        '''Simply calls the super method and then
+        simply removes the just rendered field if it should be ignored
+        '''
+        # call super and reset flags (removing field if in ignore list)
+        LT.depart_field(self, node)
+        
+        # process fbib field if something has to be done:
+        field_name = self._current_field_name__.lower()
+        field_value = self._current_field_body__
         # is a particular field which has to be rendered somewhere else?
-        field_value = "".join(self.body[self._current_fieldbody_start__:]).strip()
         if field_name in ("author", "authors"):
             auth, auth_affil, affil = parse_authors(field_value)
             envdict = self.builder.app.env.metadata[self.builder.app.config.master_doc]
@@ -67,17 +87,31 @@ class LatexTranslator(LT):
         elif field_name == "citations" or field_name == 'citation':
             envdict = self.builder.app.env.metadata[self.builder.app.config.master_doc]
             envdict['citations'] = field_value
-        elif field_name == "Abstract":
+        elif field_name == "abstract":
             self._abstract_text_reminder__ = field_value
-           
+
+        # remove field from built document if it has to be ignored
+        if field_name in self._ignored_fieldnames__ and \
+            self._current_field_start__ > -1:
+            self.body = self.body[:self._current_field_start__]
+
+        # reset values:
+        self._current_field_name__ = self._current_field_body__ =''
+        self._current_field_start__ = -1
 
     def depart_field_list(self, node):
+        '''Calls the super method nd then, if a bib.field named abstract has been found, puts the
+        abstract by appending latex's '\begin{abstract}' (... and so on) to `self.body`'''
         LT.depart_field_list(self, node)
         if self._abstract_text_reminder__ is not None:
             self.body.extend([r'\begin{abstract}', '\n',
                               self._abstract_text_reminder__, '\n', r'\end{abstract}'])
             self._abstract_text_reminder__ = None
 
+    # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    # end fields management methods
+    # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    
     def depart_table(self, node):
         """
             Horrible hack which removes the TERRIBLE (and HARD CODED) frame in the

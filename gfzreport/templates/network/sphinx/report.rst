@@ -18,11 +18,12 @@
    :Version: 1
    
    In Sphinx, fields placed before the title, as the ones listed below, will never be rendered in
-   any document (developer note: they cannot have comments before or after -Sphinx bug? - and no markup -
-   i.e., plain text only - in their value) and act as metadata.
+   any document and act as metadata.
    In this program, they define text variables which will be rendered in specific places
    of the document. The user has not to care about "where", just fill the relative values.
-   First a description of these fields:
+   
+   As these bib. fields cannot have comments before or after (Sphinx bug?) we need to describe
+   them all at once here, with the (theoretical) responsible in brackets:
 
    - doi (LIBRARY OR AUTHOR OR GIPP/GEOFON INPUT): the DOI of this report
    - doiDataset (LIBRARY INPUT): the DOI of the report dataset, if any
@@ -39,18 +40,8 @@
    - issn (LIBRARY INPUT): the issn. E.g.: 2190-7110
    - publicationYear (LIBRARY INPUT): the publication year. E.g., 2016
    - publicationMonth (LIBRARY INPUT): the publication month in plain english. E.g.: October
-   - reportCitationPreamble (LIBRARY INPUT): the preamble text before the full bibliographic citation
-     relative to the DOI of this report. The full text (preamble + DOI)
-     will be rendered as the first paragraph in the back of the title page
-   - datasetCitationPreamble (LIBRARY INPUT): the preamble text before the full bibliographic citation
-     relative to the DOI of the dataset of this report
-     The full text (preamble + DOI) will be rendered as the second paragraph in the back of the title page
-     Note: If doiDataset is empty, nothing will be printed
-   - supplementaryDataCitationPreamble (LIBRARY INPUT): the preamble text before the full bibliographic citation
-     relative to the DOI of the supplementary dataset of this report.
-     The full text (preamble + DOI) will be rendered as the third paragraph in the back of the title page.
-     Note: If doiSupplementaryDataset is empty, nothing will be printed
 
+	Now you can fill their values (plain text only, no markup):
 
 :doi: 10.14470/XXXXXXXXXXY
 
@@ -75,13 +66,6 @@
 :publicationYear: 
 
 :publicationMonth: 
-      
-:reportCitationPreamble: Recommended citation for the data report:
-
-:datasetCitationPreamble: If you use the dataset described in this report, please use the following citation:
-   
-:supplementaryDataCitationPreamble: The raw unprocessed data from cube data loggers and logfiles from
-   EDL stations are archived as assembled dataset and should be cited as:
 
 
 .. ^^^^^^
@@ -114,7 +98,7 @@
    In html there is no such processing and the text below will be displayed
    as it is, after removing all asterixs.
 
-:authors: Author1* (Institute1), Author2 (Institute2), Author3 (Institute1)
+:Authors: Author1* (Institute1), Author2 (Institute2), Author3 (Institute1)
 
 .. The abstract (AUTHOR INPUT). In LaTeX, this will be rendered inside a \begin{abstract}\end{abstract}
    commands
@@ -122,6 +106,26 @@
 :Abstract: write your abstract here, you can add newlines but remeber:
            you should indent
            any new line
+
+.. the citation section. Write here how the user should cite this report, and/or how to cite
+   any data related to this report, if needed. The text below will be rendered in the title back page in LaTeX.
+   In principle, you might need to just change or re-arrange the text. For more experienced users,
+   note the use of the custom role :doi-citation: where you can reference
+   also an already defined bib. field before the title by wrapping the field name in "|", e.g. :doi-citation:`|doi|`.
+
+:Citations: Recommended citation for the data report:
+
+            :doi-citation:`|doi|`
+            
+            
+            If you use the dataset described in this report, please use the following citation:
+
+            :doi-citation:`|doiDataset|`
+            
+            
+            The raw unprocessed data from cube data loggers and logfiles from EDL stations are archived as assembled dataset and should be cited as:
+            
+            :doi-citation:`|doiSupplementaryData|`
 
 
 .. From here on the document content. Section titles are underlined (or under+overlined)

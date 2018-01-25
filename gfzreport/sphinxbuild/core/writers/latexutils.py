@@ -8,6 +8,22 @@ Created on Oct 28, 2017
 
 
 def parse_authors(authors_string):
+    '''Parses the author_string (as input in the rst) and returns three tuples for latex documents:
+    authors, authors_with_affiliations, affiliations.
+    
+    Example:
+
+    ===========================  =========================================
+    Input authors_string is:     Me* (abc), Myself(abc), John Smith (H)
+    ===========================  =========================================
+    authors                      Me, Myself, John Smith
+    authors_with_affiliations    Me$^{1*}$, Mysrelf$^1$, John Smith$^2$
+    affiliations                 $^1$ abc \\[\baselineskip] $^2$ H \\[\baselineskip] $^{*}$ corresponding authors
+    ===========================  =========================================
+    
+    :param suthors_string: the string as inoput in the rst
+    '''
+    
     authors = []
     affiliations = []
     authors_with_affiliations = []
