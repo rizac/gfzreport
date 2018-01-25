@@ -83,7 +83,7 @@ ask), then type:
    su
    Password: [TYPE PASSWORD]
 
-do your stuff and eventually type ``exit`` to restore the ``sysop`` user.
+do your stuff and **eventually type ``exit`` to restore the ``sysop`` user**.
 
 .. _restartserver:
 
@@ -101,6 +101,15 @@ You need to :ref:`gainrootprivileges` first, and then:
    \clearpage
 
 .. _serverrootpath:
+
+Debug from terminal (View Apache error log)
+-------------------------------------------
+
+.. code-block:: bash
+
+   tail -f /var/log/apache2/error.log
+   
+(Ctrl+C to exit)
 
 Root data path
 --------------
@@ -375,7 +384,7 @@ As of November 2017, the following files and directories are not used anymore an
    /data2/gfz-reportgen_annual/
    /data2/gfz-reportgen/rizac  (but we should also remove the conf available. This I guess was the first report (not editable)
    /data2/gfz-report/  (old directory with the report data)
-   /home/sysop/tmp_cesca_report/  (when simone report is done)
+   /home/sysop/tmp_cesca_report/  (IQ 2009 report source data files)
    /home/sysop/tmp_conffiles/  (or keep it, if we want to copy again conf_files and config.py in there from our sphinx directory)
    
 

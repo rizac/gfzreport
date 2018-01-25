@@ -39,7 +39,7 @@ interpreted text roles (e.g. '$' for math typing, as in |latex|) to match requir
 Bibliographic fields behaviour
 *******************************
 
-:ref:`spx` implements new default behaviours of the so-called
+:ref:`gfzb` implements new default behaviours of the so-called
 `bibliographic fields <http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html#bibliographic-fields>`_, i.e.
 :ref:`rst` markup of the form:
 
@@ -48,30 +48,30 @@ Bibliographic fields behaviour
    :name: value
 
 placed **at the beginning** of the :ref:`rst` file.
-By default (we will honour this behaviour in our program), bibliographic fields before the title are not rendered in the output [#tn1]_.
-In addition to this, in :ref:`gfzb`:
 
-* Bibliographic fields before the title in the |rst| will be available as ``\rst<field_name_with_first_letter_capitalized>`` in |latex|.
-  So for instance:
-  
-  .. code-block:: rst
-     
-     doi: abc
-     
-  will be available in |latex| as (note first capitalized letter):
-  
-  .. code-block:: latex
-  
-     \newcommand{rstDoi}{abc}
-     
-  A user might then implement a custom |latex| layout to include that command  (see :ref:`templatinglatexcustomization` for details).
+By default (we will honour this behaviour in our program), bibliographic fields *before* the title are not rendered in the output [#tn1]_.
+In addition to this, in :ref:`gfzb` each field will be available as ``\rst<field_name_with_first_letter_capitalized>`` in |latex|.
+So for instance:
 
-* The bibliographic field (before the title) 'doi' has a special behaviour in |html|: when specified and non-empty,
-  then the field 'DOI' will appear in the |html| document just after the title, and will point to
-  the full URL (``http://doi.org/`` + value specified in the |rst|).
+.. code-block:: rst
+   
+   doi: abc
+   
+will be available in |latex| as (note first capitalized letter):
 
-* Bibliographic fields ``author(s)`` and ``abstract`` after the title will be processed before being rendered:
-  In |latex| by creating two new commands, to be used in the |latex| customization if needed. E.g.:
+.. code-block:: latex
+
+   \newcommand{rstDoi}{abc}
+   
+A user might then implement a custom |latex| layout to include that command  (see :ref:`templatinglatexcustomization` for details).
+
+By default, bibliographic fields *after* the title are rendered in the output. We honour this behaviour
+in our program with some exceptions regarding |latex| output only:
+
+- 'abstract' will be rendered inside a ``\begin{abstract}...\end{abstract}`` environment, and not as bibliographic field
+
+- 'author' (or 'authors') will be parsed before being rendered and will create two new commands
+  to be used in the |latex| customization if needed. E.g.:
   
   .. code-block:: latex
      
@@ -82,13 +82,16 @@ In addition to this, in :ref:`gfzb`:
   In |html| no process is involved and they will be rendered by default as they are (except removing any asterix from the authors before
   rendering).
   
+- 'citation' (or 'citations') will not be shown but stored inside the ``\rstCitations`` command
+
+- 'revision' will not be shown but will update internally the ``release`` key of the :ref:`spx` ``app.elements`` object
 
 .. [#tn1] Note for developers: Bibliographic fields before the title cannot contain markup nor can they
    have comments between them (Sphinx bug?). When implementing new extensions, they are available as     
    ``self.builder.app.env.metadata[self.builder.app.config.master_doc]``   
    in |latex| and |html| writers implemented in   
    ``gfzreport.sphinxbuild.writers`` or, from within a directive, as
-   ``self.state.inliner.document.settings.env`` (the latter has not been actually tested)
+   ``self.state.inliner.document.settings.env``
 
 
 Overview of the package
