@@ -85,8 +85,10 @@ div.documentwrapper { /*alabaster.css:72*/
 }
 
 div.footer{  /* move footer right */
-	margin-right: 1em;
+	padding-left: 20vw; /* must be the same as div.toc width (see below) */
 	font-size: smaller; /*make size relative to the body */
+	padding-right: 1em;
+    width: initial;
 }
 
 /* sidebar and document */
@@ -112,7 +114,7 @@ div.toc .toc-center{
 }
 
 div.toc{
-	width: 20vw;
+	width: 20vw; /* must be the same as div.footer pading-left (see below) */
 }
 div.document{
 	margin-left: 20vw; /*MUST be equal to the above */
