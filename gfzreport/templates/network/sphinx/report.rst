@@ -41,7 +41,7 @@
    - publicationYear (LIBRARY INPUT): the publication year. E.g., 2016
    - publicationMonth (LIBRARY INPUT): the publication month in plain english. E.g.: October
 
-	Now you can fill their values (plain text only, no markup):
+   Now you can fill their values (plain text only, no markup):
 
 :doi: 10.14470/XXXXXXXXXXY
 

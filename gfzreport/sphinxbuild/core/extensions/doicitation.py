@@ -23,6 +23,8 @@ import urllib2
 
 from docutils import nodes
 
+from gfzreport.sphinxbuild.core import touni
+
 _ROLE_NAME = "doi-citation"
 
 _CACHE_FILENAME = "doi_citations_cache_json.log"  # this file will be saved in the **source** dir
@@ -183,12 +185,12 @@ def process_node(node, app):
     except Exception as exc:  #pylint: disable=broad-except
         doi_text  = str(exc)
         doi_url = ''
-    nodez = [nodes.Text(doi_text)]
+    nodez = [nodes.Text(touni(doi_text))]  # `touni` because Text nodes want unicode
     if doi_url:
         urlnode = nodes.reference('', '')
         urlnode['refuri'] = doi_url
-        urlnode.append(nodes.Text(doi_url))
-        nodez += [nodes.Text(' '), urlnode]
+        urlnode.append(nodes.Text(tonuni(doi_url)))  # `touni` because Text nodes want unicode
+        nodez += [nodes.Text(touni(' ')), urlnode]  # `touni` because Text nodes want unicode
     # DONT DO THIS:
     # node.children = nodez
     # nodes.Element has to be assigned via indices, or append.

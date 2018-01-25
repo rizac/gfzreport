@@ -8,10 +8,12 @@ Created on Mar 18, 2016
 @author: riccardo
 '''
 import os
-from sphinx.writers.html import SmartyPantsHTMLTranslator
+
 from docutils.nodes import SkipNode
 from docutils import nodes
+from sphinx.writers.html import SmartyPantsHTMLTranslator
 
+from gfzreport.sphinxbuild.core import touni
 
 class HTMLTranslator(SmartyPantsHTMLTranslator):
     '''This class does basically one thing removes the asterix (if present) from
@@ -30,7 +32,9 @@ class HTMLTranslator(SmartyPantsHTMLTranslator):
             try:
                 node.rawsource = node.rawsource.replace('*', '')
                 textnode = node.children[0].children[0]
-                textnode.parent.children[0] = nodes.Text(textnode.rawsource.replace('*', ''))
+                # replace asterix. Use touni cause Text nodes want unicode:
+                textnode.parent.children[0] = nodes.Text(textnode.rawsource.replace(touni('*'),
+                                                                                    touni('')))
             except Exception:  #pylint: disable=broad-except
                 pass
         SmartyPantsHTMLTranslator.visit_field_body(self, node)

@@ -20,7 +20,7 @@ Created on Apr 4, 2016
 # from docutils.nodes import SkipNode
 from sphinx.writers.latex import LaTeXTranslator as LT  # , FOOTER, HEADER
 
-from gfzreport.sphinxbuild.core.writers import touni
+from gfzreport.sphinxbuild.core import touni
 from gfzreport.sphinxbuild.core.writers.latexutils import parse_authors
 
 

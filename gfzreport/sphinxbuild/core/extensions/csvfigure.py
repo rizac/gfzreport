@@ -22,6 +22,7 @@ from docutils.parsers.rst.directives.tables import CSVTable
 from docutils.parsers.rst.directives.images import Figure
 from docutils.nodes import Text
 
+from gfzreport.sphinxbuild.core import touni
 
 class CsvFigureDirective(CSVTable, Figure):
     """
@@ -72,7 +73,7 @@ class CsvFigureDirective(CSVTable, Figure):
         fig_messages = fig_nodes[1:]
         caption = None
         if self.arguments and caption_text:
-            txt = Text(caption_text)
+            txt = Text(touni(caption_text))  # Text nodes want unicode
             caption = nodes.caption(caption_text, '', *[txt])
             caption.parent = fig_node  # sphinx complains if we do not set it ...
 
