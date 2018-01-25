@@ -11,6 +11,7 @@ import os
 from os import path
 from gfzreport.sphinxbuild.core.writers.latex import LatexTranslator
 from gfzreport.sphinxbuild.core.writers.html import HTMLTranslator
+from docutils import nodes
 # from docutils import nodes
 
 
@@ -166,7 +167,11 @@ def app_doctree_read(app, doctree):
         for obj in doctree.traverse(nodes.problematic):
             .. your code here
     """
-    pass
+    for _ in doctree.traverse(nodes.problematic):
+        __ = 9
+        
+    for _ in doctree.traverse(nodes.Element):
+        __ = 9
 
 
 def missing_reference(app, env, node, contnode):

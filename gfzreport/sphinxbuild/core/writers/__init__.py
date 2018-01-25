@@ -1,5 +1,3 @@
-DOI_BASE_URL = "https://doi.org/"
-
 def touni(obj):
     '''python2-3 compatible function to convert to unicode,
     as many nodes elements expect unicodes'''

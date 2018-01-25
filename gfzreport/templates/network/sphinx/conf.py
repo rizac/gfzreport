@@ -36,6 +36,7 @@ extensions = [
     'gfzreport.sphinxbuild.core.extensions.gridfigure',  # this is the custom one
     'gfzreport.sphinxbuild.core.extensions.tabularrows',  # this is the custom one
     'gfzreport.sphinxbuild.core.extensions.includegraphics',  # this is the custom one
+    'gfzreport.sphinxbuild.core.extensions.doicitation',  # this is the custom one
 ]
 
 

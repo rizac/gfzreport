@@ -147,16 +147,8 @@
 	% https://texblog.org/2012/08/29/changing-the-font-size-in-latex/  
 	{\footnotesize
 		
-		\rstReportCitationPreamble 				\newline\newline
-		\rstDoiCitation 						\newline\newline\newline
-		\ifnotempty{\rstDoiDatasetCitation}{%
-			\rstDatasetCitationPreamble 			\newline\newline
-			\rstDoiDatasetCitation 					\newline\newline\newline%
-		}
-		\ifnotempty{\rstDoiSupplementaryDataCitation}{%
-			\rstSupplementaryDataCitationPreamble 	\newline\newline
-			\rstDoiSupplementaryDataCitation		\newline\newline\newline%
-		}
+		\rstCitations{\ }  % add empty string at the end so that \vfill maybe works
+		% when rstCitations is empty
 
 		% lower right corner:
 		\begin{flushright}\vfill
