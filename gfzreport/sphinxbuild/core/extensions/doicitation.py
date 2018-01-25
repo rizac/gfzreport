@@ -189,7 +189,7 @@ def process_node(node, app):
     if doi_url:
         urlnode = nodes.reference('', '')
         urlnode['refuri'] = doi_url
-        urlnode.append(nodes.Text(tonuni(doi_url)))  # `touni` because Text nodes want unicode
+        urlnode.append(nodes.Text(touni(doi_url)))  # `touni` because Text nodes want unicode
         nodez += [nodes.Text(touni(' ')), urlnode]  # `touni` because Text nodes want unicode
     # DONT DO THIS:
     # node.children = nodez
