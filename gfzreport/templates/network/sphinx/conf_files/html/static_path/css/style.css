@@ -84,6 +84,10 @@ div.documentwrapper { /*alabaster.css:72*/
     float: none;
 }
 
+div.footer{  /* move footer right */
+	margin-right: 1em;
+	font-size: smaller; /*make size relative to the body */
+}
 
 /* sidebar and document */
 div.toc{

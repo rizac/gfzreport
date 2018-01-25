@@ -83,7 +83,7 @@ numfig = True
 # General information about the project. Obviously, Sphinx does not tell how and when they are
 # rendered except and which consequences they have. Anyway, these variables are not used here.
 project = u''
-copyright = u''
+copyright = u'Helmholtz Centre Potsdam GFZ German Research Centre for Geosciences'
 author = u''
 
 # The version info for the project you're documenting, acts as replacement for
