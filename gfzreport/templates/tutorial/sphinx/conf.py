@@ -58,7 +58,7 @@ extensions = [
 # For info see:
 # http://www.sphinx-doc.org/en/1.5.2/config.html#confval-master_doc (current as of July 2017), or
 # http://www.sphinx-doc.org/en/latest/config.html#confval-master_doc
-master_doc = 'index'
+master_doc = 'gfzreport-tutorial'
 
 # This is the suffix(es) of source filenames. You can specify multiple suffix as a list of string:
 # source_suffix = ['.rst', '.md']
@@ -146,13 +146,13 @@ exclude_patterns = ['_*.rst', "*.log", 'Thumbs.db', '.DS_Store']
 # -- Options for HTML output ----------------------------------------------
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['conf_files']  # this points to our layout.html not the network one. It's basically the same
+templates_path = ['%s/html/templates' % _root_] + ['conf_files/html/templates']  # this points to our layout.html not the network one. It's basically the same
 # as network's layout.html we just added few lines of style rules and commented all code loading leaflet
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['%s/html/static_path' % _root_]
+html_static_path = ['%s/html/static_path' % _root_] + ['conf_files/html/static_path']
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar. NOTE: AS LONG AS html_theme='alabaster',
@@ -196,7 +196,7 @@ html_use_opensearch = ''
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
 # directly to the root of the documentation:
-# html_extra_path = []
+html_extra_path = ['conf_files/extra_path']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format:
@@ -260,7 +260,10 @@ html_use_opensearch = ''
 # when building LaTeX output. (Note: changed in version 1.2: This overrides the files which is
 # provided from Sphinx such as sphinx.sty):
 latex_additional_files = [os.path.join('%s/latex/additional_files' % _root_, c)
-                          for c in os.listdir("%s/latex/additional_files" % _root_)]
+                          for c in os.listdir("%s/latex/additional_files" % _root_)] + \
+                         [os.path.join('conf_files/latex/additional_files', c)
+                          for c in os.listdir("conf_files/latex/additional_files")]
+                          
 
 latex_elements = {
     # empty = not toc:

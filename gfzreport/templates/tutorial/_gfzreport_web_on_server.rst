@@ -49,11 +49,11 @@ Before checking modifications in the browser, remember to :ref:`restartserver`
 
 
 Notes
-*****
+^^^^^
 
 1. If you get a error: "insufficient permission for adding an object to repository..."
 after issuing the ``git pull``, it might be that a ``git pull`` has been previosuly issued with root privileges
-(which might happen when restarting the server and forgotting to exit).
+(which might happen when restarting the server without exiting afterwards).
 In that case, first :ref:`gainrootprivileges` and then issue a:
 
 .. code-block:: bash
@@ -96,9 +96,6 @@ You need to :ref:`gainrootprivileges` first, and then:
 
    service apache2 reload
 
-.. raw:: latex
-
-   \clearpage
 
 Debug from terminal (View Apache error log)
 -------------------------------------------
@@ -108,6 +105,11 @@ Debug from terminal (View Apache error log)
    tail -f /var/log/apache2/error.log
    
 (Ctrl+C to exit)
+
+
+.. raw:: latex
+
+   \clearpage
 
 .. _serverrootpath:
 
@@ -198,20 +200,17 @@ Create a new report template (network report)
 ---------------------------------------------
 
 This is the same operation described in :ref:`createnewtemplate`, but specific for 
-application currently installed on the server.
+application currently installed on the server (please remember that for any detailed help you can always
+:ref:`activatevirtualenv` and then type `gfzreport template n --help` on the terminal)
 
-You can always get the program help described here by typing in the terminal (remember to :ref:`activatevirtualenv` first):
- 
-.. code-block:: bash
-   
-   gfzreport template n --help
+Assuming the network name is "ZE" and the start year is 2012 (these information are mandatory to
+create a new network report), you first have to create the report default figures, i.e. the
+noise probability density functions (pdfs)
+and the instrument uptimes figure. Ask the GEOFON
+person responsible to produce them. 
 
-To create a new report template, we assume that a network name (e.g., 'ZE') and a network start year are given (e.g., 2012).
-Ask the GEOFON person responsible to produce the input figures, i.e. noise probability density functions (pdfs)
-and the instrument uptimes figure (this procedure could be in the future automatized and
-implemented in :ref:`gfzt`).
-
-Being all pdfs to be arranged in the document as a grid of images, their file names should have the format:
+Please note that, being all pdfs arranged in the document as a grid of images, :ref:`gfzt`
+expects their file names to be in the format:
 
 ``[station]-[channel].png``
 
@@ -220,7 +219,7 @@ or, for stations with the same name:
 ``[station]-[channel]-1.png, [station]-[channel]-2.png``
 
 where the number should match the station start time, e.g. between "AW-HHZ-1" and "AW-HHZ-5", the latter is more recent.
-Actually, "-" can be any sequence of one or more non-alphanumeric characters (using "-" is maybe better to remember).
+Actually, "-" can be any sequence of one or more non-alphanumeric characters (use what you want).
 
 The input figures can be created in any directory with any tree structure.
 By convention, we use directories of the type "`/home/sysop/tmp_*`". 
@@ -231,33 +230,34 @@ Assuming, e.g., the following input figures directory:
    /home/sysop/tmp_ZE/pdfs [directory of the noise pdfs]
    /home/sysop/tmp_ZE/uptime.png  [file of the instrument uptime]
 
-Then, in order to create a new report template you MUST first :ref:`activatevirtualenv` and then run
-(for details remember to type `gfzreport template n --help` on the terminal [#wcrd]_):
+
+Then, in order to create a new report template you MUST first :ref:`activatevirtualenv` and then run:
 
 .. code-block:: bash
    
    gfzreport template n -n ZE -s 2012 -p /home/sysop/tmp_ZE/pdfs -i /home/sysop/tmp_ZE/uptime.png -o /data2/gfzreport/network/source
 
-This creates the directory "/data2/gfzreport/network/source/ZE_2012" (note that the ``-o`` option points
+(Please remember that for any detail you can always type `gfzreport template n --help` on the terminal [#wcrd]_)
+The command above creates the directory "/data2/gfzreport/network/source/ZE_2012" (note that the output ``-o`` option points
 to the parent folder of the directory).
 
 Important Notes
 ^^^^^^^^^^^^^^^
 
-* Read the output of the program: it is intended to be a first check for capturing errors which
+* Read the output of the program on the terminal while creating the template:
+  it is intended to be a first check for capturing errors which
   prevent the template creation correctly (e.g. internet connection
   while retrieving all network stations metadata for the maps and tables).
   The output of the program is in any case written to ``gfzreport.template.log`` (inside the output directory)
  
-* :ref:`modifydbusers`, if there are users who need to edit the report and do not have authorization
-  (otherwise skip this step)
-
 * Check visually the result. Go at http://st161dmz/gfzreport/network and check that
   there is the button corresponding to the newly created report. Then click on that button and check
   the report template (e.g., all pdfs figures are correctly in the grid, the station map and table correctly
   display the stations, and so on). You should not need to :ref:`restartserver`. However, if something is wrong, try
   that and check again in the browser before reporting the error.
 
+* If there are users who need to edit the report and do not have authorization, remember to
+  :ref:`modifydbusers`, 
 
 .. [#wcrd] As specified in the terminal help, the program ``-p`` and ``-i`` options accept wildcards
    Note however that UNIX expands wildcards into the list of matching files
@@ -295,7 +295,7 @@ an existing user.
 To have the modification take effect, :ref:`restartserver` 
 
 Update config only
------------------
+------------------
 
 Sometimes, after a bug fix or whatever, we want to update the configuration files only, not overriding
 any data file (including the source |rst|). Then run :ref:`gfzt` with the -c option, e.g.: 

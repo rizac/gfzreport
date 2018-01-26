@@ -1,6 +1,14 @@
 .. tutorial of this app. Note that included files must start with _chap_ or whatever
    is implemented in exclude_patterns in conf.py.
 
+.. PLEASE NOTE: Except fopr the title (see below), all section lavels are underlined only
+   and they are: (we might use our customized titles as github markup?)
+   
+   ====================== chapter
+   --------------------- section
+   ^^^^^^^^^^^^^^^^^^^^^ sub-subsection
+   ********************** paragraph
+
 
 :tocdepth: 3
 
@@ -19,9 +27,9 @@ GfzReport
    <a href='latex/index.pdf'>PDF version</a>
 
 
-.. |DIR| image:: ./imgs/24px-Icons8_flat_folder.svg.png
+.. |DIR| image:: ./sphinx/conf_files/img/24px-Icons8_flat_folder.svg.png
 
-.. |FILE| image:: ./imgs/24px-File_alt_font_awesome.svg.png
+.. |FILE| image:: ./sphinx/conf_files/img/24px-File_alt_font_awesome.svg.png
 
 .. |rst| replace:: RsT
 

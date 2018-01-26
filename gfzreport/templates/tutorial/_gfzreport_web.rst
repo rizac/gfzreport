@@ -142,8 +142,9 @@ You can invoke the web application locally with a script like this:
 Then, navigate to http://127.0.0.1:5000/ in your web browser and you should see something like
 this (the appearence might change in future releases):
 
-.. figure:: ./imgs/webapphome.png
-   :width: 100%
+.. figure:: ./sphinx/conf_files/img/webapphome.png
+   :width: 50%
+   :align: center
 
    The home page of a report type. Each button denotes a directory not starting with "_" in the 
    "source" sub-directory of the app data path
