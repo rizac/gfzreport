@@ -33,7 +33,7 @@ _CACHE_FILENAME = "doi_citations_cache_json.log"  # this file will be saved in t
 # when searching for docs to scan in the conf.py, although that just prevents them to copy to the
 # builddir apparently
 
-URLOPEN_TIMEOUT_IN_SEC = 10
+URLOPEN_TIMEOUTS_IN_SEC = (10, 2)  # timeout if we don't have DOI in cache, timeout if we do
 
 DOI_BASE_URL = "https://doi.org/"
 
@@ -41,21 +41,34 @@ DOI_BASE_URL = "https://doi.org/"
 
 def get_citation(root_dir, doi):
     '''
-    :return: the tuple (doi-citation, url) (both strings). The latter might be empty
+    :return: the tuple (doi-citation, url) (both strings). The latter might be empty.
+    This method reqeusts the doi web service *always*. If an HTTP error occurs, it uses values
+    stored in the cache, if no cache found, raises the HTTP error that will be then displayed
+    in the document.
     '''
     citation = get_citation_from_cache(root_dir, doi)
-    if citation is None:
-        citation = get_citation_from_web(doi)
+    webcitation = None
+    # if we have a cahce, set a timeout very low (2 secs currently) and use the cache instead
+    # Conversely, if we do not have a cache, be more patient:
+    timeout = URLOPEN_TIMEOUTS_IN_SEC[0 if citation is None else 1]
+    try:
+        webcitation = get_citation_from_web(doi, timeout)
+    except Exception as exc:
+        if citation is None:
+            raise exc
+
+    if webcitation is not None:
         outfn = os.path.join(root_dir, _CACHE_FILENAME)
         try:
             with open(outfn, 'r') as opn_:
                 data = json.load(opn_)
         except (OSError, IOError, ValueError, TypeError):
             data = {}
-        data[doi] = citation
+        data[doi] = webcitation
         with open(outfn, 'w') as opn_:
             json.dump(data, opn_)
-    return citation
+
+    return webcitation if webcitation is not None else citation
 
 
 def get_citation_from_cache(root_dir, doi):
@@ -68,7 +81,7 @@ def get_citation_from_cache(root_dir, doi):
     return None
 
 
-def get_citation_from_web(doi):
+def get_citation_from_web(doi, timeout):
     '''
     :return: the tuple (doi-citation, url) (both strings). The latter might be empty
     '''
@@ -79,7 +92,7 @@ def get_citation_from_web(doi):
         req = urllib2.Request(DOI_BASE_URL + doi,
                               headers={'Accept': 'text/x-bibliography', 'style': 'apa',
                                        'locale': 'en-US'})
-        response = urllib2.urlopen(req, timeout=URLOPEN_TIMEOUT_IN_SEC)
+        response = urllib2.urlopen(req, timeout=timeout)
         cit = response.read()
         idx = cit.find(DOI_BASE_URL)
         if idx > -1 and cit[idx:].strip().lower().endswith(doi.lower()):
@@ -183,7 +196,7 @@ def process_node(node, app):
     try:
         doi_text, doi_url = get_citation(source_dir, doitext)
     except Exception as exc:  #pylint: disable=broad-except
-        doi_text  = str(exc)
+        doi_text = str(exc)
         doi_url = ''
     nodez = [nodes.Text(touni(doi_text))]  # `touni` because Text nodes want unicode
     if doi_url:
