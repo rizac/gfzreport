@@ -4,8 +4,10 @@
 gfzreport-web (on current server)
 =================================
 
-The :ref:`gfzw` is currently installed at GFZ on ``st161dmz``. This is a fast tutorial
-explaining how to do most common operations
+The :ref:`gfzw` is currently installed at GEOFON. If you did not generate this tutorial locally,
+The machine name (referred as ``<this.machine>`` in the following) is this page url's domain name
+(see adress bar in your browser).
+This is a fast tutorial explaining how to do most common operations
 
 .. _logintoserver:
 
@@ -16,7 +18,7 @@ Assuming you have `generated an ssh key <https://www.digitalocean.com/community/
 
 .. code-block:: bash
    
-   ssh sysop@st161dmz
+   ssh sysop@<this.machine>
 
 .. _activatevirtualenv:
 
@@ -224,6 +226,10 @@ Actually, "-" can be any sequence of one or more non-alphanumeric characters (us
 
 The input figures can be created in any directory with any tree structure.
 By convention, we use directories of the type "`/home/sysop/tmp_*`". 
+
+2. Create document
+^^^^^^^^^^^^^^^^^^
+
 Assuming, e.g., the following input figures directory:
 
 .. code-block:: bash
@@ -231,45 +237,45 @@ Assuming, e.g., the following input figures directory:
    /home/sysop/tmp_ZE/pdfs [directory of the noise pdfs]
    /home/sysop/tmp_ZE/uptime.png  [file of the instrument uptime]
 
-2. Create document
-^^^^^^^^^^^^^^^^^^
-
- (please remember that for any detailed help you can always
-:ref:`activatevirtualenv` and then type `gfzreport template n --help` on the terminal)
-
 In order to create a new empty network report (with the image files created and other meta-data
-fetched automatically) you **MUST first** :ref:`activatevirtualenv` and then run:
+fetched automatically) you **MUST first** :ref:`activatevirtualenv` and then run :ref:`gfzt`:
 
 .. code-block:: bash
    
    gfzreport template n -n ZE -s 2012 -p /home/sysop/tmp_ZE/pdfs -i /home/sysop/tmp_ZE/uptime.png -o /data2/gfzreport/network/source
 
-The command above creates the directory "/data2/gfzreport/network/source/ZE_2012" (note that the output ``-o`` option points
+which creates the directory "/data2/gfzreport/network/source/ZE_2012" (note that the output ``-o`` option points
 to the parent folder of the directory).
 
-**Please remember that a detailed help is always available from the terminal by typing**: `gfzreport template n --help` [#wcrd]_.
+**Please remember that a detailed help is always available from the terminal by typing** [#wcrd]_:
+
+.. code-block:: bash
+
+   gfzreport template n --help
 
 3. Checks
 ^^^^^^^^^
 
-* Read the output of the program on the terminal while creating the template:
+* Read the output of ``gfzreport template n ...`` on the terminal while creating the template:
   it is intended to be a first check for capturing errors which
-  prevent the template creation correctly (e.g. internet connection
-  while retrieving all network stations metadata for the maps and tables).
-  The output of the program is in any case written to ``gfzreport.template.log`` (inside the output directory)
+  prevent the template creation, e.g. internet connection
+  while retrieving all network stations metadata for the maps and tables. In case of such network
+  errors (i.e., depending on external causes), a re-try of ``gfzreport template n ...`` might be
+  necessary before reporting the problem.
+  Anyway, the output of the program is written to ``gfzreport.template.log`` (inside the output directory)
  
-* Check visually the result. Go at http://st161dmz/gfzreport/network and check that
+* Check visually the result. Go at http://../network and check that
   there is the button corresponding to the newly created report. Then click on that button and check
   the report template (e.g., all pdfs figures are correctly in the grid, the station map and table correctly
-  display the stations, and so on). You should not need to :ref:`restartserver`. However, if something is wrong, try
-  that and check again in the browser before reporting the error.
+  display the stations, and so on). You should not need to :ref:`restartserver`. However, if something is wrong,
+  restart the server and check again in the browser before reporting the error.
 
 * If there are users who need to edit the report and do not have authorization, remember to
   :ref:`modifydbusers`, 
 
-.. [#wcrd] As specified in the terminal help, the program ``-p`` and ``-i`` options accept wildcards
+.. [#wcrd] As specified in the terminal help, the options ``-p`` and ``-i`` accept wildcards.
    Note however that UNIX expands wildcards into the list of matching files
-   before calling our program, and that breaks the program functionality. Solution:
+   before calling our program, and this breaks the program functionality. Solution:
    Escape wildcards with backslash, or avoid wildcards at all
 
 .. _modifydbusers:
