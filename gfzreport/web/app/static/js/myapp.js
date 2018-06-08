@@ -27,12 +27,13 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 			    // they open inside the iframe:
 			    // we prefer to make it from here so we do not change each template:
 			    if (_view == $scope._VIEWS[0]){ //is html page
-    			    frame.contentWindow.document.body.onload = function(){
-    			        var anchors = frame.contentWindow.document.querySelectorAll('a[href^="http://"],a[href^="https://"]');
+			        // small delay to be sure page has loaded:
+    			    frame.contentWindow.setTimeout(function(){
+    			        var anchors = frame.contentWindow.document.querySelectorAll('a[href^="http"]'); //'a[href^="http://"],a[href^="https://"]');
     			        for (var i = 0; i < anchors.length; i++) {
     			            anchors[i].setAttribute('target', '_blank');
     			        }
-    			    };
+    			    }, 200);
 			    }
 			    // proceed:
 				if ($scope.needsRefresh[_view]){
