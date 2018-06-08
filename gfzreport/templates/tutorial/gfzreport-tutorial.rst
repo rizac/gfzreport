@@ -24,7 +24,7 @@ GfzReport
 
 .. raw:: html
 
-   <a href='latex/index.pdf'>PDF version</a>
+   <a href='latex/gfzreport-tutorial.pdf'>PDF version</a>
 
 
 .. |DIR| image:: ./sphinx/conf_files/img/24px-Icons8_flat_folder.svg.png

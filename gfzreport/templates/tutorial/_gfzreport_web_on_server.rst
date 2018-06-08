@@ -200,17 +200,15 @@ Create a new report template (network report)
 ---------------------------------------------
 
 This is the same operation described in :ref:`createnewtemplate`, but specific for 
-the application installed on the GEOFON server (please remember that for any detailed help you can always
-:ref:`activatevirtualenv` and then type `gfzreport template n --help` on the terminal)
+the application installed on the GEOFON server. It can be subdivided into three steps:
 
-Preparation (image files)
-^^^^^^^^^^^^^^^^^^^^^^^^^
+1. Preparation (image files)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Assuming the network name is "ZE" and the start year is 2012 (these information are mandatory to
 create a new network report), you first have to create the report default figures, i.e. the
 noise probability density functions (pdfs)
-and the instrument uptimes figure. Ask the GEOFON
-person responsible to produce them. 
+and the instrument uptimes figure (if it's not you, ask the GEOFON person responsible to produce them). 
 
 Please note that, being all pdfs arranged in the document as a grid of images, :ref:`gfzt`
 expects their file names to be in the format:
@@ -233,21 +231,26 @@ Assuming, e.g., the following input figures directory:
    /home/sysop/tmp_ZE/pdfs [directory of the noise pdfs]
    /home/sysop/tmp_ZE/uptime.png  [file of the instrument uptime]
 
-Create empty document (with figures and other metadata filled automatically)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2. Create document
+^^^^^^^^^^^^^^^^^^
 
-Then, in order to create a new report template you MUST first :ref:`activatevirtualenv` and then run:
+ (please remember that for any detailed help you can always
+:ref:`activatevirtualenv` and then type `gfzreport template n --help` on the terminal)
+
+In order to create a new empty network report (with the image files created and other meta-data
+fetched automatically) you **MUST first** :ref:`activatevirtualenv` and then run:
 
 .. code-block:: bash
    
    gfzreport template n -n ZE -s 2012 -p /home/sysop/tmp_ZE/pdfs -i /home/sysop/tmp_ZE/uptime.png -o /data2/gfzreport/network/source
 
-(Please remember that for any detail you can always type `gfzreport template n --help` on the terminal [#wcrd]_)
 The command above creates the directory "/data2/gfzreport/network/source/ZE_2012" (note that the output ``-o`` option points
 to the parent folder of the directory).
 
-Checks
-^^^^^^
+**Please remember that a detailed help is always available from the terminal by typing**: `gfzreport template n --help` [#wcrd]_.
+
+3. Checks
+^^^^^^^^^
 
 * Read the output of the program on the terminal while creating the template:
   it is intended to be a first check for capturing errors which
