@@ -73,8 +73,8 @@ def get_report(reportdirname):
     # https://flask-login.readthedocs.io/en/latest/#flask_login.login_user VS
     # https://flask-login.readthedocs.io/en/latest/#remember-me)
     if not os.path.isdir(get_sourcedir(current_app, reportdirname)):
-        raise AppError(("The source directory of '%s' does not "
-                        "exist on this server") % str(reportdirname), 500)
+        raise AppError(("Invalid report name '%s': no source directory found "
+                        "on the server") % str(reportdirname), 500)
 
     # return the normal way
     return render_template("report.html",
