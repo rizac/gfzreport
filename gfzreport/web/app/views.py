@@ -72,6 +72,12 @@ def get_report(reportdirname):
     # (probably due to login_user(...remember=False), but doc is inconistent:
     # https://flask-login.readthedocs.io/en/latest/#flask_login.login_user VS
     # https://flask-login.readthedocs.io/en/latest/#remember-me)
+
+    # Fast check: mistyped reportdirname: show an error as otherwise we render
+    # the template with the login button but no contents in the iframes (html and pdf)
+    # This might be better handled because in case of errors we return a json response which is
+    # not so nicely displayed on the browser. However, the message is clearly visible
+    # on chrome so we get what we eant:
     if not os.path.isdir(get_sourcedir(current_app, reportdirname)):
         raise AppError(("Invalid report name '%s': no source directory found "
                         "on the server") % str(reportdirname), 500)
