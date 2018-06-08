@@ -264,7 +264,7 @@ to the parent folder of the directory).
   necessary before reporting the problem.
   Anyway, the output of the program is written to ``gfzreport.template.log`` (inside the output directory)
  
-* Check visually the result. Go at http://../network and check that
+* Check visually the result. Go at ``http://<this.machine>/gfzreport/network`` and check that
   there is the button corresponding to the newly created report. Then click on that button and check
   the report template (e.g., all pdfs figures are correctly in the grid, the station map and table correctly
   display the stations, and so on). You should not need to :ref:`restartserver`. However, if something is wrong,
