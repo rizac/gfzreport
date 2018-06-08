@@ -200,8 +200,11 @@ Create a new report template (network report)
 ---------------------------------------------
 
 This is the same operation described in :ref:`createnewtemplate`, but specific for 
-application currently installed on the server (please remember that for any detailed help you can always
+the application installed on the GEOFON server (please remember that for any detailed help you can always
 :ref:`activatevirtualenv` and then type `gfzreport template n --help` on the terminal)
+
+Preparation (image files)
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Assuming the network name is "ZE" and the start year is 2012 (these information are mandatory to
 create a new network report), you first have to create the report default figures, i.e. the
@@ -230,6 +233,8 @@ Assuming, e.g., the following input figures directory:
    /home/sysop/tmp_ZE/pdfs [directory of the noise pdfs]
    /home/sysop/tmp_ZE/uptime.png  [file of the instrument uptime]
 
+Create empty document (with figures and other metadata filled automatically)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Then, in order to create a new report template you MUST first :ref:`activatevirtualenv` and then run:
 
@@ -241,8 +246,8 @@ Then, in order to create a new report template you MUST first :ref:`activatevirt
 The command above creates the directory "/data2/gfzreport/network/source/ZE_2012" (note that the output ``-o`` option points
 to the parent folder of the directory).
 
-Important Notes
-^^^^^^^^^^^^^^^
+Checks
+^^^^^^
 
 * Read the output of the program on the terminal while creating the template:
   it is intended to be a first check for capturing errors which
@@ -359,7 +364,7 @@ To update this tutorial online you need to :ref:`updatepythonpackage` first
 
 .. code-block:: bash
 
-   gfzreport tutorial -b html /var/www/gfzreport/tutorial/html
+   gfzreport tutorial /var/www/gfzreport/tutorial/html
 
 :ref:`restartserver` and ``exit`` as root user.
 
@@ -373,6 +378,8 @@ Note: the apache configuration file is ``gfzreport-tutorial.conf`` under :ref:`a
         Allow from all
    </Directory>
 
+(there is a .htaccess file created by the build process, but it's currently not used.
+We use a simple redirection page)
 
 Possible unused files
 ---------------------
