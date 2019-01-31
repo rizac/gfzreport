@@ -99,7 +99,7 @@ configured in ``conf.py`` with the following variables:
 
 :ref:`spx` will use the |html| files defined in ``templates_path`` to customize the |html| layout.
 Therein, there is a single file, ``layout.html``. There might be reasons to implement more than one layout,
-but that goes beyond the discussion here (for info see http://www.sphinx-doc.org/en/1.5.1/templating.html).
+but that goes beyond the discussion here (for info see http://www.sphinx-doc.org/en/1.5/templating.html).
 
 If we want to add / delete a static file (css, js, ...), we first need to add it / remove it inside ``html_static_path``.
 Then, we need to include it by editing ``layout.html``. Note that :ref:`spx`
@@ -150,7 +150,7 @@ will override the defaults copied therein by :ref:`spx`. We decided not to overr
 they might break the |latex| layout.
 
 The first thing to look at for easy to set customiations is the variable ``latex_elements``
-(for a detailed explanation, see http://www.sphinx-doc.org/en/1.5.1/latex.html).
+(for a detailed explanation, see http://www.sphinx-doc.org/en/1.5/latex.html).
 For more complex customizations (e.g., you implemented new bibliographic fields in the |rst| and want to render them in the |latex| layout,
 or you want to change the tile/layout/position of those fields
 in the |latex| document) you will most likely need to have a look at two

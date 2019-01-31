@@ -11,7 +11,7 @@ You can browse the package and see the currently implemented extensions in:
    gfzreport.sphinxbuild.core.extensions
 
 For any new extension, write the corresponding module therein and add it in the :ref:`spx`  config file.
-You can have a look also at the :ref:`spx` tutorial: http://www.sphinx-doc.org/en/1.5.1/extdev/tutorial.html 
+You can have a look also at the :ref:`spx` tutorial: http://www.sphinx-doc.org/en/1.5/extdev/tutorial.html 
 (which unfortunately is not that detailed).
 
 Disclaimer

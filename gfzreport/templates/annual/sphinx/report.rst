@@ -93,12 +93,6 @@ GEOFON Annual Report {{ year }}
 
 :Authors: Author1* (Institute1), Author2 (Institute2), Author3 (Institute1)
 
-.. The abstract (AUTHOR INPUT). In LaTeX, this will be rendered inside a \begin{abstract}\end{abstract}
-   commands
-
-:Abstract: write your abstract here, you can add newlines but remeber:
-           you should indent
-           any new line
 
 .. the citation section. Write here how the user should cite this report, and/or how to cite
    any data related to this report, if needed. The text below will be rendered in the title back page in LaTeX.
@@ -110,15 +104,16 @@ GEOFON Annual Report {{ year }}
 
             :doi-citation:`|doi|`
             
-            
-Executive summary
-~~~~~~~~~~~~~~~~~
-
 
 .. raw:: latex
 
    \tableofcontents
    \newpage
+
+            
+Executive summary
+~~~~~~~~~~~~~~~~~
+
 
 Introduction
 ~~~~~~~~~~~~

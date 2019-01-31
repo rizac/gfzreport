@@ -56,7 +56,7 @@ extensions = [
 # THIS ARGUMENT WILL BE READ IN ORDER TO GET THE OUTPUT FILE NAME (master_doc + '.html', master_doc + '.tex'
 # etcetera)
 # For info see:
-# http://www.sphinx-doc.org/en/1.5.2/config.html#confval-master_doc (current as of July 2017), or
+# http://www.sphinx-doc.org/en/1.5/config.html#confval-master_doc (current as of July 2017), or
 # http://www.sphinx-doc.org/en/latest/config.html#confval-master_doc
 master_doc = 'gfzreport-tutorial'
 
@@ -69,7 +69,7 @@ source_suffix = '.rst'
 # DO NOT CHANGE THIS ARGUMENT, IN PARTICULAR, DO NOT PROVIDE MORE THAN ONE ELEMENT
 # For other latex related stuff, scroll below this config file
 # For info see:
-# http://www.sphinx-doc.org/en/1.5.2/config.html#confval-latex_documents (current as of July 2017), or
+# http://www.sphinx-doc.org/en/1.5/config.html#confval-latex_documents (current as of July 2017), or
 # http://www.sphinx-doc.org/en/latest/config.html#confval-latex_documents
 latex_documents = [
     (master_doc, master_doc + '.tex', u'', u'', 'howto', False),
@@ -275,7 +275,7 @@ latex_elements = {
     # Latex figure (float) alignment
     'figure_align': '!ht',
     'geometry': r'\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}',
-    # Sphinx has too fancy stuff: titles as \sfseries\bfseries (http://www.sphinx-doc.org/en/1.5.1/latex.html),
+    # Sphinx has too fancy stuff: titles as \sfseries\bfseries (http://www.sphinx-doc.org/en/1.5/latex.html),
     # and title colors (which applies to ALL section titles) a sort of blue
     # change here these values if u want
     # (NOTE THAT Title Color applies to ALL section/chapter titles in sphinx 1.5.1):
@@ -293,7 +293,7 @@ latex_elements = {
 # 1.4+ into \sphinx<foo>, e.g. \sphinxtablecontinued instead of \tablecontinued.
 # What THEY claim is that, if we want to avoid conflicts, we can set the next parameter to False
 # What is TRUE is that, if we want to avoid latex 'undefined control sequence' errors, you better
-# keep it to True (basically, sphinx 1.5.2 still issues old macro commands). Note that we do not
+# keep it to True (basically, sphinx 1.5.1 still issues old macro commands). Note that we do not
 # upgrade to newer version of sphinx because currently (1.6+) they have a completely
 # new latex templating system still under development. Waiting for that to be stable, we set:
 latex_keep_old_macro_names = True

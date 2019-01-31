@@ -74,7 +74,7 @@ def build(sourcedir, outdir, build, other_sphinxbuild_options, sphinxhelp):
 
     # for info see:
     # sphinx/cmdline.py, or
-    # http://www.sphinx-doc.org/en/1.5.1/man/sphinx-build.html
+    # http://www.sphinx-doc.org/en/1.5/man/sphinx-build.html
     sys.exit(sphinxbuild_run(sourcedir, outdir, build, *list(other_sphinxbuild_options)))
 
 
@@ -104,7 +104,7 @@ def tutorial(outdir, other_sphinxbuild_options, sphinxhelp):
     other_sphinxbuild_options.extend(['-c', os.path.join(sourcedir, 'sphinx')])
     # for info see:
     # sphinx/cmdline.py, or
-    # http://www.sphinx-doc.org/en/1.5.1/man/sphinx-build.html
+    # http://www.sphinx-doc.org/en/1.5/man/sphinx-build.html
     ret = sphinxbuild_run(sourcedir, outdir, "html", *other_sphinxbuild_options)
     if ret == 0:
         sys.exit(sphinxbuild_run(sourcedir, os.path.join(outdir,'latex'), 'pdf',

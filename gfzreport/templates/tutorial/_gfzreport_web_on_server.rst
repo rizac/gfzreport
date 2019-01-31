@@ -312,18 +312,11 @@ Remember that the program prevents overwriting an existing output directory unle
 
 * Check visually the result. Go at ``http://<this.machine>/gfzreport/annual`` and check that
   there is the button corresponding to the newly created report. Then click on that button and check
-  the report template (e.g., all pdfs figures are correctly in the grid, the station map and table correctly
-  display the stations, and so on). You should not need to :ref:`restartserver`. However, if something is wrong,
-  restart the server and check again in the browser before reporting the error.
+  the HTML page. You should not need to :ref:`restartserver` or refresh the browser cache, but consider
+  doing that before fixing or reporting an issue.
 
 * If there are users who need to edit the report and do not have authorization, remember to
-  :ref:`modifydbusers`, 
-
-.. [#wcrd] As specified in the terminal help, the options ``-p`` and ``-i`` accept wildcards.
-   Note however that UNIX expands wildcards into the list of matching files
-   before calling our program, and this breaks the program functionality. Solution:
-   Escape wildcards with backslash, or avoid wildcards at all
-
+  :ref:`modifydbusers`
 
 .. _modifydbusers:
 
@@ -423,6 +416,10 @@ To update this tutorial online you need to :ref:`updatepythonpackage` first
    gfzreport tutorial /var/www/gfzreport/tutorial/html
 
 :ref:`restartserver` and ``exit`` as root user.
+
+Then go to ``http://<this.machine>/gfzreport/tutorial`` and check the HTML page.
+You should not need to refresh the browser cache, but consider doing that before fixing or reporting
+an issue.
 
 Note: the apache configuration file is ``gfzreport-tutorial.conf`` under :ref:`apacheconfavaldir`:
 

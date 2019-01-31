@@ -29,7 +29,7 @@ New extensions
 ^^^^^^^^^^^^^^
 
 :ref:`gfzb` also extends :ref:`spx` (which in turn extends :ref:`rst`) by adding new extensions and new
-bibliographic fields behavior. Extensions are `directives <http://www.sphinx-doc.org/en/1.5.2/extdev/tutorial.html>`_ and
+bibliographic fields behavior. Extensions are `directives <http://www.sphinx-doc.org/en/1.5/extdev/tutorial.html>`_ and
 interpreted text roles (e.g. '$' for math typing, as in |latex|) to match requirements for the
 Network reports generated with :ref:`gfzt`
 

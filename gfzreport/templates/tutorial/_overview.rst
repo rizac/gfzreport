@@ -25,8 +25,6 @@ Summary of useful links about :ref:`rst` given also all across the document:
 
 * `Syntax in Sphinx (see below), overview <http://www.sphinx-doc.org/en/stable/rest.html>`_
 
-* `Syntax in Sphinx (see below), detailed <http://www.sphinx-doc.org/en/1.5.2/markup/>`_
-
 
 .. _spx:
 
@@ -38,7 +36,7 @@ to create documentation in different output formats: |html| (including Windows |
 (for printable |pdf| versions), ePub, Texinfo, manual pages, plain text. It uses :ref:`rst` as its
 markup language, and uses Docutils as its parsing and translating suite.
 
-Sphinx adds also a lot of `new directives and interpreted text roles <http://www.sphinx-doc.org/en/1.5.2/markup/>`_
+Sphinx adds also a lot of `new directives and interpreted text roles <http://www.sphinx-doc.org/en/1.5/markup/>`_
 to `standard |rst| markup <http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html>`_.
 It features different command-line 
 `scripts <http://www.sphinx-doc.org/en/stable/invocation.html>`_, the most important of which is:
@@ -87,7 +85,7 @@ after editing their pre-formatted :ref:`rst` document
 :detailed section: :ref:`gfzb`
 
 Produces (*builds*) |html| |latex| or |pdf| documents from :ref:`rst` files. It is basically :ref:`sphinxbuild`
-with more features (e.g., `extensions <http://www.sphinx-doc.org/en/1.5.2/extdev/tutorial.html>`_)
+with more features (e.g., `extensions <http://www.sphinx-doc.org/en/1.5/extdev/tutorial.html>`_)
 included. :ref:`gfzb` and this tutorial use the same naming conventions of :ref:`sphinxbuild`:
 
 .. _srcdir:

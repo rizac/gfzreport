@@ -22,7 +22,7 @@
        This is to render
        approximately the same in latex and html (tested with the default value)
      - You need to override the
-        `sphinx templating<http://www.sphinx-doc.org/en/1.5.1/templating.html#script_files>`_
+        `sphinx templating<http://www.sphinx-doc.org/en/1.5/templating.html#script_files>`_
         with `these two lines of javascript:<http://esri.github.io/esri-leaflet/examples/>`_
 """
 

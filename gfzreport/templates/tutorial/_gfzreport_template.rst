@@ -62,7 +62,7 @@ Sphinx configuration file
 *************************
 
 The file, called ``conf.py`` containing the :ref:`gfzb` (or :ref:`sphinxbuild`)
-`configuration file <http://www.sphinx-doc.org/en/1.5.1/config.html>`_
+`configuration file <http://www.sphinx-doc.org/en/1.5/config.html>`_
 
 .. _sphinxconfdir:
 
