@@ -169,7 +169,7 @@ Step 3: Python code
 
 Got to the ``__init__.py`` module of the package. In there, you need to implement
 the code creating :ref:`srcdir` for this template type. This is achieved by implementing the 
-class Templater which must always be initialized (from the command line) with the following arguments:
+class Templater which looks like this:
 
 .. code-block:: python
 
@@ -190,10 +190,13 @@ class Templater which must always be initialized (from the command line) with th
         :param confirm: weather to confirm, when this object is called as function, before
             setting all up
         ''' 
-
-Templater is callable. The user has to choose which optional specific arguments \*args and \*\*kwargs
-to be passed to the object `__call__` method (most likely, from the command line).
-Then, the followinf three methods need to be overridden:
+The arguments of the `__init__` method are passed from the command line (see next 'Step' section for details).
+In principle, a Templater does not overwrite any destination/output directory unless
+`update_config_only` is specified. This is to prevent loosing |rst| data.
+A Templater has a `__call__` method and will be called from the command line
+with whatever user-defined argument(s) implemented in the next Stp section (see below).
+In order to setup an write to the output directory, the `__call__` function
+calls in turn three abstract methods which need to be subclassed:
 
 .. code-block:: python
 
