@@ -23,6 +23,14 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 		// add listener on load complete:
 		frame.onload = function() {
 			$scope.$apply(function() {
+			    // Iframe 'pdf' onload seems to be called also with src empty.
+			    // This causes that when we click the pdf tab, needsRefresh is false and we never
+			    // enter here. This is a problem we spotted with newer version of chrome (baginning 2019)
+			    // and not before. Anyway, to be sure, if frame src is empty, just return:
+			    if (!frame.src){
+			        return;
+			    }
+	
 			    // first make all anchors within the html with target = blank, otherwise
 			    // they open inside the iframe:
 			    // we prefer to make it from here so we do not change each template:
