@@ -232,19 +232,6 @@ Name Surname[*]         x                                                EUDAT/G
 GEOFON Advisory Committee Members ({{ year }})
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Dr. Florian Haslinger, Chair	ETH Zurich	Zurich,CH
-
-Dr. Christian Bönnemann,	BGR	Hannover, D
-
-Prof. Dr. Wolfgang Friederich,	RU Bochum,	Bochum, D
-
-Prof. Dr. Thomas Meier,	CAU	Kiel, D
-
-Prof. Dr. Max Wyss	International Centre for Earth Simulation,	Geneva, CH
-
-Dr. Jan Zednik,	GFU	Prague, CZ
-
-
 
 Appendices
 ~~~~~~~~~~

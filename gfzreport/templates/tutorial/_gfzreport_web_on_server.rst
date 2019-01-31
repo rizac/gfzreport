@@ -39,8 +39,7 @@ To Activate the virtualenv:
 Update the python package
 -------------------------
 
-When the package is modified, we need to update the server version. Firs :ref:`activatevirtualenv`.
-Then:
+When the package is modified, we need to update the server version. Then:
 
 .. code-block:: bash
 
@@ -295,7 +294,7 @@ and then run :ref:`gfzt`:
 
 .. code-block:: bash
    
-   gfzreport template a --year 2017 -o /data2/gfzreport/annual/source
+   gfzreport template a --year 2017 -o /data2/gfzreport/annual/source/
 
 which creates the directory "/data2/gfzreport/annual/source/2017"
 (note that the output ``-o`` option points to the parent folder of the directory).
