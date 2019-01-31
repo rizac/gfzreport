@@ -202,7 +202,7 @@ Create a new report template (network report)
 ---------------------------------------------
 
 This is the same operation described in :ref:`createnewtemplate`, but specific for 
-the application installed on the GEOFON server. It can be subdivided into three steps:
+the application installed on the GEOFON server. It can be subdivided into the following steps:
 
 1. Preparation (image files)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -246,6 +246,8 @@ fetched automatically) you **MUST first** :ref:`activatevirtualenv` and then run
 
 which creates the directory "/data2/gfzreport/network/source/ZE_2012" (note that the output ``-o`` option points
 to the parent folder of the directory).
+Remember that the program prevents overwriting an existing output directory unless the option
+'update config only' is specified
 
 **Please remember that a detailed help is always available from the terminal by typing** [#wcrd]_:
 
@@ -277,6 +279,52 @@ to the parent folder of the directory).
    Note however that UNIX expands wildcards into the list of matching files
    before calling our program, and this breaks the program functionality. Solution:
    Escape wildcards with backslash, or avoid wildcards at all
+   
+   
+Create a new GEOFON template (annual report)
+--------------------------------------------
+
+This is the same operation described in :ref:`createnewtemplate`, but specific for 
+the application installed on the GEOFON server. It can be subdivided into the following steps:
+
+1. Create document
+^^^^^^^^^^^^^^^^^^
+
+In order to create a new empty network report you **MUST first** :ref:`activatevirtualenv`
+and then run :ref:`gfzt`:
+
+.. code-block:: bash
+   
+   gfzreport template a --year 2017 -o /data2/gfzreport/annual/source
+
+which creates the directory "/data2/gfzreport/annual/source/2017"
+(note that the output ``-o`` option points to the parent folder of the directory).
+Remember that the program prevents overwriting an existing output directory unless the option
+'update config only' is specified
+
+**Please remember that a detailed help is always available from the terminal by typing** [#wcrd]_:
+
+.. code-block:: bash
+
+   gfzreport template a --help
+
+2. Checks
+^^^^^^^^^
+
+* Check visually the result. Go at ``http://<this.machine>/gfzreport/annual`` and check that
+  there is the button corresponding to the newly created report. Then click on that button and check
+  the report template (e.g., all pdfs figures are correctly in the grid, the station map and table correctly
+  display the stations, and so on). You should not need to :ref:`restartserver`. However, if something is wrong,
+  restart the server and check again in the browser before reporting the error.
+
+* If there are users who need to edit the report and do not have authorization, remember to
+  :ref:`modifydbusers`, 
+
+.. [#wcrd] As specified in the terminal help, the options ``-p`` and ``-i`` accept wildcards.
+   Note however that UNIX expands wildcards into the list of matching files
+   before calling our program, and this breaks the program functionality. Solution:
+   Escape wildcards with backslash, or avoid wildcards at all
+
 
 .. _modifydbusers:
 

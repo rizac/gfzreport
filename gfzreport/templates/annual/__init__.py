@@ -10,6 +10,8 @@ from __future__ import print_function
 import os
 import sys  # @UnusedImport
 
+from collections import OrderedDict
+
 from gfzreport.templates.network.core.utils import relpath
 from gfzreport.templates.network.core import get_noise_pdfs_content, gen_title,\
     get_net_desc, geofonstations_df, otherstations_df, get_map_df, get_figdirective_vars
@@ -18,24 +20,17 @@ from gfzreport.sphinxbuild.core.extensions import mapfigure
 #     cleanup_onerr, setupdir, get_rst_template
 
 from gfzreport.templates import utils
-from collections import OrderedDict
 
 
-def run(network, start_after, area_margins_in_deg, out_path, noise_pdf, inst_uptimes,
-        move_data_files, update_config_only, confirm,
-        network_station_marker, nonnetwork_station_marker, network_station_color,
-        nonnetwork_station_color):
+
+def run(year, out_path, move_data_files, update_config_only, confirm):
     templater = Templater(out_path, update_config_only, move_data_files, confirm)
-    return templater(network, start_after, area_margins_in_deg, noise_pdf, inst_uptimes,
-                     network_station_marker, nonnetwork_station_marker, network_station_color,
-                     nonnetwork_station_color)
+    return templater(year)
 
 
 class Templater(utils.Templater):
 
-    def getdestpath(self, out_path, network, start_after, area_margins_in_deg, noise_pdf, inst_uptimes,
-                    network_station_marker, nonnetwork_station_marker, network_station_color,
-                    nonnetwork_station_color):
+    def getdestpath(self, out_path, year):
         '''This method must return the *real* destination directory of this object.
         In the most simple scenario, it can also just return `out_path`
 
@@ -43,13 +38,9 @@ class Templater(utils.Templater):
         :param args, kwargs: the arguments passed to this object when called as function and
             forwarded to this method
         '''
-        return os.path.abspath(os.path.join(out_path,
-                                            "%s_%s" % (str(network), str(start_after))))
+        return os.path.abspath(os.path.join(out_path, "%s" % str(year)))
 
-    def getdatafiles(self, destpath, destdatapath, network, start_after, area_margins_in_deg,
-                     noise_pdf, inst_uptimes,
-                     network_station_marker, nonnetwork_station_marker, network_station_color,
-                     nonnetwork_station_color):
+    def getdatafiles(self, destpath, destdatapath, year):
         '''This method must return the data files to be copied into `destdatapath`. It must
         return a dict of
 
@@ -89,14 +80,9 @@ class Templater(utils.Templater):
         This function can safely raise as Exceptions will be caught and displayed in their
         message displayed printed
         '''
-        noise_pdf_destdir = os.path.join(destdatapath, "noise_pdf")
-        inst_uptimes_destdir = os.path.join(destdatapath, "inst_uptimes")
-        return OrderedDict([[inst_uptimes_destdir, inst_uptimes],  [noise_pdf_destdir, noise_pdf]])
+        return {}
 
-    def getrstkwargs(self, destpath, destdatapath, datafiles, network, start_after,
-                     area_margins_in_deg, noise_pdf, inst_uptimes,
-                     network_station_marker, nonnetwork_station_marker, network_station_color,
-                     nonnetwork_station_color):
+    def getrstkwargs(self, destpath, destdatapath, datafiles, year):
         '''This method accepts all arguments passed to this object when called as function and
         should return a dict of keyword arguments used to render the rst
         template, if the latter has been implemented as a jinja template.
@@ -122,48 +108,4 @@ class Templater(utils.Templater):
         This function can safely raise as Exceptions will be caught and displayed in their
         message displayed printed
         '''
-        # get the destination data paths. Use getdatafiles implemented for
-        # moving data files, and check that they are not empty
-        # the two paths will also be used later
-        inst_uptimes_dst, noise_pdf_dst = datafiles.keys()
-        assert len(os.listdir(inst_uptimes_dst)), "'%s' empty" % inst_uptimes_dst
-        assert len(os.listdir(noise_pdf_dst)), "'%s' empty" % noise_pdf_dst
-
-        try:
-            geofon_df = geofonstations_df(network, start_after)
-        except Exception as exc:
-            raise Exception(("error while fetching network stations ('%s')\n"
-                             "check arguments and internet connection") % str(exc))
-
-        try:
-            others_df = otherstations_df(geofon_df, area_margins_in_deg)
-        except Exception as exc:
-            raise Exception(("error while fetching other stations within network "
-                             "stations boundaries ('%s')\n"
-                             "check arguments and internet connection") % str(exc))
-        map_df = get_map_df(geofon_df, others_df)
-
-        # convert area margins into plotmap map_margins arg:
-        mymapdefaults = dict(mapmargins=", ".join("%sdeg" % str(m)
-                                                  for m in area_margins_in_deg),
-                             sizes=50, fontsize=8, figmargins="1,2,9,0", legend_ncol=2)
-        # building template, see template.rst:
-        return dict(
-                    title=gen_title(network, geofon_df),
-                    network_description=get_net_desc(geofon_df),
-                    stations_table={'content': geofon_df.to_csv(sep=" ", quotechar='"',
-                                                                na_rep=" ",  # this makes to_csv
-                                                                # quoting it (otherwise it might
-                                                                # result in row misalign)
-                                                                index=False),
-                                    },
-                    stations_map={'content': map_df.to_csv(sep=" ", quotechar='"', index=False),
-                                  'options': mapfigure.get_defargs(**mymapdefaults)
-                                  },
-                    noise_pdfs={'dirpath': relpath(noise_pdf_dst, destpath),
-                                'content': get_noise_pdfs_content(noise_pdf_dst, geofon_df)
-                                },
-                    inst_uptimes=get_figdirective_vars(inst_uptimes_dst, destpath)
-                    )
-# if __name__ == '__main__':
-#     main()  # pylint:disable=no-value-for-parameter
+        return dict(year=str(year))

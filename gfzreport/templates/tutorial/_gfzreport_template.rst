@@ -9,7 +9,9 @@ gfzreport-template
 
 :help:  ``gfzreport template --help`` (general help)
 	
-	   ``gfzreport template n --help`` (specific to a template type, in this case the network template)
+      	``gfzreport template n --help`` (specific to a template type, in this case the network template)
+
+		``gfzreport template a --help`` (specific to a template type, in this case the GEOFON annual template)
 
 
 :ref:`gfzr` can generate templates. A template is basically a :ref:`srcdir` with data and a
@@ -26,7 +28,9 @@ Where [TYPE] is a letter denoting, as of November 2017, the only currently imple
 
 - n: create a new network report
 
-(we might implement new types in the future, such as e.g.: ``a`` for creating new annual GEOFON report templates,
+- a: create GEOFON annual report
+
+(the program is modular and allows the implementation of new types in the future,
 see :ref:`gfztreptype` for details)
 
 

@@ -1,0 +1,276 @@
+/* GFZREPORT STYLE. TESTED WITH ALABASTER.css ONLY! (do not modify it in config.py! */
+
+/* copied from haiku.css (another sphinx theme with sans-serif) */
+/* COMMENTED FOR THE MOMENT */
+/* (in case you need to set some font family, alabaster uses:
+	font-family: 'Garamond', 'Georgia', serif;)
+*/
+/*
+body, div.body h1, div.body h2, div.body h3, div.body h4, div.body h5, div.body h6{
+    font-family: "DejaVu Sans", Arial, Helvetica, sans-serif;
+}
+
+body {
+    line-height: 1.5;
+    margin: auto;
+    padding: 0px;
+    max-width: 70em;
+    color: #333333;
+    font-size: 0.9em;
+}
+
+h1, div.body h1 {
+    font-size: 2em;
+    font-weight: bold;
+}
+
+h2, div.body h2 {
+    font-size: 1.6em;
+    font-weight: normal;
+}
+
+h3, div.body h3 {
+    font-size: 1.3em;
+    font-weight: normal;
+}
+
+h1, div.body h1, h2, div.body h2 {
+    border-bottom: dotted thin #e0e0e0;
+}
+
+h1, div.body h1, h2, div.body h2, h3, div.body h3 {
+    color: #0c3762;
+    margin-top: 30px;
+}
+*/
+
+/* fonts stuff. Copied from GFZ (see eg.: http://gfzpublic.gfz-potsdam.de/pubman/faces/viewItemOverviewPage.jsp?itemId=escidoc:2801894) */
+div.body h1, div.body h2, div.body h3, div.body h4, div.body h5, div.body h6 {
+    font-family: "Myriad Pro Condensed", "Arial Narrow", sans-serif;
+}
+body{
+	font-family: Trebuchet, "Trebuchet MS", sans-serif;
+	font-size: 16px; /* it's 17px in alabaster. Note that on chrome initial=16px actually */;
+}
+table.docutils, li{
+	line-height: 1.4em; /* same as alabaster.css p tag. NOTE: do not set line-height on the body, it messes up h* tags */
+}
+div.body h1 { font-size: 300%; } /* 240% */
+div.body h2 { font-size: 230%; } /* 180% */
+div.body h3 { font-size: 180%; } /* 150% */
+div.body h4 { font-size: 150%; } /* 130% */
+div.body h5 { font-size: 130%; } /* 100% */
+div.body h6 { font-size: 110%; } /* 100% */
+
+/*override alabaster stuff for body*/
+body {  /*alabaster.css:57*/
+    margin: initial;
+    padding: initial;
+}
+
+@media screen and (max-width: 875px)  /*alabaster.css:599*/
+body {
+    margin: initial;
+    padding: initial;
+}
+
+div.document { /*alabaster.css:57*/
+    width: initial;
+    margin: initial;  /*it was: 30px auto 0 auto; */
+    max-width: 70em;
+}
+
+div.documentwrapper { /*alabaster.css:72*/
+    float: none;
+}
+
+div.footer{  /* move footer right */
+	padding-left: 20vw; /* must be the same as div.toc width (see below) */
+	font-size: smaller; /*make size relative to the body */
+	padding-right: 1em;
+    width: initial;
+}
+
+/* sidebar and document */
+div.toc{
+	display: flex;
+	flex-direction: column;
+	position: fixed;
+	top: 0px;
+    bottom: 0px;
+	padding-left: 10px;
+    padding-right: 20px;
+    font-size: smaller;
+    box-sizing: border-box;
+}
+
+div.toc .toc-top, div.toc .toc-bottom{
+	flex: 0 0 auto;
+}
+
+div.toc .toc-center{
+	flex: 1 1 auto;
+	overflow: auto;
+}
+
+div.toc{
+	width: 20vw; /* must be the same as div.footer pading-left (see below) */
+}
+div.document{
+	margin-left: 20vw; /*MUST be equal to the above */
+}
+
+
+div.toc ul{
+	margin-left: 20px; /*decrease margin left of uls */
+}
+div.toc li{
+	text-indent: -4px; /*decrease text indent of lis */
+}
+
+.toc-center *:first-child {
+    margin-top: 0px; /*so that we can control margin top and bottom with the rule below*/
+}
+
+.toc > * {
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.toc-bottom{
+	text-align: right;
+	margin-bottom: 0px;
+}
+
+/* in alabaster, all h# elements have margin: 30px 0px 10px 0px; but then h1 (title) is 
+overridden with margin:0. Restore the original top margin. NOTE THAT IF U UNCOMMENT the haiku
+stuff above the h1 top margin is written there and you should remove this!*/
+div.body h1{
+	margin-top: 30px;
+}
+
+/* my stuff */
+
+div.documentwrapper{
+	background-color: rgba(255,255,255,.5);
+	/* box-shadow: 0px 0px 14px #ccc; */  /*this was nice but in a single page (no double page
+											and no narrow screen*/
+}
+
+@media screen and (max-width: 875px) {
+	/* override alabaster changes when screen narrows:*/
+	div.body {
+    	padding: 0 30px 0 30px; /*preserve alabaster default*/
+	}
+}
+
+div.body{
+	background-color: transparent !important; /*override alabaster*/
+}
+
+iframe{
+	border: 0px;
+}
+
+/* gfzreport stuff */
+
+body {
+    background-image: url("../img/gfz_background.png");
+    background-repeat: no-repeat;
+    background-position: center top;
+    background-attachment: fixed;
+}
+
+/* control overflow in width of tables: First, we might add display:block
+https://stackoverflow.com/questions/5533636/add-horizontal-scrollbar-to-html-table
+But this messes up the row lines, that do not span the whole width
+A better solution is to add table-layout:fixed; and width: 100%;
+BUT NOTE THAT WE NEED TO RESTORE SPECIFIC TABLES (see below)
+*/
+table.docutils {
+    table-layout:fixed;
+    width: 100%;
+    /* add margins top and bottom. Cusiously, in chrome, when a p and a table are next, only
+    one of the two vertical margins applies*/ 
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+/* caption in tables is inside a <caption> tag, placed at the top. Increase margin bottom and top
+(Note: there is also a margin-top is already set on the table, doubling it is nicer)*/
+table.docutils caption {
+    margin-bottom: 1em;
+    margin-top: 1em;
+}
+
+/* layout for specific tables is restored */
+table.field-list, table.footnote, table.citation{
+	table-layout: initial !important;
+	width: initial !important;
+	border: initial !important;
+    -moz-box-shadow:  initial !important;
+    -webkit-box-shadow:  initial !important;
+    box-shadow: initial !important;
+}
+/* now that we have table layout fixed, we need not to make cells overflow*/
+table.docutils td, table.docutils th {
+	overflow:hidden;
+    text-overflow: ellipsis;
+}
+/* and again, cells overflow for specific tables is restored */
+table.field-list td, table.footnote td, table.citation td,
+table.field-list th, table.footnote th, table.citation th{
+	overflow: initial !important;
+	text-overflow: initial !important;
+}
+/* Table borders and colors */
+/* NOTE: when modify these values, look at div.leaflet-container below for consistency! */
+/* Fix a bug in alabaster: (Leave border and box shadow commented and uncomment if u want to change it)*/
+table.docutils {
+    border: 1px solid #AAA; /* in alabaster is #888, make it consistent with the table #AAA */
+    -moz-box-shadow: 2px 2px 4px #DDD; /* in alabaster.css is #EEE (BUG!) */
+    -webkit-box-shadow: 2px 2px 4px #DDD; /* in alabaster.css is #EEE (BUG!) */
+    box-shadow: 2px 2px 4px #DDD;
+}
+table.docutils td, table.docutils th {
+    border: 1px solid #AAA; /* in alabaster is #888, make it consistent with the table #AAA */
+    padding: 0.25em 0.35em; /* horiz-padding from 0.7em to 0.35 */
+}
+
+/* our map */
+div.map{
+	min-height: 30em;
+}
+
+div.leaflet-container {
+    border: 1px solid #AAA;
+    -moz-box-shadow: 2px 2px 4px #DDD;
+    -webkit-box-shadow: 2px 2px 4px #DDD;
+    box-shadow: 2px 2px 4px #DDD;
+}
+
+/* style also figures with the same border for tables and maps, but do not apply this to
+e.g. images inside a grid-figure (because the parent grid table has already these border settings) */
+div.figure > img, div.figure > a.reference.internal > img {
+    border: 1px solid #AAA; /* in alabaster is #888, make it consistent with the table #AAA */
+    -moz-box-shadow: 2px 2px 4px #DDD; /* in alabaster.css is #EEE (BUG!) */
+    -webkit-box-shadow: 2px 2px 4px #DDD; /* in alabaster.css is #EEE (BUG!) */
+    box-shadow: 2px 2px 4px #DDD;
+    padding: 10pt; /* this prevents images with no padding to look nicer */
+}
+
+p{
+	text-align: justify;
+}
+
+/* our directives. Comment out: any attempt to customize the gridfigure results in glitches of borders.
+Let it behave like a table */
+/* table.gridfigure th, table.gridfigure td{
+	border: 0px !important;
+}
+table.gridfigure th {
+    border-bottom: 1px solid #AAA !important; 
+}
+*/
+
+

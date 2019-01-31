@@ -4,17 +4,20 @@
 Created on Oct 23, 2017
 @author: riccardo
 '''
-import click
+import os
 import sys
 
+import click
+from click.decorators import command
+
 from sphinx import build_main as sphinx_build_main
+
 from gfzreport.sphinxbuild.map import parse_margins
-from gfzreport.templates.network import run as networktemplate_run, Templater as NetworkTemplater
+from gfzreport.templates.network import Templater as NetworkTemplater
+from gfzreport.templates.annual import Templater as AnnualTemplater
 from gfzreport.sphinxbuild import run as sphinxbuild_run
 from gfzreport.sphinxbuild import _DEFAULT_BUILD_TYPE
-import os
-from click.decorators import _make_command, command
-from click.core import Command
+
 
 # define terminal width for help (bigger)
 TERMINAL_HELP_WIDTH = 120
@@ -272,6 +275,44 @@ def n(out_path, conffiles_only, mv_datafiles, noprompt,
         print("Aborted: %s" % str(exc))
         sys.exit(1)
 
+
+@templatecommand(short_help="Generates the report folder for the given (Geofon) annual report",
+                 context_settings=dict(max_content_width=TERMINAL_HELP_WIDTH))
+@option("-y", '--year', required=True, help="the Report year, e.g. 2016")
+def a(out_path, conffiles_only, mv_datafiles, noprompt, year):
+    """
+    Generates the report folder for the given GEOFON annual report. The destination
+    directory will be a sub-directory of out_path with name [year].
+    If such a directory already exists, this program exits regardless of the 'noprompt' option
+
+    Example:
+
+    [program_name] --year 2016
+    """
+    # remember: the doc above is shown when calling --help. Arguments DO NOT ACCEPT HELP,
+    # BUT IN ANY CASE template commands do not have arguments
+
+    # should i delete this? I do not understand what I said:
+    # FIXME: IMPORTANT: unix shell expands wildcards automatically, so we might avoid the glob
+    # module. Fine, BUT CLICK DOES NOT SUPPORT MULTIPLE (UNDEFINED) OPTIONS
+    # So for the moment we DISABLE that option
+    #
+    # Moreover, if we ever re-implement it in the future, remember that windows does not expand
+    # wildcards
+    # (http://stackoverflow.com/questions/12501761/passing-multple-files-with-asterisk-to-python-shell-in-windows)
+
+    # Note also that area margins are in degree because we want to make life easier
+    # If you want to support 'm' and 'km', be aware that we need to convert margins back to string
+    # to pass these to the initial map settings (supporting only degrees makes life easier,
+    # just write in the map figure rst option:
+    # ", ".join(str(m) for m in area_margins)
+    try:
+        runner = AnnualTemplater(out_path, conffiles_only, mv_datafiles, not noprompt)
+        sys.exit(runner(year))
+    except Exception as exc:
+        print("Aborted: %s" % str(exc))
+        sys.exit(1)
+        
 
 if __name__ == '__main__':
     main()  # pylint:disable=no-value-for-parameter

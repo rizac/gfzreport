@@ -5,7 +5,7 @@ Created on May 18, 2016
 @author: riccardo
 '''
 
-# from __future__ import print_function
+from __future__ import print_function
 
 import os
 import sys
@@ -35,17 +35,17 @@ def makedirs(path):
 
 
 def copyfiles(src, dst_dir, move=False):
-    """
-        Copies /move files recursively, extending shutil and allowing glob expressions
-        in src
-        :param src: a file/directory which MUST not be a system directory, denoting:
-            * an existing file. In this case `shutil.copy2(src, dst)` will be called
-              (If the destination file already exists under 'dst', it will be overridden)
-            * a directory, in that case *all files and dirs within src* will be moved or copied.
-              (if move=True and src is empty after the move, then src will be deleted)
-            * a glob expression such as '/home/*pdf'. Then, all files matching the glob
-                expression will be copied / moved
-        :param dst: a destination DIRECTORY. If it does not exists, it will be created
+    """Copies /move files recursively, extending shutil and allowing glob expressions
+    in src
+
+    :param src: a file/directory which MUST not be a system directory, denoting:
+        * an existing file. In this case `shutil.copy2(src, dst)` will be called
+          (If the destination file already exists under 'dst', it will be overridden)
+        * a directory, in that case *all files and dirs within src* will be moved or copied.
+          (if move=True and src is empty after the move, then src will be deleted)
+        * a glob expression such as '/home/*pdf'. Then, all files matching the glob
+            expression will be copied / moved
+    :param dst: a destination DIRECTORY. If it does not exists, it will be created
         (os.makedirs, basically alias of 'mkdir -p').
     """
     files_count = 0
@@ -247,17 +247,18 @@ class Templater(object):
 
     def __init__(self, out_path, update_config_only, mv_data_files, confirm):
         '''Initializes an (abstract class) Templater
+
         :param out_path: the *initial* destination directory. This is usually a destination root
-        and the real destination path must be implemented in `self.getdestpath` (which might return
-        self._out_path, it depends on the implementation)
+            and the real destination path must be implemented in `self.getdestpath` (which might
+            return self._out_path, it depends on the implementation)
         :param update_config_only: weather the real destination path should update the sphinx
-        config files only when this object is called as function
+            config files only when this object is called as function
         :param mv_data_files: ignored if `update_config_only=True`, tells weather the real
-        destination path should have files moved therein
-        when `update_config_only=False`. The files to move or copy are those returned by
-        `self.getdatafiles` (to be sub-classed)
-        :param: weather to confirm, when this function is called as function, before
-        setting all up
+            destination path should have files moved therein
+            when `update_config_only=False`. The files to move or copy are those returned by
+            `self.getdatafiles` (to be sub-classed)
+        :param confirm: weather to confirm, when this function is called as function, before
+            setting all up
         '''
         self._out_path = out_path
         self._update_config_only = update_config_only
@@ -302,7 +303,7 @@ class Templater(object):
             if not update_config_only:
                 print("%s data files" % ("Moving" if self._mv_data_files else "Copying"))
                 makedirs(destdatapath)
-                datafiles = self.getdatafiles(destpath, destdatapath, *args, **kwargs) or []
+                datafiles = self.getdatafiles(destpath, destdatapath, *args, **kwargs) or {}
                 for dest, files in datafiles.iteritems():
                     makedirs(dest)
                     if not hasattr(files, "__iter__") or isinstance(files, (bytes, str)):
@@ -329,59 +330,57 @@ class Templater(object):
                     print("\nOutput written to '%s'" % logfile)
 
     def getdestpath(self, out_path, *args, **kwargs):
-        '''
-            This method must return the *real* destination directory of this object.
-            In the most simple scenario, it can also just return `out_path`
+        '''This method must return the *real* destination directory of this object.
+        In the most simple scenario, it can also just return `out_path`
 
-            :param out_path: initial output path (passed in the `__init__` call)
-            :param args, kwargs: the arguments passed to this object when called as function and
+        :param out_path: initial output path (passed in the `__init__` call)
+        :param args, kwargs: the arguments passed to this object when called as function and
             forwarded to this method
-            '''
-        raise NotImplemented(('`getdestpath` not implemented in %s: '
-                              'you must return a valid path (usually self.out_path or '
-                              'a sub-directory of it according to the method arguments)') %
-                             self.__class__.__name__)
+        '''
+        raise NotImplementedError(('`getdestpath` not implemented in %s: '
+                                   'you must return a valid path (usually self.out_path or '
+                                   'a sub-directory of it according to the method arguments)') %
+                                   self.__class__.__name__)
 
     def getdatafiles(self, destpath, destdatapath, *args, **kwargs):
-        '''
-            This method must return the data files to be copied into `destdatapath`. It must
-            return a dict of
+        '''This method must return the data files to be copied into `destdatapath`. It must
+        return a dict of
 
-            `{destdir: files, ...}`
+        `{destdir: files, ...}`
 
-            where:
+        where:
 
-            * `destdir` is a string, usually `destdatapath` or a sub-directory of it,
-               denoting the destination directory where to copy the files
+        * `destdir` is a string, usually `destdatapath` or a sub-directory of it,
+           denoting the destination directory where to copy the files
 
-            * `files`: a list of files to be copied in the corresponding `destdir`. It can
-              be a list of strings denoting each a single file, a directory or a glob pattern.
-              If string, it will be converted to the 1-element list `[files]`
+        * `files`: a list of files to be copied in the corresponding `destdir`. It can
+          be a list of strings denoting each a single file, a directory or a glob pattern.
+          If string, it will be converted to the 1-element list `[files]`
 
-            Use `collections.OrderedDict` to preserve the order of the keys
+        Use `collections.OrderedDict` to preserve the order of the keys
 
-            For each item `destdir, files`, and for each `filepath` in `files`, the function
-            will call:
+        For each item `destdir, files`, and for each `filepath` in `files`, the function
+        will call:
 
-            :ref:`gfzreport.templates.utils.copyfiles(filepath, destdir, self._mv_data_files)`
+        :ref:`gfzreport.templates.utils.copyfiles(filepath, destdir, self._mv_data_files)`
 
-            Thus `filepath` can be a file (copy/move that file into `destdir`) a directory
-            (copy/move each file into `destdir`) or a glob expression (copy/move each matching
-            file into `destdir`)
+        Thus `filepath` can be a file (copy/move that file into `destdir`) a directory
+        (copy/move each file into `destdir`) or a glob expression (copy/move each matching
+        file into `destdir`)
 
-            :param destpath: the destination directory, as returned from `self.getdestpath`
-            :param destdatapath: the destination directory for the data files, currently
+        :param destpath: the destination directory, as returned from `self.getdestpath`
+        :param destdatapath: the destination directory for the data files, currently
             the subdirectory 'data' of `destpath` (do not rely on it as it might change in the
             future)
-            :param args, kwargs: the arguments passed to this object when called as function and
+        :param args, kwargs: the arguments passed to this object when called as function and
             forwarded to this method
 
-            :return: a dict of destination paths (ususally sub-directories of `self.destdatapath`
-            mapped to lists of strings (files/ directories/ glob patterns). An empty dict or
-            None (or pass) are valid (don't copy anything into `destdatadir`)
+        :return: a dict of destination paths (ususally sub-directories of `self.destdatapath`
+        mapped to lists of strings (files/ directories/ glob patterns). An empty dict or
+        None (or pass) are valid (don't copy anything into `destdatadir`)
 
-            This function can safely raise as Exceptions will be caught and displayed in their
-            message displayed printed
+        This function can safely raise as Exceptions will be caught and displayed in their
+        message displayed printed
         '''
 
         raise NotImplementedError(('`getdatafiles` not implemented in %s: '
@@ -392,31 +391,30 @@ class Templater(object):
                                    'directory') % self.__class__.__name__)
 
     def getrstkwargs(self, destpath, destdatapath, datafiles, *args, **kwargs):
-        '''
-            This method accepts all arguments passed to this object when called as function and
-            should return a dict of keyword arguments used to render the rst
-            template, if the latter has been implemented as a jinja template.
+        '''This method accepts all arguments passed to this object when called as function and
+        should return a dict of keyword arguments used to render the rst
+        template, if the latter has been implemented as a jinja template.
 
-            You can return an empty dict or None (or pass) if the rst in the current source folder
-            is "fixed" and not variable according to the arguments. Note that at this
-            point you can access `self.destpath`, `self.destdatapath` and `self.datafiles`
+        You can return an empty dict or None (or pass) if the rst in the current source folder
+        is "fixed" and not variable according to the arguments. Note that at this
+        point you can access `self.destpath`, `self.destdatapath` and `self.datafiles`
 
-            :param destpath: the destination directory, as returned from `self.getdestpath`
-            :param destdatapath: the destination directory for the data files, currently
+        :param destpath: the destination directory, as returned from `self.getdestpath`
+        :param destdatapath: the destination directory for the data files, currently
             the subdirectory 'data' of `destpath` (do not rely on it as it might change in the
             future)
-            :param datafiles: a dict as returned from self.getdatafiles`, where each key
+        :param datafiles: a dict as returned from self.getdatafiles`, where each key
             represents a data destination directory and each value is a list of files that have
             been copied or moved inthere. The keys of the dict are surely existing folders and are
             usually sub-directories of `destdatapath` (or equal to `destdatapath`)
-            :param args, kwargs: the arguments passed to this object when called as function and
+        :param args, kwargs: the arguments passed to this object when called as function and
             forwarded to this method
 
-            :return: a dict of key-> values to be used for rendering the rst if the latter is a
-            jinja template.
+        :return: a dict of key-> values to be used for rendering the rst if the latter is a
+        jinja template.
 
-            This function can safely raise as Exceptions will be caught and displayed in their
-            message displayed printed
+        This function can safely raise as Exceptions will be caught and displayed in their
+        message displayed printed
         '''
         raise NotImplementedError(('`getrstkwargs` not implemented in %s: '
                                    'you should return the arguments as dict for rendering the rst.'
