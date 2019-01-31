@@ -191,12 +191,11 @@ class Templater which looks like this:
             setting all up
         ''' 
 The arguments of the `__init__` method are passed from the command line (see next 'Step' section for details).
-In principle, a Templater does not overwrite any destination/output directory unless
+Note that by default a Templater does not overwrite any destination/output directory unless
 `update_config_only` is specified. This is to prevent loosing |rst| data.
 A Templater has a `__call__` method and will be called from the command line
-with whatever user-defined argument(s) implemented in the next Stp section (see below).
-In order to setup an write to the output directory, the `__call__` function
-calls in turn three abstract methods which need to be subclassed:
+with whatever user-defined argument(s) implemented in the next Step section (see below).
+The `__call__` function calls in turn three abstract methods which need to be subclassed:
 
 .. code-block:: python
 
