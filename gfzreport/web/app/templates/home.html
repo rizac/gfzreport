@@ -15,9 +15,9 @@
 			<h2>Reports</h2>
 			<div style='padding:15px; max-width:90vw; max-height:90vh; overflow:auto; background-color:transparent'>
 				{%- for rep in reports %}
-				<a class='btn btn-primary' style='margin-bottom:10px; display:block' href="{{rep[0]}}">{{rep[0]}}
+				<a {% if not rep[1] -%}title="locked (not editable)"{%- endif -%} class='btn btn-primary' style='margin-bottom:10px; display:block' href="{{rep[0]}}">{{rep[0]}}
 				{%- if not rep[1] %}
-					<img style='float:right; height: 1.4em' src="/static/img/locked-white.png"/>
+					<img style='float:right; height: 1.4em' src="static/img/locked-white.png"/>
 				{%- endif %}
 				</a>
 				{% endfor %}

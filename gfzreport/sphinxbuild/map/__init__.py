@@ -285,8 +285,10 @@ def _normalize(obj, size=None, dtype=None):
 
 
 def torgba(html_str):
-    """Converts html_str into a tuple of rgba colors in 0, 255 if alpha channel is not
-    specified, or [0,1] otherwise
+    """Converts html_str into a tuple of rgba colors all in [0, 1]
+    Curiously, matplotlib color functions do not provide this functionality for
+    '#RGBA' color formats
+
     :param html_str: a valid html string in hexadecimal format.
     Can have length 4, 7 or 9 such as #F1a, #fa98e3, #fc456a09
     :return: a rgba vector, i.e. a 4-element numpy array of values in [0,1] denoting `html_str`
@@ -318,12 +320,6 @@ def _shapeargs(lons, lats, labels, sizes, colors, markers, legend_labels):
     # colors[np.isnan(colors) | (colors <= 0)] = 1.0  # nan colors default to 1 (black?)
     sizes = _normalize(sizes, size=leng, dtype=float)
     valid_points = np.logical_not(np.isnan(lons) | np.isnan(lats) | (sizes <= 0))
-
-    # convert html strings to rgba if the former are in string format:
-    # the loop below is quite inefficient but we cannot help it, unless vectorization on string
-    # is possible (but then we would return arrays, and this raises ValueError
-    if colors.dtype.char in ('U', 'S'):
-        colors = np.array([torgba(c) for c in colors])
 
     # return all points whose corresponding numeric values are not nan:
     return (lons[valid_points],
@@ -388,6 +384,7 @@ def plotmap(lons,
             markers="o",
             colors="#FF4400",
             sizes=20,
+            cmap=None,
             fontsize=None,
             fontweight='regular',
             fontcolor='k',
@@ -597,6 +594,13 @@ def plotmap(lons,
     lons, lats, labels, sizes, colors, markers, legendlabels =\
         _shapeargs(lons, lats, labels, sizes, colors, markers, legendlabels)
 
+    # convert html strings to tuples of rgba values in [0.1] if the former are in string format,
+    # because (maybe too old matplotlib version?) colors in the format '#RGBA' are not supported
+    # Also, if cmap is provided, basemap.scatter calls matplotlib.scatter which
+    # wants float sequenes in case of color map
+    if colors.dtype.char in ('U', 'S'):  # pylint: disable=no-member
+        colors = np.array([torgba(c) for c in colors])
+
     fig = plt.figure()
     map_ax = fig.add_axes([0, 0, 1, 1])  # set axes size the same as figure
 
@@ -767,6 +771,7 @@ def plotmap(lons,
                                     marker=mrk,
                                     s=__s[l_mask],
                                     c=__c[l_mask],
+                                    cmap=cmap,
                                     zorder=10)
             if leg:
                 leg_handles.append(_scatter)

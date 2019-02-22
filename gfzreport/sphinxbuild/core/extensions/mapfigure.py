@@ -1,29 +1,53 @@
 # -*- coding: utf-8 -*-
 """
-   Implements a directive which behaves like a figure with a geomap background.
+   Implements a directive which behaves like a figure representing scatter plot of shapes
+   on a geomap background.
    The directive acts as a csv table (although it produces a figure).
-   The csv content must have AT LEST the columns denoting:
+   The csv content must have *AT LEST* these columns (OTHER COLUMNS ARE FINE
+   THEY WILL JUST NOT BE RENDERED):
+
     - latitudes (either denoted by the string 'lats', 'latitudes', 'lat' or 'latitude',
     case insensitive)
     - longitudes ('lons', 'longitudes', 'lon' or 'longitude', case insensitive)
     - labels ('name', 'names', 'label', 'labels', 'caption', 'captions', case insensitive)
-   And optionally (only for pdf/latex rendering!):
-    - sizes ('size' or 'sizes', case insensitive)
-    - colors ('color' or 'colors', case insensitive)
+    - legend labels ('legend' or 'legends', case insensitive): Every non-empty string
+      in a row will display an item in the legend with the row marker and label. If all rows
+      legend labels are empty, no legend is displayed
+    - markers ('marker' or 'markers', a value in 'o' 'v' '^' 'D', without quotes,
+      where s=square, D=diamond)
+    - colors ('color' or 'colors', case insensitive) in HTML format '#RGB' or '#RGBA'
+
+   And OPTIONALLY:
+    - sizes ('size' or 'sizes', case insensitive) in pixels^2, because matplotlib uses that unit.
+        (therefore, in html we use sqrt, as our function draw SVG icons with width and height
+        dimensions)
+
+    IMPORTANT: For each row whose value under 'sizes' is empty,
+        of for all rows if 'sizes' is not specified at all as column,
+        the value will default to the global directive option ':map_sizes:'
+        Empty values are simply missing values (if the column is the last one)
+        or columns whose value is ""
 
     NOTES:
 
-     - Html does not support marker type: network stations will be displayed via leaflet standard
-         marker, non-network stations via circles
-     - Html does not support all legend positions: 'bottom' will be displayed 'bottomright',
-      'top' and 'right' will be displayed 'topright', 'left' will be displayed 'topleft'
-     - Html sizes are the circle diameter in pixels^2, in pixels. In latex, in points ^2 (I guess
-         the diameter but there is no mention).
-       This is to render
-       approximately the same in latex and html (tested with the default value)
-     - You need to override the
-        `sphinx templating<http://www.sphinx-doc.org/en/1.5/templating.html#script_files>`_
-        with `these two lines of javascript:<http://esri.github.io/esri-leaflet/examples/>`_
+     - Html supports the marker types: 'd', 'D' (both diamond), '^' 'V', 's', 'o'.
+       (rendered via leaflet SVG icons). Everything else will be rendered with a circle in HTML.
+       The pdf supports all matplotlib markers. Thus for consistent rendering only the compatible
+       shapes above should be provided
+
+    - For the same reason (compatibility between matplotlib and HTML) colors can be given only in
+      the two formats above (hex strings)
+
+    - All directive options are supported in LaTEX/PDF. Conversely, the ONLY supported options
+      in HTML are:
+
+        * ':map_legend_pos:' (partial support) will be converted to leaflet's:
+            'topright' if leg_pos in ('top', 'right') else 'bottomleft' if leg_pos == 'left'
+            else 'bottomright'
+
+    ,   * :map_labels_h_offset: and :map_labels_v_offset: in HTML, only the sign is
+          considered (lower equal or greater than zero), in Latex /PDF, they are the distances
+          in degrees
 """
 
 # NOTE: TEMPLATE TO BE USED. DOWNLOADEDFROM THE SPHINX EXTENSIONS HERE:
@@ -35,10 +59,10 @@ import os
 import re
 import inspect
 from itertools import izip
-from gfzreport.sphinxbuild.map import plotmap, torgba
+from gfzreport.sphinxbuild.map import plotmap, torgba, _shapeargs
 from gfzreport.sphinxbuild.core.extensions.csvfigure import CsvFigureDirective
 import math
-
+import numpy as np
 
 _OVERWRITE_IMAGE_ = False  # set to True while debugging / testing to force map image creation
 # (otherwise, it check if the image is already present according to the arguments given)
@@ -66,14 +90,27 @@ class mapnode(nodes.Element):
         super(mapnode, self).__init__(rawsource, *children, **attributes)
         # create a custom attribute __plotmap__ in which we set all plotmap attributes:
         plotmapdata = dict(attributes["__parsed_content__"])  # copy it
+        # plotmapdata values are lists of strings, they will be converted later
+        # Note that scalars are allowed, they will be converted and broadcasted
+        # (see `_shapeargs` imported function)
         for key, val in attributes.iteritems():
             if key.startswith("map_"):
-                plotmapdata[key[4:]] = val
+                newkey = key[4:]
+                if newkey == 'sizes':
+                    if newkey not in plotmapdata:
+                        plotmapdata[newkey] = val  # set as scalar
+                    else:
+                        # replace only falsy values (being strings, empty strings):
+                        plotmapdata[newkey] = [val if not _ else _ for _ in plotmapdata[newkey]]
+                else:
+                    # setdefault for safety, because the directive option does not have to
+                    # override a column value, if specified:
+                    plotmapdata.setdefault(newkey, val)
         self.attributes["__plotmapargs__"] = plotmapdata
 
         # make a normalized string by replacing newlines:
-        r = re.compile("\\s*\\n+\\s*")
-        strhash = r.sub(' ', rawsource).strip()
+        reg = re.compile("\\s*\\n+\\s*")
+        strhash = reg.sub(' ', rawsource).strip()
         self._data_hash__ = hash(strhash)
 
 
@@ -192,45 +229,66 @@ def visit_map_node_html(self, node):
         """escapes quotes"""
         return string.replace('"', '\\"')
 
-    # FIXME: add class support, add width and height support, add labels, colors and markers support
-
     data = node.attributes['__plotmapargs__']  # FIXME: error!
     _uuid = node._data_hash__
 
-    bordercolor = "#000000"
-    pt_size = math.sqrt(data['sizes'])
+    bordercolor, borderopacity = "#000000", 0.8
+
+    _lons, _lats, _labels, _sizes, _colors, _markers, _legend_labels = \
+        _shapeargs(data['lons'], data['lats'], data['labels'], data['sizes'],
+                   data['colors'], data['markers'], data['legendlabels'])
+
+    # basemap forwards to matplotlib.scatter which accept sizes in pt^2 (wtf?!!):
+    _sizes = np.sqrt(np.array(_sizes).astype(float))
+    # But that's not all: he html rendering seems to be too small *compared* with the latex
+    # rendering. Two "hacks":
+    # 1: assure points are even (convert 5 to 6, 5.5. to 6, keep 6 as 6):
+    _sizes = 2 * np.ceil(np.array(_sizes).astype(float)/2)
+    # 2: add 2 because the stroke takes up space (stroke width=1, therefore add 2)
+    # also, as we have ints in form of floats, convert to int (not necessary though):
+    _sizes = (2 + _sizes).astype(int)
+
     markers = []
-    for lon, lat, label, color in izip(data['lons'], data['lats'], data['labels'],
-                                       data['colors']):
+    for lon, lat, label, color, marker, pt_size in izip(_lons, _lats, _labels,
+                                                        _colors, _markers, _sizes):
         try:
-            lat = float(lat)
-            lon = float(lon)
             _, _, _, alpha = torgba(color)
-            # for info on options, see:
-            # http://leafletjs.com/reference-1.0.0.html#path
-            markers.append(('L.circleMarker([%f, %f], '
-                            '{radius: %f, fillColor: "%s", fillOpacity: %f, weight: 1, '
-                            'opacity: 0.5, color: "%s"}).'
-                            'bindPopup("%s<br>lat: %f<br>lon: %f")') %
-                           (lat, lon, pt_size, str(color[:7]), alpha, bordercolor,
-                            esc(str(label)), lat, lon))
+
+            # svgMarker is defined below and injected as js code
+            markers.append(('svgMarker(%f, %f, "%s", %f, "%s", %f, "%s", %f)') %
+                           (lat, lon, marker, pt_size, str(color[:7]), alpha, bordercolor,
+                            borderopacity))
+            if label:
+                h_offset, v_offset = float(data['labels_h_offset']), float(data['labels_v_offset'])
+                tooltip_direction = \
+                    'left' if h_offset < 0 else 'right' if h_offset > 0 else 'center'
+                tooltip_v_offset = -pt_size if v_offset < 0 else pt_size if v_offset > 0 else 0
+                # add a div label. Same behaviour of
+                # Add labels as tooltip
+                # https://gis.stackexchange.com/questions/59571/how-to-add-text-only-labels-on-leaflet-map-with-no-icon
+                markers[-1] += ('.bindTooltip("%s",'
+                                '{permanent: true, className: "map-tooltip", direction:\'%s\', '
+                                'offset: [0, %f] })') % (esc(str(label)), tooltip_direction,
+                                                         tooltip_v_offset)
         except (TypeError, ValueError):
             pass
 
     add_to_map_js = "    \n".join("markersArray.push(%s.addTo(map));" % mrk for mrk in markers)
 
     legends_js = []
-    for leg, color in izip(data['legendlabels'], data['colors']):
+    for leg, color, marker in izip(_legend_labels, _colors, _markers):
         if leg:
             try:
-                r, g, b, alpha = torgba(color)
+                _, _, _, alpha = torgba(color)
+
+                leg_icon = ('getSvgURL("%s", %f, "%s", %f, "%s", %f)' %
+                            (marker, pt_size, str(color[:7]), alpha, bordercolor, borderopacity))
+
                 # pt_size in css is the diameter, multiply times two:
                 # Moreover, we need to set rgba colors to support fill opacity only
-                rgba = "rgba(%d, %d, %d, %f)" % (r * 255, g * 255, b * 255, alpha)
-                legends_js.append(("<i style='display:inline-block; border:1px solid %s;"
-                                   "background:%s;width:%fpx;height:%fpx;"
-                                   "border-radius:%fpx'></i>&nbsp;%s")
-                                  % (bordercolor, rgba, 2*pt_size, 2*pt_size, pt_size, esc(leg)))
+                # rgba = "rgba(%d, %d, %d, %f)" % (r * 255, g * 255, b * 255, alpha)
+                legends_js.append(('''"<div style='display:flex;align-items:center'><img src=\\"" + %s + "\\"/>&nbsp;%s</div>"''')
+                                  % (leg_icon, esc(leg)))
             except (TypeError, ValueError):
                 pass
 
@@ -238,32 +296,84 @@ def visit_map_node_html(self, node):
     if legends_js:
         leg_pos = data['legend_pos']
         # leaflet supports only 'bottomleft' 'bottomright', 'topleft' 'topright', so:
-        leg_pos = 'topright' if leg_pos in ('top', 'right') else 'topleft' \
+        leg_pos = 'topright' if leg_pos in ('top', 'right') else 'bottomleft' \
             if leg_pos == 'left' else 'bottomright'
 
         legend_js = """var legend = L.control({position: '%s'});
     legend.onAdd = function (map) {
         var div = L.DomUtil.create('div', 'info legend');
-        div.innerHTML = "%s";
+        div.innerHTML = %s;
         return div;
     };
-    legend.addTo(map);""" % (leg_pos, "<br>".join(l for l in legends_js))
+    legend.addTo(map);""" % (leg_pos, "+".join(l for l in legends_js))
+
+    svg_create_func = '''function getSvgURL(marker, size, fillColor, fillOpacity, strokeColor, strokeOpacity){
+    // set a width and height so we are already compatible with different dimensions
+    var [width, height] = [size, size];
+
+    var attrs = `fill='${fillColor}' fill-opacity='${fillOpacity}' stroke='${strokeColor}' stroke-opacity='${strokeOpacity}'`;
+
+    var txt = '';
+    if (marker == 's'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1,1 L 1,${height-1} L ${width-1},${height-1} L ${width-1},1 Z'/></svg>`;
+    }else if (marker == 'v'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1,1 L ${width-1},1 L ${width/2},${height-1} Z'/></svg>`;
+    }else if (marker == '^'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1,${height-1} L ${width-1},${height-1} L ${width/2},1 Z'/></svg>`;
+    }else if (marker == 'D' || marker == 'd'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M ${width/2},1 L ${width-1},${height/2} L ${width/2},${height-1} L 1,${height/2} Z'/></svg>`;
+    }else{
+        //use ellipse to support different width / height in the future:
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><ellipse ${attrs} cx='${width/2}' cy='${height/2}' rx='${-1+width/2}' ry='${-1+height/2}' /></svg>`;
+    }
+
+    // here's the trick, base64 encode the URL (https://groups.google.com/forum/#!topic/leaflet-js/GSisdUm5rEc)
+    // var svgURL = "data:image/svg+xml;base64," + btoa(icon);
+
+    // But here they suggest to do this to account for firefox problems (it works):
+    return encodeURI("data:image/svg+xml," + txt).replace(/#/g,'%23');
+}'''
+    # define a svg marker function to inject as js:
+    svg_marker_func = '''%s
+
+    function svgMarker(lat, lon, marker, size, fillColor, fillOpacity, strokeColor, strokeOpacity){
+
+    // But here they suggest to do this to account for firefox problems (it works):
+    var svgURL = getSvgURL(marker, size, fillColor, fillOpacity, strokeColor, strokeOpacity);
+
+    // set a width and height so we are already compatible with different dimensions
+    var [width, height] = [size, size];
+
+    // create icon
+    var mySVGIcon = L.icon( {
+        iconUrl: svgURL,
+        iconSize: [width, height],
+        // shadowSize: [12, 10],
+        iconAnchor: [width/2, height/2],
+        popupAnchor: [width/2, 0]
+    });
+
+    // return marker 
+    return L.marker([ lat, lon], { icon: mySVGIcon }); //.addTo(mymap);
+}''' % svg_create_func
 
     html = """
 <div id='map{0}' class=map></div>
 <script>
+
+    {1}
     var map = L.map('map{0}');
     var layer = L.esri.basemapLayer('Topographic').addTo(map);
     var markersArray = [];
-    {1}
+    {2}
     // fit bounds according to markers:
     var group = new L.featureGroup(markersArray);
     map.fitBounds(group.getBounds());
     var rect = L.rectangle(group.getBounds(), {{color: 'black', fill: false, dashArray: "1, 3", weight: .5}}).addTo(map);
     group.bringToFront();
-    {2}
+    {3}
 </script>
-""".format(str(_uuid), add_to_map_js, legend_js)
+""".format(str(_uuid), svg_marker_func, add_to_map_js, legend_js)
 
     self.body.append(html)
 
@@ -285,7 +395,7 @@ def get_map_from_csv(**map_args):
 
 def visit_map_node_latex(self, node):
     """
-    self is the app, although not well documented FIXME: setuo this doc!
+    self is the app, although not well documented
     http://www.sphinx-doc.org/en/stable/_modules/sphinx/application.html
     """
     _uuid = node._data_hash__

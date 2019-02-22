@@ -249,6 +249,30 @@ div.leaflet-container {
     box-shadow: 2px 2px 4px #DDD;
 }
 
+
+/*overriding leaflet css (for the zoom buttons) and making the legend appear the same */
+.leaflet-touch .leaflet-control-layers, .leaflet-touch .leaflet-bar, .leaflet-container .legend {
+    border: 1px solid #BBB !important;
+    border-radius: 4px;
+}
+
+/* mapfig directive might create a legend. Specific css: */
+.leaflet-container .legend{
+	background-color : white;
+	padding: 5px;
+}
+
+/*mapfig directive might have labels. We use leaflet tooltips. Style them: */
+.leaflet-tooltip-pane .map-tooltip:before {  /* hide arrow of tooltips in map-figure */
+	visibility: hidden !important;
+}
+
+.leaflet-tooltip-pane .map-tooltip {  /* map tooltips have no border / bg */
+	border: none !important;
+	background: none !important;
+	box-shadow: none !important;
+}
+
 /* style also figures with the same border for tables and maps, but do not apply this to
 e.g. images inside a grid-figure (because the parent grid table has already these border settings) */
 div.figure > img, div.figure > a.reference.internal > img {

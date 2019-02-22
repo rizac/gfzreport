@@ -4,6 +4,7 @@ Created on Apr 3, 2016
 @author: riccardo
 '''
 import os
+import re
 from datetime import datetime, timedelta
 
 from flask.templating import render_template
@@ -139,13 +140,22 @@ def get_report_type(reportdirname, pagetype):
     if pagetype == 'edit':
         if not is_editable(current_app, reportdirname):
             raise AppError("The report is not editable", 500)
+
+        source_data = get_sourcefile_content(current_app, reportdirname)
+        # as we are injecting the content in the page, </script> strings inside
+        # source_data will be interpreted incorrectly, breaking the editor load.
+        # We are increasing the potential security issues, but the html writer
+        # cares about that, preventing raw parse of "<script..." html
+        # Thus (https://stackoverflow.com/a/1659761/3526777)
+        source_data = re.sub(r'<(\s*)/(\s*)script(\s*)>', r'\<\1\/\2script\3\>', source_data)
+        # Note above: \1, \2 refer to the captured groups
+
         # force non cache. Note that get requests can be cached, whereas post requests are
         # never cached (unless we set the appropriate content headers). Thus, let's be sure
         # that we never cache "edit", "pdf" and "html" pages cause they are get requests
         # for all other views defined here, as they are post, we should be fine
         # Note that we need to use make_response cause render_template returns a string
-        template = render_template("editor.html",
-                                   source_data=get_sourcefile_content(current_app, reportdirname))
+        template = render_template("editor.html",source_data=source_data)
         return nocache(make_response(template))
 
     if pagetype in ('html', 'pdf'):
