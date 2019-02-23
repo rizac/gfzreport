@@ -40,7 +40,7 @@ class Templater(utils.Templater):
         '''
         return os.path.abspath(os.path.join(out_path, "%s" % str(year)))
 
-    def getdatafiles(self, destpath, destdatapath, year):
+    def getdatafiles(self, destpath, destdatapath, year, srcfolder):
         '''This method must return the data files to be copied into `destdatapath`. It must
         return a dict of
 
@@ -80,6 +80,22 @@ class Templater(utils.Templater):
         This function can safely raise as Exceptions will be caught and displayed in their
         message displayed printed
         '''
+        files = []
+        expected_files = ('archive_1', 'archive_2', 'eqinfo_1', 'eqinfo_2',
+                          'eqinfo_3', 'eqinfo_4', 'eqinfo_5', 'network_1')
+        for fle in expected_files:
+            for ext in ['jpg', 'png', 'jpeg', 'gif']:
+                fpath = os.path.join(srcfolder, "%s.%s" % (fle, ext))
+                if os.path.isfile(fpath):
+                    files.append(fpath)
+                    break
+            else:
+                raise Exception('File "%s.(jpg|jpegpng|gif)" not found in %d' % (fle, srcfolder))
+
+        dirs = [d for d in os.listdir(srcfolder) if os.path.isdir(d)]
+        if len(dirs) != 1:
+            raise Exception('Expecting %d directory in "%s", found %d' % (1, len(dirs), srcfolder))
+
         return {}
 
     def getrstkwargs(self, destpath, destdatapath, datafiles, year):

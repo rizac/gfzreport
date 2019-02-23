@@ -31,6 +31,7 @@ from jinja2 import Environment
 from gfzreport.templates.network.core.utils import relpath, read_geofonstations, read_stations, todf,\
     get_query, iterdcurl, sortchannels
 from gfzreport.sphinxbuild.map import getbounds
+from gfzreport.sphinxbuild.core.extensions.mapfigure import SUPPORTED_MARKERS
 
 
 def geofonstations_df(network, start_after_year):
@@ -156,31 +157,7 @@ def otherstations_df(geofonstations_df, margins_in_deg):
         else:
             print("Warning: error fetching inventory (%s)\n   url: %s" % (error, url))
 
-    symbols = cycle([
-                     # '.',  # point
-                     # ',',  # pixel
-                     'o',  # circle
-                     '^',  # triangle_up
-                     'v',  # triangle_down
-                     '<',  # triangle_left
-                     '>',  # triangle_right
-                     # '1',  # tri_down
-                     # '2',  # tri_up
-                     # '3',  # tri_left
-                     # '4',  # tri_right
-                     '8',  # octagon
-                     # 's',  # square
-                     'p',  # pentagon
-                     '*',  # star
-                     'h',  # hexagon1
-                     'H',  # hexagon2
-                     # '+',  # plus
-                     # 'x',  # x
-                     'D',  # diamond
-                     'd',  # thin_diamond
-                     # '|',  # vline
-                     # '_',  # hline
-    ])
+    symbols = cycle(SUPPORTED_MARKERS)
 
     net2markers = defaultdict(lambda: next(symbols))
 

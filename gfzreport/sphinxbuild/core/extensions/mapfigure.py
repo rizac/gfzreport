@@ -3,7 +3,7 @@
    Implements a directive which behaves like a figure representing scatter plot of shapes
    on a geomap background.
    The directive acts as a csv table (although it produces a figure).
-   The csv content must have *AT LEST* these columns (OTHER COLUMNS ARE FINE
+   The csv content must have *AT LEAST* these columns (OTHER COLUMNS ARE FINE
    THEY WILL JUST NOT BE RENDERED):
 
     - latitudes (either denoted by the string 'lats', 'latitudes', 'lat' or 'latitude',
@@ -13,8 +13,8 @@
     - legend labels ('legend' or 'legends', case insensitive): Every non-empty string
       in a row will display an item in the legend with the row marker and label. If all rows
       legend labels are empty, no legend is displayed
-    - markers ('marker' or 'markers', a value in 'o' 'v' '^' 'D', without quotes,
-      where s=square, D=diamond)
+    - markers ('marker' or 'markers', a value in 'o' 's' 'v' '^' '<' '>' 'd' 'D' (without quotes,
+      where s=square, D=diamond, d=thin diamond). See `SUPPORTED_MARKERS`
     - colors ('color' or 'colors', case insensitive) in HTML format '#RGB' or '#RGBA'
 
    And OPTIONALLY:
@@ -22,10 +22,10 @@
         (therefore, in html we use sqrt, as our function draw SVG icons with width and height
         dimensions)
 
-    IMPORTANT: For each row whose value under 'sizes' is empty,
+      IMPORTANT: For each row whose value under 'sizes' is empty,
         of for all rows if 'sizes' is not specified at all as column,
         the value will default to the global directive option ':map_sizes:'
-        Empty values are simply missing values (if the column is the last one)
+        Empty values are missing values (if the column is the last one)
         or columns whose value is ""
 
     NOTES:
@@ -46,8 +46,9 @@
             else 'bottomright'
 
     ,   * :map_labels_h_offset: and :map_labels_v_offset: in HTML, only the sign is
-          considered (lower equal or greater than zero), in Latex /PDF, they are the distances
-          in degrees
+          considered (lower / equal / greater than zero) to place the label left/right/top
+          (and so on...) relative to the symbol. In Latex /PDF, they are the distances
+          in degrees from the symbol (positive zero or negative)
 """
 
 # NOTE: TEMPLATE TO BE USED. DOWNLOADEDFROM THE SPHINX EXTENSIONS HERE:
@@ -68,6 +69,45 @@ _OVERWRITE_IMAGE_ = False  # set to True while debugging / testing to force map 
 # (otherwise, it check if the image is already present according to the arguments given)
 
 _DIRECTIVE_NAME = "mapfigure"
+
+SUPPORTED_MARKERS = ('o', 's', '^', 'v', 'D', '<', '>', 'h', 'H', 'd')
+
+JS_SVG_FUNC = '''function getSvgURL(marker, size, fillColor, fillOpacity, strokeColor, strokeOpacity){
+    // set a width and height so we are already compatible with different dimensions
+    var [width, height] = [size, size];
+
+    var attrs = `fill='${fillColor}' fill-opacity='${fillOpacity}' stroke='${strokeColor}' stroke-opacity='${strokeOpacity}'`;
+
+    var txt = '';
+    if (marker == 's'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1,1 L 1,${height-1} L ${width-1},${height-1} L ${width-1},1 Z'/></svg>`;
+    }else if (marker == 'v'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1,1 L ${width-1},1 L ${width/2},${height-1} Z'/></svg>`;
+    }else if (marker == '^'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1,${height-1} L ${width-1},${height-1} L ${width/2},1 Z'/></svg>`;
+    }else if (marker == '<'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1,${height/2} L ${width-1},${height-1} L ${width-1},1 Z'/></svg>`;
+    }else if (marker == '>'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1,1 L ${width-1},${height/2} L 1,${height-1} Z'/></svg>`;
+    }else if (marker == 'D'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M ${width/2},1 L ${width-1},${height/2} L ${width/2},${height-1} L 1,${height/2} Z'/></svg>`;
+    }else if (marker == 'd'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M ${width/2},1 L ${(3*width/4)-1},${height/2} L ${width/2},${height-1} L ${1 + width/4},${height/2} Z'/></svg>`;
+    }else if (marker == 'h'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M ${width/2},1 L ${1+0.933*(width-2)},${height/4} L ${1+0.933*(width-2)},${3*height/4} L ${width/2},${height-1} L ${1+.067*(width-2)},${-1+3*height/4} L ${1+.067*(width-2)},${1+height/4} Z'/></svg>`;
+    }else if (marker == 'H'){
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1, ${height/2} L ${width/4},${1+0.933*(height-2)} L ${3*width/4},${1+0.933*(height-2)} L ${width-1},${height/2} L ${-1+3*width/4},${1+.067*(height-2)} L ${1+width/4},${1+.067*(height-2)} Z'/></svg>`;
+    }else{
+        //use ellipse to support different width / height in the future:
+        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><ellipse ${attrs} cx='${width/2}' cy='${height/2}' rx='${-1+width/2}' ry='${-1+height/2}' /></svg>`;
+    }
+
+    // here's the trick, base64 encode the URL (https://groups.google.com/forum/#!topic/leaflet-js/GSisdUm5rEc)
+    // var svgURL = "data:image/svg+xml;base64," + btoa(icon);
+
+    // But here they suggest to do this to account for firefox problems (it works):
+    return encodeURI("data:image/svg+xml," + txt).replace(/#/g,'%23');
+}'''
 
 csv_headers = {
                "lats": re.compile("lat(?:itude)?s?", re.IGNORECASE),
@@ -307,38 +347,11 @@ def visit_map_node_html(self, node):
     };
     legend.addTo(map);""" % (leg_pos, "+".join(l for l in legends_js))
 
-    svg_create_func = '''function getSvgURL(marker, size, fillColor, fillOpacity, strokeColor, strokeOpacity){
-    // set a width and height so we are already compatible with different dimensions
-    var [width, height] = [size, size];
-
-    var attrs = `fill='${fillColor}' fill-opacity='${fillOpacity}' stroke='${strokeColor}' stroke-opacity='${strokeOpacity}'`;
-
-    var txt = '';
-    if (marker == 's'){
-        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1,1 L 1,${height-1} L ${width-1},${height-1} L ${width-1},1 Z'/></svg>`;
-    }else if (marker == 'v'){
-        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1,1 L ${width-1},1 L ${width/2},${height-1} Z'/></svg>`;
-    }else if (marker == '^'){
-        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M 1,${height-1} L ${width-1},${height-1} L ${width/2},1 Z'/></svg>`;
-    }else if (marker == 'D' || marker == 'd'){
-        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><path ${attrs} d='M ${width/2},1 L ${width-1},${height/2} L ${width/2},${height-1} L 1,${height/2} Z'/></svg>`;
-    }else{
-        //use ellipse to support different width / height in the future:
-        txt = `<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='${width}' height='${height}'><ellipse ${attrs} cx='${width/2}' cy='${height/2}' rx='${-1+width/2}' ry='${-1+height/2}' /></svg>`;
-    }
-
-    // here's the trick, base64 encode the URL (https://groups.google.com/forum/#!topic/leaflet-js/GSisdUm5rEc)
-    // var svgURL = "data:image/svg+xml;base64," + btoa(icon);
-
-    // But here they suggest to do this to account for firefox problems (it works):
-    return encodeURI("data:image/svg+xml," + txt).replace(/#/g,'%23');
-}'''
     # define a svg marker function to inject as js:
     svg_marker_func = '''%s
 
     function svgMarker(lat, lon, marker, size, fillColor, fillOpacity, strokeColor, strokeOpacity){
 
-    // But here they suggest to do this to account for firefox problems (it works):
     var svgURL = getSvgURL(marker, size, fillColor, fillOpacity, strokeColor, strokeOpacity);
 
     // set a width and height so we are already compatible with different dimensions
@@ -355,7 +368,7 @@ def visit_map_node_html(self, node):
 
     // return marker 
     return L.marker([ lat, lon], { icon: mySVGIcon }); //.addTo(mymap);
-}''' % svg_create_func
+}''' % JS_SVG_FUNC
 
     html = """
 <div id='map{0}' class=map></div>

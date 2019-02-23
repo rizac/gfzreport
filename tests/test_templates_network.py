@@ -150,7 +150,7 @@ def setupurlread(mock_urlopen, geofon_retval=None, others_retval=None, doicit_re
             url = url_
         if "geofon" in url:
             if isinstance(geofon_retval, Exception):
-                raise geofon_retval
+                raise geofon_retval  # pylint: disable=raising-bad-type
             if geofon_retval is None:
                 with open(os.path.join(DATADIR, "ZE.network.xml")) as opn:
                     return BytesIO(opn.read())
@@ -158,13 +158,13 @@ def setupurlread(mock_urlopen, geofon_retval=None, others_retval=None, doicit_re
                 return BytesIO(geofon_retval)
         elif 'doi.org' in url:
             if isinstance(doicit_retval, Exception):
-                raise doicit_retval
+                raise doicit_retval  # pylint: disable=raising-bad-type
             if doicit_retval is None:
                 return BytesIO("Marc Smith (2002): A Paper. %s" % url.encode('utf8'))
             return BytesIO(doicit_retval)
         else:
             if isinstance(others_retval, Exception):
-                raise others_retval
+                raise others_retval  # pylint: disable=raising-bad-type
             if others_retval is None:
                 with open(os.path.join(DATADIR, "other_stations.xml")) as opn:
                     return BytesIO(opn.read())
@@ -192,10 +192,10 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
         # assert we have the non-network stations:
         # Note that testing if we filtered out some stations baseed on the network boundary box
         # is hard as we should run a real test
-        assert 'OUT_RANGE_LON_85 -22.47355 85.0 o #FFFFFF' in rst 
-        assert 'IN_RANGE -22.47355 45.56681 o #FFFFFF' in rst 
-        assert 'OUT_RANGE_LON_75 -22.47355 75.0 o #FFFFFF' in rst 
-        assert 'OUT_RANGE_LON_85 -22.47355 85.0 o #FFFFFF' in rst 
+        assert 'OUT_RANGE_LON_85 -22.47355 85.0 o #FFFFFF' in rst
+        assert 'IN_RANGE -22.47355 45.56681 o #FFFFFF' in rst
+        assert 'OUT_RANGE_LON_75 -22.47355 75.0 o #FFFFFF' in rst
+        assert 'OUT_RANGE_LON_85 -22.47355 85.0 o #FFFFFF' in rst
         # assert we do have default margins:
         m = 0.5  # default margin when missing
         assert (':map_mapmargins: %sdeg, %sdeg, %sdeg, %sdeg') % (m, m, m, m) in rst
@@ -207,7 +207,7 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
             ['ok1.png', 'ok2.jpg', 'x1.png', 'x2.png']
 
         # Now try to run sphinx build:
-        
+
         # NOW, IMPORTANT: for some weird reason when querying for the map (arcgisimage)
         # the urllib called from within arcgisimage is our mock (??!!)
         # Our mock returns inventory objects, so
@@ -227,20 +227,20 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
 #                  os.path.join(outpath, "build"), "-b", ""]
         for buildtype, expected_ext in [("", '.tex'), ("latex", '.tex'), ("pdf", '.pdf'),
                                         ("html", '.html')]:
-                
+
             btype = 'latex' if buildtype != 'html' else buildtype
             outdir = os.path.join(os.path.join(outpath, "build"), btype)
-            
+
             if buildtype in ('latex', 'pdf'):
                 assert os.path.isdir(outdir)
             else:
                 assert not os.path.isdir(outdir)
-            
+
             indir = os.path.join(outpath, "ZE_2014")
             args_ = [indir, outdir]
             if buildtype:
                 args_.extend(['-b', buildtype])
-            
+
 
             result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
 
