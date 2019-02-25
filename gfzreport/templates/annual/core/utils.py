@@ -3,12 +3,16 @@ Created on Jan 9, 2017
 
 @author: riccardo
 '''
+from __future__ import print_function
+
 import pandas as pd
 import urllib2
 import os
 import re
 from obspy import read_inventory
 from io import BytesIO
+from collections import OrderedDict
+import csv
 
 def relpath(path, reference_path):
     """Almost the same as os.path.relpath but prepends a "./", so the returned value is
@@ -16,221 +20,118 @@ def relpath(path, reference_path):
     return os.path.join(".", os.path.relpath(path, reference_path))
 
 
-def read_geofonstations(network, start_after_year, **kwargs):
-    """Returns an inventory object representing the stations xml file of a given **geofon**
-        network
-       :param network: string, denoting the network
-       :param start_after_year: an integer denoting the year to start from when
-       searching for the network stations
-       :param kwargs: keyword arguments optionally to be passed to the query string. Provide any
-       fdsn standard *except* 'format', which by default will be set to 'xml', 'level' (which
-       will be set to 'channel'), 'network' and 'startafter' (which are mandatory arguments of this
-       function)
+img_extensions = ('jpg', 'png', 'jpeg', 'gif')
+
+expected_img_files = ('archive_1', 'archive_2', 'eqinfo_1', 'eqinfo_2',
+                      'eqinfo_3', 'eqinfo_4', 'eqinfo_5', 'network_1')
+
+def get_img_filepaths(srcfolder):
+    """Returns the files supposed to display the figures for the annual report
+        (excluding pdfs figures).
+
+        Raises Exception if some file is not found
     """
-    kwargs['network'] = network
-    kwargs['level'] = 'channel'
-    kwargs['startafter'] = start_after_year
-    return read_stations(get_query("http://geofon.gfz-potsdam.de/fdsnws/station/1/query",
-                                   **kwargs))
-
-
-def read_stations(url, timeout=None):
-    """Returns an inventory object representing the stations xml file downloaded from the
-    given url
-    :param timeout: the value of the timeout passed to `urllib2`. None defaults to the
-    library default
-    """
-    # format_ = get_format(url)
-    response = None
-    try:
-        response = urllib2.urlopen(url) if timeout is None else \
-            urllib2.urlopen(url, timeout=timeout)
-        return read_inventory(BytesIO(response.read()), format='STATIONXML')
-#         return response.read() if format_ == 'text' else read_inventory(BytesIO(response.read()),
-#                                                                         format='STATIONXML')
-    finally:
-        if response:
-            response.close()
-
-
-def todf(stations_xml, func, funclevel='station', sortby=None):
-    """
-        Converts stations_xml to pandas DataFrame: Loops through the `stations_xml`'s
-        network(s), station(s) and channel(s) and executes
-        func at the given funclevel
-        :param: stations_xml: An obspy inventory object returned from
-        module functions `read_stations` and `read_geofonstations`, or, in general, from:
-        ```
-            obspy.read_inventory(..., format='STATIONSXML')
-        ```
-        :param func: a function called on each network / station / channel (depending
-        on the value of `funclevel`) returning a row of the resulting dataframe as dictionary
-        (the dictionary keys will make up the DataFrame columns).
-        Everything not instance of `dict` will be interpreted as an iterable of
-        `dict`s, so that one can return e.g. a list of N `dict`s to add new N rows.
-        Everything evaluating to False (empty dict, empty iterable, empty dicts of an iterable)
-        will be skipped and not added to the DataFrame.
-        The `func` argument accepts a variable number of arguments depending on the `funclevel`
-        argument:
-          - funclevel='network': `func(network_obj)`
-          - funclevel='station': `func(network_obj, station_obj)`
-          - funclevel='channel': `func(network_obj, station_obj, channel_obj)`
-        Note: if you want to preserve the column orders as declared in each returned dict,
-        you can use and return `collections.OrderedDict`'s).
-        No error should be raised if the number of columns is inconsistent across dict's or their
-        order differs, but the result has not been tested (please have a look at pandas DataFrame).
-        :param funclevel: string, either 'network', 'station' or 'channel' indicates at which
-        level in the xml iteration `func` must be called. Depending on this argument
-        `func` will acccept one/two/three arguments:
-          - funclevel='network': `func(network_obj)`,
-          - funclevel='station': `func(network_obj, station_obj)`
-          - funclevel='channel': `func(network_obj, station_obj, channel_obj)`
-        :param sortkey (str or list of str): Behaves like the pandas 'by` argument to sort the
-        dataframe before returning it: its the name(s) of the column(s) to sort by. If None
-        (default when missing) no sort takes place
-    """
-    arr = []
-
-    def add(val):
-        """Function executing `list.add` or `list.extend` depending on `val` argument"""
-        if not val:
-            return
-        if isinstance(val, dict):
-            arr.append(val)
+    files = []
+    for fle in expected_img_files:
+        msg = 'Image file "%s" not found in "%s"' % (fle, srcfolder)
+        for ext in img_extensions:
+            fpath = os.path.join(srcfolder, "%s.%s" % (fle, ext))
+            if os.path.isfile(fpath):
+                files.append(fpath)
+                break
+            elif os.path.splitext(fle)[0] == fle:  # file found, bad extension
+                msg = 'File "%s" in "%d" should have extension in %s' % str(img_extensions)
         else:
-            arr.extend((v for v in val if v))
+            raise Exception(msg)
+    return files
 
-    for net in stations_xml:
-        if funclevel == 'network':
-            add(func(net))
+
+def get_pdfs_csvstr(img_filepaths, delimiter=" ", quotechar='"'):
+    """Returns a list of lists of all pdfs found in srcfolder. File names
+    must be image files with the format N.S.L.C.<whavever>.ext, where
+    ext must be an image extension
+
+    """
+    def _getkey(fname):
+        nslc = fle.split('.')
+        return nslc[:3] + nslc[3][:-1] + nslc[4:]
+
+    # whatever is ok, the important is that is a 3-length string list:
+    chacol_orders = ['a', 'b', 'c']
+    filez = []
+    index = OrderedDict()
+    for fle in img_filepaths:
+        index[_getkey(os.path.basename(fle))] = None
+
+    ret_df = pd.DataFrame(columns=list(chacol_orders), index=list(index))
+    for fpath in img_filepaths:
+        fname = os.path.basename(fpath)
+        key = _getkey(fname)
+        vals = [_ for _ in ret_df.loc[key, :] if not pd.isnull(_)]
+        if len(vals) == 3:
+            print('Discarding "%s" in "%s": all orientation codes already found' %
+                  (fname, os.path.dirname(fpath)))
             continue
-        for sta in net:
-            if funclevel == 'station':
-                add(func(net, sta))
-                continue
-            if funclevel == 'channel':
-                for cha in sta:
-                    add(func(net, sta, cha))
+        vals.append(fname)
+        vals.sort()
+        vals += [''] * max(0, len(chacol_orders) - len(vals))
+        ret_df.loc[key, :] = vals
 
-    ret_df = pd.DataFrame(arr)
-    if sortby:
-        ret_df.sort_values(by=sortby, inplace=True)
-
-    return ret_df
+    return ret_df.to_csv(None, sep=delimiter, header=False, index=False,
+                         na_rep='', encoding='utf-8', quotechar=quotechar,
+                         line_terminator='\n', quoting=csv.QUOTE_MINIMAL)
 
 
-def get_query(*urlpath, **query_args):
-    """Joins urls and appends to it the query string obtained by kwargs
-    Note that this function is intended to be simple and fast: No check is made about white-spaces
-    in strings, no encoding is done, and if some value of `query_args` needs special formatting
-    (e.g., "%1.1f"), that needs to be done before calling this function
-    :param urls: portion of urls which will build the query url Q. For more complex url functions
-    see `urlparse` library: this function builds the url path via a simple join stripping slashes:
-    ```'/'.join(url.strip('/') for url in urlpath)```
-    So to preserve slashes (e.g., at the beginning) pass "/" or "" as arguments (e.g. as first
-    argument to preserve relative paths).
-    :query_args: keyword arguments which will build the query string
-    :return: a query url built from arguments
+def get_pdfs_df_old(img_files, delimiter=" ", quotechar='"'):
+    """Returns a list of lists of all pdfs found in srcfolder. File names
+    must be image files with the format N.S.L.C.<whavever>.ext, where
+    ext must be an image extension
 
-    :Example:
-    ```
-    >>> get_query("http://www.domain", start='2015-01-01T00:05:00', mag=5.455559, arg=True)
-    'http://www.domain?start=2015-01-01T00:05:00&mag=5.455559&arg=True'
-
-    >>> get_query("http://www.domain", "data", start='2015-01-01T00:05:00', mag=5.455559, arg=True)
-    'http://www.domain/data?start=2015-01-01T00:05:00&mag=5.455559&arg=True'
-
-    # Note how slashes are handled in urlpath. These two examples give the same url path:
-
-    >>> get_query("http://www.domain", "data")
-    'http://www.domain/data?'
-
-    >>> get_query("http://www.domain/", "/data")
-    'http://www.domain/data?'
-
-    # leading and trailing slashes on each element of urlpath are removed:
-
-    >>> get_query("/www.domain/", "/data")
-    'www.domain/data?'
-
-    # so if you want to preserve them, provide an empty argument or a slash:
-
-    >>> get_query("", "/www.domain/", "/data")
-    '/www.domain/data?'
-
-    >>> get_query("/", "/www.domain/", "/data")
-    '/www.domain/data?'
-    ```
     """
-    # http://stackoverflow.com/questions/1793261/how-to-join-components-of-a-path-when-you-are-constructing-a-url-in-python
-    return "{}?{}".format('/'.join(url.strip('/') for url in urlpath),
-                          "&".join("{}={}".format(k, v) for k, v in query_args.iteritems()))
+    chacol_orders = OrderedDict()
+    filez = []
+    index = OrderedDict()
+    for fle in img_files:
+        nslc = fle.split('.')
+        net, sta, loc, cha = nslc[0], nslc[1], nslc[2], nslc[3]
+        chacol_orders[cha.lower()] = None
+        filez.append(fle)
+        index[("%s.%s.%s" % (net, sta, loc)).lower()] = None
+
+    ret_df = pd.DataFrame(columns=list(chacol_orders), index=list(index))
+    for fname in filez:
+        nslc = fname.split('.')
+        key = ("%s.%s.%s" % (net, sta, loc)).lower()
+        cha = nslc[3].lower()
+        if not pd.isnull(ret_df.loc[key, cha]):
+            print('Discarding "%s" in "%s": duplicate name found (case insensitive)')
+        else:
+            ret_df.loc[key, cha] = fname
+
+    for col in ret_df.columns:
+        nulls = pd.isnull(ret_df[col])
+        if not nulls.any():
+            continue
+        indices = ret_df[nulls]['index']
+        ret_df.loc[indices, col] = ''
+
+    return filez, ret_df.to_csv(None, sep=delimiter, header=False, index=False,
+                                na_rep='', encoding='utf-8', quotechar=quotechar,
+                                line_terminator='\n', quoting=csv.QUOTE_MINIMAL)
 
 
-def iterdcurl(**query_args):
-    """Returns an iterator over all datacenter urls found in the eida routing service, plus
-    iris station ws url
-    :param query_args: optional set of **eida routing service keyword arguments** which will be
-    appended to the query url. Note that the arguments are not 100% the same as the fdsn arguments
-    (for instance, endbefore is not supported), so please use only arguments valid in both cases.
-    Note also that 'service' and 'format' keyword arguments, if supplied, will be overridden with
-    values 'station' and 'post', respectively.
-    For IRIS, due to a bug in the eida routing service, the arguments will be forwarded to the IRIS
-    station web service, so they need to be
-    valid fdsn arguments. The IRIS datacenter is yielded if the station web service response
-    returns at least one byte, otherwise not
-    """
-    query_args['service'] = 'station'
-    query_args['format'] = 'post'
-    query = get_query('http://geofon.gfz-potsdam.de/eidaws/routing/1/query', **query_args)
-
-    url_open = urllib2.urlopen(query)
-    try:
-        dc_result = url_open.read().decode('utf8') or u''
-    finally:
-        url_open.close()
-
-    # 1) parse dc_result string and assume any new line starting with http:// is a valid station
-    # query url
-    # do not use split so we do not create an array but let's yield it
-    last_idx = 0
-    lastcharidx = len(dc_result) - 1
-    for i, char in enumerate(dc_result):
-        if char in (u'\n', u'\r') or i == lastcharidx:
-            if dc_result[last_idx:last_idx+7] == u"http://":
-                yield dc_result[last_idx:i]
-            last_idx = i + 1
-
-    # return IRIS manually. Do a simple query as long as we get one byte, stop the connection
-    # and return the url
-    iris_url = "http://service.iris.edu/fdsnws/station/1/query"
-    # delete / modify eida routing service specific arguments
-    del query_args['service']
-    query_args['format'] = 'text'
-    query_args['level'] = 'station'
-    query = get_query(iris_url, **query_args)
-    url_open = urllib2.urlopen(query)
-    try:
-        dc_result = url_open.read(1)
-        if dc_result:
-            yield iris_url
-    finally:
-        url_open.close()
-    # (fix bug in eida routing service when querying without network arguments):
-
-
-def sortchannels(channels, inplace=False):
-    # sort according to http://www.fdsn.org/seed_manual/SEEDManual_V2.4_Appendix-A.pdf (pag.124):
-    orientations = ['Z', 'N', 'E', 'A', 'B', 'C', 'T', 'R', '1', '2', '3', 'U', 'V', 'W']
-    dct = {o: i for i, o in enumerate(orientations)}
-    max_ = len(dct)
-
-    def keyfunc(channel):
-        return hash(channel[:-1]) + dct.get(channel[-1], max_)
-
-    if inplace and isinstance(channels, list):
-        channels.sort(key=keyfunc)
-    else:
-        channels = sorted(channels, key=keyfunc)
-    return channels
-
+def get_pdfs_files(srcfolder, do_check=True, extensions=img_extensions):
+    for fle in os.listdir(srcfolder):
+        fpath = os.path.join(dir, fle)
+        if os.path.isfile(fpath):
+            if do_check:
+                fname, ext = os.path.splitext(fle)
+                if ext not in extensions:
+                    print('Discarding "%s" in "%s": no image extension' % (fle, srcfolder))
+                    continue
+                nslc = fname.split('.')
+                if (nslc) < 4 or len(nslc[-1]) != 3:
+                    print('Discarding "%s" in "%s": name not in '
+                          '<net>.<sta>.<loc>.<cha>.* format' % (fle, srcfolder))
+                    continue
+            yield fpath

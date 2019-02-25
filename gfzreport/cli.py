@@ -17,6 +17,7 @@ from gfzreport.templates.network import Templater as NetworkTemplater
 from gfzreport.templates.annual import Templater as AnnualTemplater
 from gfzreport.sphinxbuild import run as sphinxbuild_run
 from gfzreport.sphinxbuild import _DEFAULT_BUILD_TYPE
+from gfzreport.templates.annual.core.utils import expected_img_files
 
 
 # define terminal width for help (bigger)
@@ -253,13 +254,13 @@ def n(out_path, conffiles_only, mv_datafiles, noprompt,
     # BUT IN ANY CASE template commands do not have arguments
 
     # should i delete this? I do not understand what I said:
-    # FIXME: IMPORTANT: unix shell expands wildcards automatically, so we might avoid the glob
+    # IMPORTANT: unix shell expands wildcards automatically, so we might avoid the glob
     # module. Fine, BUT CLICK DOES NOT SUPPORT MULTIPLE (UNDEFINED) OPTIONS
     # So for the moment we DISABLE that option
     #
     # Moreover, if we ever re-implement it in the future, remember that windows does not expand
     # wildcards
-    # (http://stackoverflow.com/questions/12501761/passing-multple-files-with-asterisk-to-python-shell-in-windows)
+    # http://stackoverflow.com/questions/12501761/passing-multple-files-with-asterisk-to-python-shell-in-windows
 
     # Note also that area margins are in degree because we want to make life easier
     # If you want to support 'm' and 'km', be aware that we need to convert margins back to string
@@ -279,7 +280,15 @@ def n(out_path, conffiles_only, mv_datafiles, noprompt,
 @templatecommand(short_help="Generates the report folder for the given (Geofon) annual report",
                  context_settings=dict(max_content_width=TERMINAL_HELP_WIDTH))
 @option("-y", '--year', required=True, help="the Report year, e.g. 2016")
-def a(out_path, conffiles_only, mv_datafiles, noprompt, year):
+@option("-i", '--input-dir', required=True,
+        help="the Report input directory with files to inject "
+             "into the document. It mus have 1) a sub-directory of PDFs images of the form: "
+             " <net>.<sta>.<loc>.<cha>.* "
+             "The files will be "
+             "arranged in a table where each row denotes a channel (excluding the orientation "
+             "code) and each column the channel orientation code, and 2) the following image "
+             "files: %s" % str(expected_img_files))
+def a(out_path, conffiles_only, mv_datafiles, noprompt, year, input_dir):
     """
     Generates the report folder for the given GEOFON annual report. The destination
     directory will be a sub-directory of out_path with name [year].
@@ -287,32 +296,15 @@ def a(out_path, conffiles_only, mv_datafiles, noprompt, year):
 
     Example:
 
-    [program_name] --year 2016
+    [program_name] --year 2016 --input_dir [DIRECTORY]
     """
-    # remember: the doc above is shown when calling --help. Arguments DO NOT ACCEPT HELP,
-    # BUT IN ANY CASE template commands do not have arguments
-
-    # should i delete this? I do not understand what I said:
-    # FIXME: IMPORTANT: unix shell expands wildcards automatically, so we might avoid the glob
-    # module. Fine, BUT CLICK DOES NOT SUPPORT MULTIPLE (UNDEFINED) OPTIONS
-    # So for the moment we DISABLE that option
-    #
-    # Moreover, if we ever re-implement it in the future, remember that windows does not expand
-    # wildcards
-    # (http://stackoverflow.com/questions/12501761/passing-multple-files-with-asterisk-to-python-shell-in-windows)
-
-    # Note also that area margins are in degree because we want to make life easier
-    # If you want to support 'm' and 'km', be aware that we need to convert margins back to string
-    # to pass these to the initial map settings (supporting only degrees makes life easier,
-    # just write in the map figure rst option:
-    # ", ".join(str(m) for m in area_margins)
     try:
         runner = AnnualTemplater(out_path, conffiles_only, mv_datafiles, not noprompt)
-        sys.exit(runner(year))
+        sys.exit(runner(year, input_dir))
     except Exception as exc:
         print("Aborted: %s" % str(exc))
         sys.exit(1)
-        
+
 
 if __name__ == '__main__':
     main()  # pylint:disable=no-value-for-parameter

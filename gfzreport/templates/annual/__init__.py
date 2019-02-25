@@ -20,17 +20,19 @@ from gfzreport.sphinxbuild.core.extensions import mapfigure
 #     cleanup_onerr, setupdir, get_rst_template
 
 from gfzreport.templates import utils
+from gfzreport.templates.annual.core.utils import get_img_filepaths, get_pdfs_files,\
+    get_pdfs_csvstr
 
 
 
-def run(year, out_path, move_data_files, update_config_only, confirm):
+def run(year, input_dir, out_path, move_data_files, update_config_only, confirm):
     templater = Templater(out_path, update_config_only, move_data_files, confirm)
-    return templater(year)
+    return templater(year, input_dir)
 
 
 class Templater(utils.Templater):
 
-    def getdestpath(self, out_path, year):
+    def getdestpath(self, out_path, year, input_dir):
         '''This method must return the *real* destination directory of this object.
         In the most simple scenario, it can also just return `out_path`
 
@@ -40,7 +42,7 @@ class Templater(utils.Templater):
         '''
         return os.path.abspath(os.path.join(out_path, "%s" % str(year)))
 
-    def getdatafiles(self, destpath, destdatapath, year, srcfolder):
+    def getdatafiles(self, destpath, destdatapath, year, input_dir):
         '''This method must return the data files to be copied into `destdatapath`. It must
         return a dict of
 
@@ -80,25 +82,16 @@ class Templater(utils.Templater):
         This function can safely raise as Exceptions will be caught and displayed in their
         message displayed printed
         '''
-        files = []
-        expected_files = ('archive_1', 'archive_2', 'eqinfo_1', 'eqinfo_2',
-                          'eqinfo_3', 'eqinfo_4', 'eqinfo_5', 'network_1')
-        for fle in expected_files:
-            for ext in ['jpg', 'png', 'jpeg', 'gif']:
-                fpath = os.path.join(srcfolder, "%s.%s" % (fle, ext))
-                if os.path.isfile(fpath):
-                    files.append(fpath)
-                    break
-            else:
-                raise Exception('File "%s.(jpg|jpegpng|gif)" not found in %d' % (fle, srcfolder))
+        img_files = get_img_filepaths(input_dir)
 
-        dirs = [d for d in os.listdir(srcfolder) if os.path.isdir(d)]
+        dirs = [d for d in os.listdir(input_dir) if os.path.isdir(d)]
         if len(dirs) != 1:
-            raise Exception('Expecting %d directory in "%s", found %d' % (1, len(dirs), srcfolder))
+            raise Exception('Expecting 1 PDFs directory in "%s", found %d' % (input_dir, len(dirs)))
 
-        return {}
+        pdfs = get_pdfs_files(input_dir)
+        return {destdatapath: img_files, os.path.join(destdatapath, 'PDF'): pdfs}
 
-    def getrstkwargs(self, destpath, destdatapath, datafiles, year):
+    def getrstkwargs(self, destpath, destdatapath, datafiles, year, input_dir):
         '''This method accepts all arguments passed to this object when called as function and
         should return a dict of keyword arguments used to render the rst
         template, if the latter has been implemented as a jinja template.
@@ -124,4 +117,12 @@ class Templater(utils.Templater):
         This function can safely raise as Exceptions will be caught and displayed in their
         message displayed printed
         '''
-        return dict(year=str(year))
+        noise_pdf_dest = os.path.join(destdatapath, 'PDF')
+        pdf_dir = relpath(noise_pdf_dest, destpath)
+        imgs_dest = destdatapath
+        imgs_dir = relpath(imgs_dest, destpath)
+
+        return dict(year=str(year), pdf_dir=pdf_dir, imgs_dir=imgs_dir,
+                    pdfs=get_pdfs_csvstr(datafiles[noise_pdf_dest]), images_dir=destdatapath,
+                    imas=[os.path.basename(_) for _ in datafiles[destdatapath]]
+                    )

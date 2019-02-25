@@ -53,7 +53,6 @@ def invoke(*args):
         argz.extend(['-o', os.getcwd()])
         yield runner.invoke(gfzreport_main, TEMPLATE_NETWORK + argz, catch_exceptions=False), os.getcwd(), argz
 
-
 @patch('gfzreport.templates.network.core.iterdcurl', side_effect=lambda *a, **v: _getdatacenters(*a, **v))
 @patch('gfzreport.templates.network.core.utils.urllib2.urlopen')
 def test_netgen_configonly_flag(mock_urlopen, mock_get_dcs):
@@ -118,7 +117,6 @@ def test_netgen_configonly_flag(mock_urlopen, mock_get_dcs):
         # assert we did not modify logfile in -c mode:
         assert logmtime == os.stat(logfile).st_mtime
 
-
 def _getdatacenters(*a, **v):
     """returns the datacenters as the returned response that the eida routing service
     would give. The returned string is the datacenters.txt file in the testdata folder"""
@@ -128,7 +126,6 @@ def _getdatacenters(*a, **v):
     for dc in ret.splitlines():
         if dc[:7] == 'http://':
             yield dc
-
 
 def setupurlread(mock_urlopen, geofon_retval=None, others_retval=None, doicit_retval=None):
     '''sets up urlopen.urlread mock
@@ -171,7 +168,6 @@ def setupurlread(mock_urlopen, geofon_retval=None, others_retval=None, doicit_re
             else:
                 return BytesIO(others_retval)
     mock_urlopen.side_effect = sideeffect
-
 
 @patch('gfzreport.templates.network.core.iterdcurl', side_effect=lambda *a, **v: _getdatacenters(*a, **v))
 @patch('gfzreport.templates.network.core.utils.urllib2.urlopen')
@@ -221,7 +217,6 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
         assert result.exit_code == 1
         assert " already exists" in result.output
 
-
         runner = CliRunner()
 #         args_ = [os.path.join(outpath, "ZE_2014"),
 #                  os.path.join(outpath, "build"), "-b", ""]
@@ -241,7 +236,6 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
             if buildtype:
                 args_.extend(['-b', buildtype])
 
-
             result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
 
             if '.html' == expected_ext:
@@ -257,7 +251,7 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
                 assert result.exit_code == 2
 
         # Now re-set our mock library to return an exception (the mock_url
-        # is intended to distinguish if 'geofon' is in the url or not, provide 
+        # is intended to distinguish if 'geofon' is in the url or not, provide
         # an exception for both cases to be sure)
         # Our map module will handle silently the error by returning a map
         # with coastal lines drawn
@@ -266,22 +260,22 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
         # and re-run:
         runner = CliRunner()
         # Set expected ret values as list, although the value is just one, for the cases
-        # if we have more than one ret_val possible (some bug when running py.test from the terminal)
-        for buildtype, expected_ext, exp_exitcode in [("", '.tex',[0]),
-                                                      ("latex", '.tex',[0]),
+        # if we have more than one ret_val possible (some bug when running py.test from
+        # the terminal)
+        for buildtype, expected_ext, exp_exitcode in [("", '.tex', [0]),
+                                                      ("latex", '.tex', [0]),
                                                       ("pdf", '.pdf', [0]),
                                                       ("html", '.html', [0]),
                                                       ]:
             btype = 'latex' if buildtype != 'html' else buildtype
             outdir = os.path.join(os.path.join(outpath, "build"), btype)
-            
+
             assert os.path.isdir(outdir)  # we already created it above
 
             indir = os.path.join(outpath, "ZE_2014")
             args_ = [indir, outdir]
             if buildtype:
                 args_.extend(['-b', buildtype])
-
 
             result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
             assert os.path.isdir(outdir)
@@ -299,7 +293,8 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
                 # if we are running pdf, test a particular thing:
                 # replace ":errorsastext: yes" in gridfigure directive with ":errorsastext: no"
                 # what does it means? that for grid figures we create images also on errors
-                # (file not found). Now, the current grid figure for the current network and start_after
+                # (file not found). Now, the current grid figure for the current network and
+                # start_after
                 # has a lot of stations, thus a lot of pdfs images. Pdflatex breaks
                 # and does not create the pdf if there are more than 100 includegraphics errors
                 # (the 100 is hard-coded in latex and cannot be changed)
@@ -310,16 +305,14 @@ def test_netgen_ok_sphinxbuild_err(mock_urlopen, mock_get_dcs):
                 content = content.replace(":errorsastext: yes", ":errorsastext: no")
                 with open(reporttext, 'w') as opn_:
                     opn_.write(content)
-                
+
                 rmtree(outdir)
                 result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
                 assert result.exit_code == 2
                 assert not os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
-                
+
     # check if we deleted the temop dir:
     assert not os.path.isdir(outpath)
-
-
 
 @patch('gfzreport.templates.network.core.iterdcurl', side_effect=lambda *a, **v: _getdatacenters(*a, **v))
 @patch('gfzreport.templates.network.core.utils.urllib2.urlopen')
@@ -327,7 +320,8 @@ def test_netgen_ok_sphinxbuild_ok(mock_urlopen, mock_get_dcs):
     # set args, with wildcards
     # mock urllib returns our testdata files
     setupurlread(mock_urlopen)
-    args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/ok*", "-p", "noise_pdf/ok*.png"]
+    args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/ok*", "-p",
+            "noise_pdf/ok*.png"]
     with invoke(*args) as _:
         result, outpath, args = _
         assert result.exit_code == 0
@@ -335,20 +329,21 @@ def test_netgen_ok_sphinxbuild_ok(mock_urlopen, mock_get_dcs):
         with open(os.path.join(outpath, "ZE_2014", "report.rst")) as opn:
             rst = opn.read()
         # assert we copied the right files. For noise_pdf, everything except sta2.*
-        assert sorted(os.listdir(os.path.join(outpath, 'ZE_2014', 'data', 'noise_pdf'))) == ['ok1_HHE.png', 'ok1_HHN.png', 'ok1_HHZ.png']
+        assert sorted(os.listdir(os.path.join(outpath, 'ZE_2014', 'data', 'noise_pdf'))) \
+            == ['ok1_HHE.png', 'ok1_HHN.png', 'ok1_HHZ.png']
         # for inst_uptimes, everything (2 files):
-        assert sorted(os.listdir(os.path.join(outpath, 'ZE_2014', 'data', 'inst_uptimes'))) == ['ok1.png', 'ok2.jpg']
+        assert sorted(os.listdir(os.path.join(outpath, 'ZE_2014', 'data', 'inst_uptimes'))) \
+            == ['ok1.png', 'ok2.jpg']
 #         assert "Aborted: No files copied" in result.output
 #         assert result.exit_code != 0
 
         # Now try to run sphinx build:
         # Now re-set our mock library to return an exception (the mock_url
-        # is intended to distinguish if 'geofon' is in the url or not, provide 
+        # is intended to distinguish if 'geofon' is in the url or not, provide
         # an exception for both cases to be sure)
         # Our map module will handle silently the error by returning a map
         # with coastal lines drawn
         setupurlread(mock_urlopen, URLError('wat?'), URLError('wat?'))
-
 
         # while the dir is already open, test that we cannot override it:
         runner = CliRunner()
@@ -356,7 +351,6 @@ def test_netgen_ok_sphinxbuild_ok(mock_urlopen, mock_get_dcs):
         result = runner.invoke(gfzreport_main, TEMPLATE_NETWORK + args, catch_exceptions=False)
         assert result.exit_code == 1
         assert " already exists" in result.output
-
 
         runner = CliRunner()
 
@@ -375,21 +369,18 @@ def test_netgen_ok_sphinxbuild_ok(mock_urlopen, mock_get_dcs):
                 # if buildtype is latex, we already executed a build with no buyild arg
                 # which defaults to latex, so the dir exists
                 assert not os.path.isdir(outdir)
-            
+
             result = runner.invoke(gfzreport_main, BUILD + args_, catch_exceptions=False)
             assert os.path.isdir(outdir)
             assert os.path.isfile(os.path.join(outdir, 'report%s' % expected_ext))
-                
 
-        
     # check if we deleted the temop dir:
     assert not os.path.isdir(outpath)
-
 
 @patch('gfzreport.templates.network.core.iterdcurl', side_effect=lambda *a, **v: _getdatacenters(*a, **v))
 @patch('gfzreport.templates.network.core.utils.urllib2.urlopen')
 def test_netgen_errors(mock_urlopen, mock_get_dcs):
-    
+
     # test that help works (without raising)
     args = ["--help"]
     with invoke(*args) as _:
@@ -405,7 +396,7 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
         result, outpath, args = _
         assert result.exit_code == 1
         assert 'error while fetching network stations' in result.output
-        
+
     # first test some edge cases, e.g. responses are empty:
     setupurlread(mock_urlopen, None, '')
     args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/sta1*"]
@@ -423,8 +414,6 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
         assert result.exit_code == 1
         assert 'error while fetching network stations' in result.output
 
-    
-    
     # set args,one a directory, the other one file
     # mock urllib returns our testdata files
     setupurlread(mock_urlopen)
@@ -498,7 +487,7 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
     for margins, expected_rst_val in {'0.125': ':map_mapmargins: 0.125deg, 0.125deg, 0.125deg, 0.125deg',
                                   '0.3 0.4 0.1': ':map_mapmargins: 0.3deg, 0.4deg, 0.1deg, 0.4deg',
                                   '0.3 0.4': ':map_mapmargins: 0.3deg, 0.4deg, 0.3deg, 0.4deg'}.iteritems():
-                                  
+
         args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/sta1*",
                 '-a', margins]
         with invoke(*args) as _:
@@ -508,4 +497,3 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
                 rst = opn.read()
             # assert we do not have margins:
             assert expected_rst_val in rst
-        

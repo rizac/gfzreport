@@ -104,7 +104,7 @@ def setupurlread(mock_urlopen, geofon_retval=None, others_retval=None, doicit_re
             url = url_
         if "geofon" in url:
             if isinstance(geofon_retval, Exception):
-                raise geofon_retval
+                raise geofon_retval  # pylint: disable=raising-bad-type
             if geofon_retval is None:
                 with open(os.path.join(DATADIR, "ZE.network.xml")) as opn:
                     return BytesIO(opn.read())
@@ -112,13 +112,13 @@ def setupurlread(mock_urlopen, geofon_retval=None, others_retval=None, doicit_re
                 return BytesIO(geofon_retval)
         elif 'doi.org' in url:
             if isinstance(doicit_retval, Exception):
-                raise doicit_retval
+                raise doicit_retval  # pylint: disable=raising-bad-type
             if doicit_retval is None:
                 return BytesIO("Marc Smith (2002): A Paper. %s" % url.encode('utf8'))
             return BytesIO(doicit_retval)
         else:
             if isinstance(others_retval, Exception):
-                raise others_retval
+                raise others_retval  # pylint: disable=raising-bad-type
             if others_retval is None:
                 with open(os.path.join(DATADIR, "other_stations.xml")) as opn:
                     return BytesIO(opn.read())
