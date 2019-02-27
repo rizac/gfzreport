@@ -15,7 +15,7 @@
    list is in the form :name: value (note the space before value). E.g.:
    
    :Date: 2001-08-16
-   :Version: 1
+   :Version: 0.1
    
    In Sphinx, fields placed before the title, as the ones listed below, will never be rendered in
    any document and act as metadata.
@@ -37,6 +37,7 @@
    - issn (LIBRARY INPUT): the issn. E.g.: 2190-7110
    - publicationYear (LIBRARY INPUT): the publication year. E.g., 2016
    - publicationMonth (LIBRARY INPUT): the publication month in plain english. E.g.: October
+   - version (AUTHOR INPUT): a version number to be printed in latex second page
 
    Now you can fill their values (plain text only, no markup):
 
@@ -59,6 +60,8 @@
 :publicationMonth: 
 
 :tocdepth: 3
+
+:version: 1.0
 
 .. ^^^^^^
 .. TITLE:
@@ -91,7 +94,7 @@ GEOFON Annual Report {{ year }}
    In html there is no such processing and the text below will be displayed
    as it is, after removing all asterixs.
 
-:Authors: Author1* (Institute1), Author2 (Institute2), Author3 (Institute1)
+:Authors: Angelo Strollo, Thomas Zieke, Karl-Heinz Jäckel, Javier Quinteros, Susanne Hemmleb, Peter Evans, Andres Heinloo, Riccardo Zaccarelli, Joachim Saul, Winfried Hanka and Frederik Tilmann.
 
 
 .. the citation section. Write here how the user should cite this report, and/or how to cite
@@ -103,16 +106,24 @@ GEOFON Annual Report {{ year }}
 :Citations: Recommended citation for the report:
 
             :doi-citation:`|doi|`
-            
 
 .. raw:: latex
 
    \tableofcontents
    \newpage
 
-            
+
+
 Executive summary
 ~~~~~~~~~~~~~~~~~
+
+
+
+
+.. raw:: latex
+
+   \newpage
+
 
 
 Introduction
@@ -124,112 +135,376 @@ The GEOFON global seismic network
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
+
 Regular maintenance 
 <<<<<<<<<<<<<<<<<<<
+
+
+.. customize the includegraphics options (only for latex output) for the next figure or image
+   found (in the former case, applies the includegraphics options to all images of the figure):
+
+.. .. includegraphics:: angle=90,width=1\textwidth
+
+
+.. map directive. Customize as you want, you can reference it via :numerf:`map_ge_stations`
+
+
+.. _map_ge_stations:
+
+.. mapfigure:: GEOFON stations in {{ year }}. Colours denote the data availability (white: 0% to red: 100% availability). Symbols represent the level of corrective maintenance needed: circle for “none”, square for “on site”, triangle (up) for “remote”, triangle (down) for “Remote incl. HW shipment”. An “X” next to the symbol indicates metadata updates.
+   :header-rows: 1
+   :align: center
+   :delim: space
+   :quote: "
+   :map_fontweight: regular
+   :map_mapmargins: 0.5deg, 0.5deg, 0.5deg, 0.5deg
+   :map_labels_h_offset: 0.005
+   :map_legend_borderaxespad: 1.5
+   :map_arcgis_service: World_Street_Map
+   :map_urlfail: ignore
+   :map_labels_v_offset: 0
+   :map_sizes: 50
+   :map_meridians_linewidth: 1
+   :map_legend_pos: bottom
+   :map_arcgis_xpixels: 1500
+   :map_parallels_linewidth: 1
+   :map_fontcolor: k
+   :map_maxmeridians: 5
+   :map_figmargins: 1,2,9,0
+   :map_legend_ncol: 2
+   :map_maxparallels: 5
+
+   {{ mapfigure_directive_content|indent(3) }}
+
 
 
 Technical developments
 <<<<<<<<<<<<<<<<<<<<<<
 
 
-Technical support to other networks
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+Technical support to other GFZ groups (e.g. Observatories)
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
 Annexes
 <<<<<<<
 
 
-
 The GEOFON Data Centre
 ~~~~~~~~~~~~~~~~~~~~~~
 
-
-Services of interest in {{ year }} (service uptime)
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
+Archive Service Delivery
+<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
-Data and metadata requests made in {{ year }}
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+.. figure archive_1. You can reference it via :numerf:`archive_1`
+
+
+.. _archive_1:
+
+.. figure:: {{ archive_1_path }}
+   :width: 100%
+   :align: center
+
+   Data archived by year of acquisition.
+
+
+.. figure archive_2. You can reference it via :numerf:`archive_2`
+
+
+.. _archive_2:
+
+.. figure:: {{ archive_2_path }}
+   :width: 100%
+   :align: center
+
+   Cumulative size of the GEOFON archive.
+  
+
+
+Requests by method and by type.
+
+.. tabularcolumns:: |l|r|r|r|r|
+
+===================  ===========  ===========  ======  =====
+Request method          Requests  Timewindows  Volume  Users 
+-------------------  -----------  -----------  ------  -----
+fdsnws (external)    108.021.966   97.327.589   19 TB   2041
+fdsnws (GFZ)           1.254.084  130.732.055    6 TB    177     						  
+arclink (external)     7.211.889   10.865.607   10 TB   1123
+arclink (GFZ)            142.511      161.323    0 TB     41
+Total                116.630.450  239.086.574   35 TB       
+===================  ===========  ===========  ======  =====
+
+
+.. figure archive_3. You can reference it via :numerf:`archive_3`
+
+.. _archive_3:
+
+.. figure:: {{ archive_3_path }}
+   :width: 100%
+   :align: center
+
+   Number of distinct user IDs provided for fdsnws and/or arclink on each day in {{ year }}.
+
+
+  
+
+New networks (embargo period end reports or any other change)
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+Real-time data export via seedlink:
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+Service uptime
+<<<<<<<<<<<<<<
+
+.. tabularcolumns:: |l|c|c|
+
+===================  =========  ============
+Service               Up        Down/Problem
+-------------------  ---------  ------------
+WebDC                 99.825%	    0.175%
+EIDA Master Table     94.864%       5.136%
+fdsnws-dataselect     98.371%		1.629%
+fdsnws-station        98.212%		1.789%
+routingsvc            99.749%		0.251%
+-------------------  ---------  ------------
+geofon-proc           99.982%		0.018%
+geofon (ping)         99.980%		0.020%
+geofon (Web pages)    99.813%       0.187%
+geofon (eqinfo)       99.163%		0.837%
+geofon (Seedlink)     99.411%       0.589%
+===================  =========  ============
+
+
 
 
 
 GEOFON Rapid Earthquake Information
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. Following the trend from last year the Earthquake Information system has got less manual interaction and more automatic  solutions. 
 
 
-Event dissemination in {{ year }}
-<<<<<<<<<<<<<<<<<<<<<<<<<<<
+Published earthquake locations and moment tensor solutions
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+In total GEOFON published 4920 events and 936 moment tensor solutions via the web pages and other dissemination channels. :numref:`eqinfo_1` shows the geographic distribution of the published events and :numref:`eqinfo_2` the distribution of the moment tensors. 
+
+.. figure eqinfo_1. Reference it throughout the document via :numref:`eqinfo_1`
+
+.. _eqinfo_1:
+
+.. figure:: {{ eqinfo_1_path }}
+   :width: 100%
+   :align: center
+
+   Geographic distribution of the published events in 2018.
+
+
+.. figure eqinfo_2. Reference it throughout the document via :numref:`eqinfo_1`
+
+.. _eqinfo_2:
+
+.. figure:: {{ eqinfo_2_path }}
+   :width: 100%
+   :align: center
+
+   Geographic distribution of the published Moment Tensors solutions in 2018.
 
 
 
-Event notification delays in {{ year }}
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+Events by magnitude classes in {{ year }}
+
+.. tabularcolumns:: |r|r|
+======  ===========
+Mag     Num. events
+------  -----------
+≥7.5     5
+≥6.5     42
+≥5.5     419
+≥4.5     3818
+All      4920
+======  ===========
+
+
+Removed "Fake" events are usually characterized by unfavorable azimuthal station
+coverage or even strongly clustered stations (IPOC, parts of Central Europe, Taiwan). 
+
+.. The number of published fake events could be reduced significantly compared to previous years by introducing additional publication criteria such as the maximum "sum of the largest two azimuthal gaps".
 
 
 
-Monitoring connections to the GEOFON web pages
-<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+Event dissemination
+
+.. tabularcolumns:: |l|r|r|r|
+
+=============  ======  ======  ======
+Events         No MT   Has MT   Total
+-------------  ------  ------  ------
+Published      3984      936    4920
+ Status A       999      ---     999
+ Status C      2117      801    2918 
+ Status M       868      135    1003 
+Removed           7        0       7
+=============  ======  ======  ======
+
+
+The definitions of these alert types are:
+ * 'xxl' events are those with magnitude larger than 6.5 worldwide, or larger than 5.5 in or near Europe, or 5.0 in central Europe.
+ * 'big' events have magnitude above 5.5 in most of the world, or above 5.0 in the wider Europe/Mediterranean area and M>=4.5 in central Europe.
+ *  the 'Other' category includes internal alerts and some regional notifications.
+
+
+
+Event notification delays are shown in :numref:`eqinfo_3` and :numref:`eqinfo_4` .
+
+
+.. figure eqinfo_3. Reference it throughout the document via :numref:`eqinfo_3`
+
+.. _eqinfo_3:
+
+.. figure:: {{ eqinfo_3_path }}
+   :width: 100%
+   :align: center
+
+   Event publication (grey dots) and alert delay (big green and xxl red) vs. magnitude in {{ year }}. Alert delay for GEOFON events in {{ year }} resulting in SMS alerts. Magnit
+   ude is the magnitude reported at the time of the alert. Also shown are events with only an automatic detection (status 'A'). Please note that numbers are incomplete due to hardware upgrade/migration during the year.
+
+
+Alerts issued by type for each quarter
+
+.. tabularcolumns:: |l|r|r|r|r|
+
+=======  ======  =======  =====  ============
+ {{ year }}     xxl     big     Other  All classes
+-------  ------  -------  -----  ------------
+ Q1        10      83       ---  ---
+ Q2         2      55       ---  --- 
+ Q3        13     110       ---  ---
+ Q4        13     106       ---  ---
+-------  ------  -------  -----  ------------
+ Total     38     354      4528  4920 
+=======  ======  =======  =====  ============ 
+ 
+
+.. figure eqinfo_4. Reference it throughout the document via :numref:`eqinfo_4`
+
+.. _eqinfo_4:
+
+.. figure:: {{ eqinfo_4_path }}
+   :width: 100%
+   :align: center
+
+   GEOFON alert delay vs. first automatic publication. Note irregular spacing of x-axis. Please note that numbers are incomplete due to hardware upgrade/migration during the year.
+
+
+Impact of the GEOFON web pages
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+The number of distinct users connecting to geofon.gfz-potsdam.de is of typically ~30.000/day ( :numref:`eqinfo_5` ). Significant traffic is driven to our web server immediately after large events,
+particularly those in Europe, exceeding 60.000 distinct users on peak days ("Distinct" visitors are those with distinct IP address and User-Agent.)
+
+.. figure eqinfo_5. Reference it throughout the document via :numref:`eqinfo_5`
+
+.. _eqinfo_5:
+
+.. figure:: {{ eqinfo_5_path }}
+   :width: 100%
+   :align: center
+
+   Daily distinct visitors to geofon.gfz-potsdam.de during 2016. Also shown is the magnitude of the *largest* event recorded on each day, when this exceeds 6.4. (The threshold for 'xxl' alerts is 6.5 in most of the world).
+
+
+Ongoing cooperation with EMSC
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
 
 Software development
 ~~~~~~~~~~~~~~~~~~~~
 
-httpmsgbus
-<<<<<<<<<<
 
 
-fdsnws
-<<<<<<
-
-
-fdsnws_fetch
-............
-
-
-fdsnws2sds
-..........
-
-
-WebDC3
-<<<<<<
-
-
-Routing service
-<<<<<<<<<<<<<<<
-
-
-SC3 releases and usage
-<<<<<<<<<<<<<<<<<<<<<<
+Impact, Outreach and Capacity Building
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
-Outreach and Capacity Building
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+GEOFON running projects
+~~~~~~~~~~~~~~~~~~~~~~~
 
 
-GEOFON Team (Human Resources, {{ year }})
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-======================= ======= ===== ======= ====== ========== ======== ==================  
- Name                   GE Net. GE DC EQ info GE op. Soft. Dev. Outreach Fin. Project 
------------------------ ------- ----- ------- ------ ---------- -------- ------------------
-Name Surname            x       x     x       x                 x        GFZ
-Name Surname[*]         x                                                EUDAT/GFZ
+Publications by GEOFON staff
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+GEOFON Team (Human Resources)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======================= ======= ===== ======= ====== ========== ======== ================== 
+ Name                   GE Net. GE DC EQ info GE op. Soft. Dev. Outreach Funding 
+======================= ======= ===== ======= ====== ========== ======== ==================
+Angelo Strollo          x       x     x       x                 x        GFZ
+Thomas Zieke            x                                                GFZ     
+Karl-Heinz Jäckel[*]    x                                                GFZ     
+Javier Quinteros                x                    x          x        EOSC-hub/GDN/GFZ
+Susanne Hemmmleb                x                                        GFZ 
+Riccardo Zaccarelli[*]          x                    x                   EPOS-IP/GFZ
+Joachim Saul[*]                 x     x              x          x        GFZ
+Winfried Hanka[*]                     x                                  GFZ
+Andres Heinloo          x       x     x       x      x                   GFZ
+Peter Evans             x       x     x       x      x          x        GFZ
 ======================= ======= ===== ======= ====== ========== ======== ==================
 
 [*] Not working full time for GEOFON.
 
 
+GEOFON Advisory Committee Members
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-GEOFON Advisory Committee Members ({{ year }})
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Dr. Florian Haslinger, Chair, ETH Zurich, Zurich,CH
+
+Dr. Christian Bönnemann, BGR Hannover, D
+
+Prof. Dr. Wolfgang Friederich, RU Bochum, Bochum, D
+
+Prof. Dr. Thomas Meier,	CAU	Kiel, D
+
+Prof. Dr. Max Wyss	International Centre for Earth Simulation, Geneva, CH
+
+Dr. Jan Zednik,	GFU	Prague, CZ
+
 
 
 Appendices
 ~~~~~~~~~~
+
+.. gridfigure:: GE Network PSDs ({{ year }})
+   :dir: {{ pdfs_dir }}
+   :delim: space
+   :header-rows: 0
+   :errorsastext: true
+
+   {{ pdfs_directive_content|indent(3) }}
+
+
+.. `Appendix 1:  <https://www.dropbox.com/sh/j6lzk2a7qacl95c/AAD0S8XDRn2dcpCTeTAiz-vIa?dl=0>`_
+
+
+Annexes
+~~~~~~~~
+`Annex 1: GE Network maintenance summary ({{ year }}) <https://powerfolder.gfz-potsdam.de/example_path/example_file.pdf>`_
+
 
 
 .. ==============================================================================   
@@ -265,13 +540,12 @@ Appendices
     
     http://www.python.org/
     
-    Hyperlink with substitution text: point to the same url as above but render 'Python' as text:
+    Hyperlink with substitution text: point to the same url as above but display 'Python' in the built document:
     
     `Python <http://www.python.org/>`_
     
     Hyperlink with substitution text, if it has to be referenced more than once.
-    Define the hyperlink as follows (note that the line below is NOT rendered but is NOT
-    a comment):
+    Define the hyperlink as follows:
        
     .. _Wikipedia: https://www.wikipedia.org/
     
@@ -406,7 +680,7 @@ Appendices
     
     * About RsT syntax:
     
-      - https://pythonhosted.org/an_example_pypi`_project/sphinx.html#restructured-text-rest-resources
+      - https://pythonhosted.org/an_example_pypi`_project/sphinx.html
         (and links therein)
       - http://docutils.sourceforge.net/docs/user/rst/quickref.html
      
@@ -425,3 +699,7 @@ Appendices
     - About Sphinx:
       
       + http://www.sphinx-doc.org/en/stable/markup/index.html#sphinxmarkup
+
+
+
+

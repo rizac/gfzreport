@@ -4,6 +4,10 @@
 
     .. gridfigure:: figure_caption
         :dir: folder
+        :errorsastext: true
+        :delim: space
+        :align: center
+        :header-rows: 1
 
         data
 

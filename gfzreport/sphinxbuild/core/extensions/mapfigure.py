@@ -254,6 +254,7 @@ class MapImgDirective(CsvFigureDirective):
 
                 data[column_indices[col]].append(node_text or "")
 
+
         map_node = mapnode(self.block_text, __parsed_content__=data, **self.options)
         self.get_table_node(nodez).replace_self(map_node)
 
@@ -275,8 +276,10 @@ def visit_map_node_html(self, node):
     bordercolor, borderopacity = "#000000", 0.8
 
     _lons, _lats, _labels, _sizes, _colors, _markers, _legend_labels = \
-        _shapeargs(data['lons'], data['lats'], data['labels'], data['sizes'],
-                   data['colors'], data['markers'], data['legendlabels'])
+        _shapeargs(data['lons'], data['lats'], data.get('labels', ''),
+                   data['sizes'],
+                   data.get('colors', '#FFFFFF00'), data.get('markers', 'o'),
+                   data.get('legendlabels', ''))
 
     # basemap forwards to matplotlib.scatter which accept sizes in pt^2 (wtf?!!):
     _sizes = np.sqrt(np.array(_sizes).astype(float))

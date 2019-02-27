@@ -21,7 +21,7 @@ from gfzreport.sphinxbuild.core.extensions import mapfigure
 
 from gfzreport.templates import utils
 from gfzreport.templates.annual.core.utils import get_img_filepaths, get_pdfs_files,\
-    get_pdfs_csvstr
+    get_stationsmap_directive_content, get_pdfs_directive_content
 
 
 
@@ -84,11 +84,11 @@ class Templater(utils.Templater):
         '''
         img_files = get_img_filepaths(input_dir)
 
-        dirs = [d for d in os.listdir(input_dir) if os.path.isdir(d)]
+        dirs = [d for d in os.listdir(input_dir) if os.path.isdir(os.path.join(input_dir, d))]
         if len(dirs) != 1:
             raise Exception('Expecting 1 PDFs directory in "%s", found %d' % (input_dir, len(dirs)))
 
-        pdfs = get_pdfs_files(input_dir)
+        pdfs = list(get_pdfs_files(os.path.join(input_dir, dirs[0])))
         return {destdatapath: img_files, os.path.join(destdatapath, 'PDF'): pdfs}
 
     def getrstkwargs(self, destpath, destdatapath, datafiles, year, input_dir):
@@ -117,12 +117,24 @@ class Templater(utils.Templater):
         This function can safely raise as Exceptions will be caught and displayed in their
         message displayed printed
         '''
-        noise_pdf_dest = os.path.join(destdatapath, 'PDF')
-        pdf_dir = relpath(noise_pdf_dest, destpath)
-        imgs_dest = destdatapath
-        imgs_dir = relpath(imgs_dest, destpath)
+        files = [_ for _ in os.listdir(input_dir) if os.path.splitext(_)[1].lower() == '.csv']
+        if len(files) == 0:
+            raise Exception('no .csv file fond in "%s"' % input_dir)
+        elif len(files) > 1:
+            raise Exception('only one .csv file must be in "%s" (found: %d)' %
+                            (input_dir, len(files)))
+        map_directive_content = \
+            get_stationsmap_directive_content(os.path.join(input_dir, files[0]))
 
-        return dict(year=str(year), pdf_dir=pdf_dir, imgs_dir=imgs_dir,
-                    pdfs=get_pdfs_csvstr(datafiles[noise_pdf_dest]), images_dir=destdatapath,
-                    imas=[os.path.basename(_) for _ in datafiles[destdatapath]]
+        img_files_paths = datafiles[destdatapath]
+        img_files = {os.path.splitext(os.path.basename(fpt))[0] + '_path':
+                     relpath(os.path.join(destdatapath, os.path.basename(fpt)), destpath)
+                     for fpt in img_files_paths}
+
+        noise_pdf_dest = os.path.join(destdatapath, 'PDF')
+        pdfs_dir = relpath(noise_pdf_dest, destpath)
+
+        return dict(year=str(year), mapfigure_directive_content=map_directive_content,
+                    pdfs_directive_content=get_pdfs_directive_content(datafiles[noise_pdf_dest]),
+                    pdfs_dir=pdfs_dir, **img_files
                     )

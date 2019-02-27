@@ -17,7 +17,7 @@ from gfzreport.templates.network import Templater as NetworkTemplater
 from gfzreport.templates.annual import Templater as AnnualTemplater
 from gfzreport.sphinxbuild import run as sphinxbuild_run
 from gfzreport.sphinxbuild import _DEFAULT_BUILD_TYPE
-from gfzreport.templates.annual.core.utils import expected_img_files
+from gfzreport.templates.annual.core.utils import expected_img_files, csv_map_columns
 
 
 # define terminal width for help (bigger)
@@ -281,13 +281,25 @@ def n(out_path, conffiles_only, mv_datafiles, noprompt,
                  context_settings=dict(max_content_width=TERMINAL_HELP_WIDTH))
 @option("-y", '--year', required=True, help="the Report year, e.g. 2016")
 @option("-i", '--input-dir', required=True,
-        help="the Report input directory with files to inject "
-             "into the document. It mus have 1) a sub-directory of PDFs images of the form: "
-             " <net>.<sta>.<loc>.<cha>.* "
-             "The files will be "
-             "arranged in a table where each row denotes a channel (excluding the orientation "
-             "code) and each column the channel orientation code, and 2) the following image "
-             "files: %s" % str(expected_img_files))
+        help="""the Report input directory whose content will be processed and
+        injected into the document. The directory must contain:
+
+        \b
+        1) The following image files (extension jpg, jpeg, gif or png):
+            \b
+            %s
+        Remember that you can always add/delete figures in the document
+        \b
+        2) One (and only one) sub-directory of PDFs files. The files will be recognized
+        when starting with the usual naming  <net>.<sta>.<loc>.<cha>.*  and will
+        be sorted alphabetically and disposed in a grid of N rows x 3 columns grid
+
+        \b
+        3) A csv file with the stations to be displayed on the station availability figure map.
+        The csv must have the columns:
+        \b
+        %s
+        """ % (expected_img_files, csv_map_columns))
 def a(out_path, conffiles_only, mv_datafiles, noprompt, year, input_dir):
     """
     Generates the report folder for the given GEOFON annual report. The destination
