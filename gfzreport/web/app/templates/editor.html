@@ -34,6 +34,11 @@ The DEFAULT ace style is in js/ace-buil/mode-rst-default.js
     	font-family: system-ui;
 	}
 	
+	/*hide the setUseWrapMode because we will provide a custom button in the editor */
+	#ace_settingsmenu div[contains="setUseWrapMode"]{
+		display: none;
+	}
+	
 	/* panels showing settings menu: Normalize fonts */
 	#ace_settingsmenu, #ace_settingsmenu input, #ace_settingsmenu label, #ace_settingsmenu select{
 	    font-size: 12px;
@@ -87,7 +92,7 @@ The DEFAULT ace style is in js/ace-buil/mode-rst-default.js
  			fontSize: "10pt",
  			//showPrintMargin: true,
  			// wrapBehavioursEnabled: true,
- 			wrap: true,
+ 			wrap: false,
 			printMarginColumn: 100
 	});
  	// add command to lazy-load keybinding_menu extension, accessible via the command

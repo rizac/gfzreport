@@ -22,9 +22,12 @@
 			<button ng-click="popups.addFig.show()" class="btn btn-primary">Add fig.</button>
 			<button ng-click="showCommits()" ng-disabled="!commitHash" class="btn btn-primary">History</button>
 			Editor:
-			<div class="btn-group">
+			<div style="display:inline-block">
 				<button ng-click="aceEditor.execCommand('showSettingsMenu')" class='btn btn-xs btn-default'>Settings</button>
 				<button ng-click="aceEditor.execCommand('showKeyboardShortcuts')" class='btn btn-xs btn-default'>Shortcuts</button>
+				<label style="cursor: pointer"><input type='checkbox' ng-checked='aceEditor.getSession().getUseWrapMode()'
+					ng-click='aceEditor.getSession().setUseWrapMode(!aceEditor.getSession().getUseWrapMode())'>
+				Wrap lines</label>
 			</div>
 		</div>
 		<div class=pos-right>

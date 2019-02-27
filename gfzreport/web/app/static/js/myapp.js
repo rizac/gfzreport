@@ -148,7 +148,6 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 			iframe.onload= function() {
 		        //$scope.loading = false;
 		        $scope.aceEditor = iframe.contentWindow.editor;
-		        
 		        // set options:
 		        // In case you want more options,type Cmd , or Ctrl ,
 		        // and inspect the given element
@@ -156,10 +155,14 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 		        // But there are
 		        // actually listeners and we use them:
 		        
-		        $scope.aceEditor.getSession().on("changeWrapMode", function(){
-		        	// arguments[1] seems to be the aceEditor.getSession()
+		        $scope.aceEditor.getSession().on("changeWrapMode", function(){ // no-op (for the moment, read below)
+		            // arguments[1] seems to be the aceEditor.getSession()
 		        	var val = arguments[1].getUseWrapMode();
-		        	console.log(val);
+		        	// use $scope.apply to notify immediately changes
+                    // this might be due to this function being run in a setTimeout or similar
+		        	//$scope.$apply(() => {
+		        	    // this function is currently no-op but it's left here in case some implementation needs it
+		        	//});
 		        });
 
 		        // add command to save via keybinding
@@ -175,7 +178,9 @@ app.controller('MyController', function ($scope, $http, $window, $timeout, $root
 		        
 	    		//add listener WHEN LOADED:
 	    		$scope.aceEditor.on("input", function() {
-	    			$scope.$apply(function() {
+	    			// use $scope.apply to notify immediately changes
+	    		    // this might be due to this function being run in a setTimeout or similar
+	    		    $scope.$apply(function() {
 	    				// If popup commits is showing, we set the editor value from a commit
 	    				// thus, as setModified will set $scope.commitHash to null, we have to
 	    				// reset it to the current commit:

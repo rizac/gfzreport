@@ -9,6 +9,9 @@
     - latitudes (either denoted by the string 'lats', 'latitudes', 'lat' or 'latitude',
     case insensitive)
     - longitudes ('lons', 'longitudes', 'lon' or 'longitude', case insensitive)
+
+   And OPTIONALLY:
+
     - labels ('name', 'names', 'label', 'labels', 'caption', 'captions', case insensitive)
     - legend labels ('legend' or 'legends', case insensitive): Every non-empty string
       in a row will display an item in the legend with the row marker and label. If all rows
@@ -16,8 +19,6 @@
     - markers ('marker' or 'markers', a value in 'o' 's' 'v' '^' '<' '>' 'd' 'D' (without quotes,
       where s=square, D=diamond, d=thin diamond). See `SUPPORTED_MARKERS`
     - colors ('color' or 'colors', case insensitive) in HTML format '#RGB' or '#RGBA'
-
-   And OPTIONALLY:
     - sizes ('size' or 'sizes', case insensitive) in pixels^2, because matplotlib uses that unit.
         (therefore, in html we use sqrt, as our function draw SVG icons with width and height
         dimensions)
@@ -25,10 +26,11 @@
       IMPORTANT: For each row whose value under 'sizes' is empty,
         of for all rows if 'sizes' is not specified at all as column,
         the value will default to the global directive option ':map_sizes:'
-        Empty values are missing values (if the column is the last one)
-        or columns whose value is ""
 
     NOTES:
+
+    - Empty values should be specified with double quotation "", they can be empty for
+      the last column only
 
      - Html supports the marker types: 'd', 'D' (both diamond), '^' 'V', 's', 'o'.
        (rendered via leaflet SVG icons). Everything else will be rendered with a circle in HTML.
@@ -270,14 +272,16 @@ def visit_map_node_html(self, node):
         """escapes quotes"""
         return string.replace('"', '\\"')
 
-    data = node.attributes['__plotmapargs__']  # FIXME: error!
+    data = node.attributes['__plotmapargs__']
     _uuid = node._data_hash__
 
     bordercolor, borderopacity = "#000000", 0.8
 
+    # NOTE BELOW: defaults should be provided according to plotmap defaults.
+    # Would be nice to set these defaults in one place
     _lons, _lats, _labels, _sizes, _colors, _markers, _legend_labels = \
         _shapeargs(data['lons'], data['lats'], data.get('labels', ''),
-                   data['sizes'],
+                   data.get('sizes', 20),
                    data.get('colors', '#FFFFFF00'), data.get('markers', 'o'),
                    data.get('legendlabels', ''))
 
