@@ -296,32 +296,37 @@ To create a new empty report, you need the report year and then perform the foll
 Prepare (or ask the responsible) for the report input directory whose content will be processed and
 injected into the document. The directory must contain:
 
-        1) The following image files (extension jpg, jpeg, gif or png) mapped to their
-           caption in the document
- 
-             - 'archive_1': 'Data archived by year of acquisition'
-             - 'archive_2': 'Cumulative size of the GEOFON archive'
-             - 'archive_3': 'Number of distinct user IDs provided for fdsnws and/or arclink on each day'
-             - 'eqinfo_1': 'Geographic distribution of the published events'
-             - 'eqinfo_2': 'Geographic distribution of the published Moment Tensors solutions'
-             - 'eqinfo_3': 'Event publication (grey dots) and alert delay (big green and xxl red) vs. magnitude'
-             - 'eqinfo_4': 'GEOFON alert delay vs. first automatic publication'
-             - 'eqinfo_5': 'Daily distinct visitors to geofon.gfz-potsdam.de'
+1) The following image files (extension jpg, jpeg, gif or png) mapped to their
+   caption in the document
 
-        Remember that you can always add/delete figures in the document
-        
-        2) One (and only one) sub-directory of PDFs files. The files will be recognized
-           when starting with the usual naming  <net>.<sta>.<loc>.<cha>.*  and will
-           be sorted alphabetically and disposed in a grid of N rows x 3 columns grid
+     - 'archive_1': 'Data archived by year of acquisition'
+     - 'archive_2': 'Cumulative size of the GEOFON archive'
+     - 'archive_3': 'Number of distinct user IDs provided for fdsnws and/or arclink on each day'
+     - 'eqinfo_1': 'Geographic distribution of the published events'
+     - 'eqinfo_2': 'Geographic distribution of the published Moment Tensors solutions'
+     - 'eqinfo_3': 'Event publication (grey dots) and alert delay (big green and xxl red) vs. magnitude'
+     - 'eqinfo_4': 'GEOFON alert delay vs. first automatic publication'
+     - 'eqinfo_5': 'Daily distinct visitors to geofon.gfz-potsdam.de'
 
-        3) A csv file with the stations to be displayed on the station availability figure map.
-           The file can also be created by means of popular spredsheet programs (LibreOffice, Excel).
-           The csv must have the columns:
-           
-            'Station', 'Latitude', 'Longitude', 'Availability', 'Maintenance', 'Hardware Shipment', 'Metadata Update'
-        
-           The csv can be comma- or semicolon-separated. In the latter case, number can also be given
-           with the comma as de decimal separator. Columns expected to be numeric are Latitude, Longitude and Availability.
+Remember that you can always delete figures in the document (or add new ones).
+
+2) One (and only one) sub-directory of PDFs files. The files will be recognized
+   when starting with the usual naming  <net>.<sta>.<loc>.<cha>.*  and will
+   be sorted alphabetically and disposed in a grid of N rows x 3 columns grid
+
+3) A Comma Separated Values (CSV) file with the stations to be displayed on the station availability figure map.
+   The csv must have the columns:
+   
+    'Station', 'Latitude', 'Longitude', 'Availability', 'Maintenance', 'Hardware Shipment', 'Metadata Update'
+
+   Numeric columns are 'Latitude' and 'Longitude'. 'Availability' is in principle numeric, too,
+   but does not need to have all numeric values (non numeric values will be displayed in white, as if
+   availability was 0).
+   Numbers can be given with the dot or the comma as decimal separator, but not both. If the comma is used
+   as decimal separator, it can not be used as column separator (or delimiter): in this case, as most of the
+   time the CSV file is generated from a spreadsheet (e.g. LibreOffice, excel), remember to export to csv with the
+   semicolon as separator. Column separators which are neither the comma nor the semicolon (e.g., spaces, tabs)
+   will not be recognized.
    
 
 2. Create document

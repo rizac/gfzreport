@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-    Implements the sphinx directive to show a grid of images as a figure:
+    Implements the sphinx directive to show a grid of images as a figure. This
+    directive subclasses the CSVTable directive and in principle accepts all its options
+    PLUS the options `dir` (root images directory) and `errorsastext` (show text for images
+    not found, which is relevant because - who knows why - PdfLateX does not compile with more
+    than 100 includegraphics errors). For info see:
+    http://docutils.sourceforge.net/docs/ref/rst/directives.html#csv-table
 
     .. gridfigure:: figure_caption
         :dir: folder
@@ -9,10 +14,28 @@
         :align: center
         :header-rows: 1
 
-        data
+        ColCaption1 ColCaption2 ...
+        img1_filename img2_filename ...
+
+    TL;DR: Because the :width: or :widths: option of csvtable works for text content
+    they do not work as expected here: not specifying any of those options is in most cases
+    OK as in HTML it displays columns of equal width spanning the whole page width.
+    In LaTeX, you might want to issue a ..includegraphics directive
+    with width=(1/NCOLS)\textwidth, e.g., with 3 columns
+    (note that the includegraphics must be placed before a ref. label, if any):
+
+        .. includegraphics:: trim=8 30 76 0,width=0.33\textwidth,clip
+
+        .. _gridfigure_ref_name:
+
+        .. gridfigure::
+
+
+    Implementation details:
+    -----------------------
 
     This directive has to be written and filled like a CSVTable BUT produces a "table" of figures.
-    IT extends CsvFigureDirective, which in turn extends both CSVTable and Figure. It first parses
+    It extends CsvFigureDirective, which in turn extends both CSVTable and Figure. It first parses
     the document as CSVTable,
     the returned table cell is replaced by images nodes first by joining the dir argument and the
     data provided. Then, the content is parsed as
@@ -61,11 +84,11 @@
     also in the directive content
 """
 import os
+import re
 from docutils.nodes import Element
 from docutils.parsers.rst import directives
 from gfzreport.sphinxbuild.core.extensions.csvfigure import CsvFigureDirective
 from docutils.nodes import image as img_node
-import re
 
 _DIRECTIVE_NAME = 'gridfigure'
 
@@ -166,7 +189,7 @@ def visit_imggrid_node_latex(self, node):
                             # "Table 3 -- continued from previous page"
                             # and a footer in the form of
                             # "Continued on next page"
-                            # As said, headers and footer strings appear if the longtable overflows 
+                            # As said, headers and footer strings appear if the longtable overflows
                             # Now, as this is a figure-like directive, we put the
                             # caption at the bottom, and consequently we want to have headers
                             # of the form:
@@ -180,12 +203,12 @@ def visit_imggrid_node_latex(self, node):
                             # used for the caption (use latex \addtocounter)
                             reset_counter_fig = 0  # when non-zero, 'table' hosts a latex longtable
                             # when 2, we can break the loop below (nothing more to be replaced)
-                            
+
                             # define longtable header and footer (search and replace strings):
                             # note that we search for tablecontinued and NOT \tablecontinued
                             # to be compliant with future versions where \sphinxtablecontinued
                             # might be used
-                            
+
                             # lt_header replaces e.g.
                             # "Table 1 -- continued from previous page" with
                             # "Continued from previous page" (no fig number in the header):
@@ -208,7 +231,7 @@ def visit_imggrid_node_latex(self, node):
                                 elif lt_footer[0] in table[x]:
                                     table[x] = table[x].replace(lt_footer[0], lt_footer[1])
                                     reset_counter_fig += 1
-                                        
+
                                 if reset_counter_fig == 2:
                                     break
 

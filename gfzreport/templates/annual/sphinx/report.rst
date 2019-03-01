@@ -225,6 +225,10 @@ Archive Service Delivery
 
 Requests by method and by type.
 
+.. NOTE: the csv-table below allows captions and more customization than simple tables,
+   but does not require the cells of the table body to be vertically aligned: below,
+   the cells are aligned only to visually help the editor
+
 .. tabularcolumns:: |l|r|r|r|r|
 
 .. csv-table:: Requests by method and by type
@@ -286,8 +290,6 @@ geofon (Seedlink)     99.411%       0.589%
 
 
 
-
-
 GEOFON Rapid Earthquake Information
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -342,27 +344,19 @@ coverage or even strongly clustered stations (IPOC, parts of Central Europe, Tai
 .. The number of published fake events could be reduced significantly compared to previous years by introducing additional publication criteria such as the maximum "sum of the largest two azimuthal gaps".
 
 
-
-Event dissemination
-
 .. tabularcolumns:: |l|r|r|r|
 
-=============  ======  ======  ======
-Events         No MT   Has MT   Total
--------------  ------  ------  ------
-Published      3984      936    4920
- Status A       999      ---     999
- Status C      2117      801    2918 
- Status M       868      135    1003 
-Removed           7        0       7
-=============  ======  ======  ======
+.. csv-table:: Event dissemination
+   :header-rows: 1
+   :delim: ;
+   :align: center
 
-
-The definitions of these alert types are:
- * 'xxl' events are those with magnitude larger than 6.5 worldwide, or larger than 5.5 in or near Europe, or 5.0 in central Europe.
- * 'big' events have magnitude above 5.5 in most of the world, or above 5.0 in the wider Europe/Mediterranean area and M>=4.5 in central Europe.
- *  the 'Other' category includes internal alerts and some regional notifications.
-
+   Events    ; No MT ; Has MT ; Total
+   Published ;       ;        ; 
+   Status A  ;       ;        ; 
+   Status C  ;       ;        ; 
+   Status M  ;       ;        ; 
+   Removed   ;       ;        ; 
 
 
 Event notification delays are shown in :numref:`eqinfo_3` and :numref:`eqinfo_4` .
@@ -380,20 +374,24 @@ Event notification delays are shown in :numref:`eqinfo_3` and :numref:`eqinfo_4`
    ude is the magnitude reported at the time of the alert. Also shown are events with only an automatic detection (status 'A'). Please note that numbers are incomplete due to hardware upgrade/migration during the year.
 
 
-Alerts issued by type for each quarter
-
 .. tabularcolumns:: |l|r|r|r|r|
 
-=======  ======  =======  =====  ============
- {{ year }}     xxl     big     Other  All classes
--------  ------  -------  -----  ------------
- Q1        10      83       ---  ---
- Q2         2      55       ---  --- 
- Q3        13     110       ---  ---
- Q4        13     106       ---  ---
--------  ------  -------  -----  ------------
- Total     38     354      4528  4920 
-=======  ======  =======  =====  ============ 
+.. csv-table:: Alerts issued by type for each quarter
+   :header-rows: 1
+   :delim: ;
+   :align: center
+
+   {{ year }}  ;  xxl  ;  big  ; Other ; All classes
+   Q1    ;       ;       ;       ; 
+   Q2    ;       ;       ;       ;  
+   Q3    ;       ;       ;       ; 
+   Q4    ;       ;       ;       ; 
+   Total ;       ;       ;       ; 
+
+The definitions of these alert types are:
+ * 'xxl' events are those with magnitude larger than 6.5 worldwide, or larger than 5.5 in or near Europe, or 5.0 in central Europe.
+ * 'big' events have magnitude above 5.5 in most of the world, or above 5.0 in the wider Europe/Mediterranean area and M>=4.5 in central Europe.
+ *  the 'Other' category includes internal alerts and some regional notifications.
  
 
 .. figure eqinfo_4. Reference it throughout the document via :numref:`eqinfo_4`
@@ -506,12 +504,8 @@ Appendices
    {{ pdfs_directive_content|indent(3) }}
 
 
-.. `Appendix 1:  <https://www.dropbox.com/sh/j6lzk2a7qacl95c/AAD0S8XDRn2dcpCTeTAiz-vIa?dl=0>`_
-
-
 Annexes
 ~~~~~~~~
-`Annex 1: GE Network maintenance summary ({{ year }}) <https://powerfolder.gfz-potsdam.de/example_path/example_file.pdf>`_
 
 
 
