@@ -227,15 +227,17 @@ Requests by method and by type.
 
 .. tabularcolumns:: |l|r|r|r|r|
 
-===================  ===========  ===========  ======  =====
-Request method          Requests  Timewindows  Volume  Users 
--------------------  -----------  -----------  ------  -----
-fdsnws (external)    108.021.966   97.327.589   19 TB   2041
-fdsnws (GFZ)           1.254.084  130.732.055    6 TB    177     						  
-arclink (external)     7.211.889   10.865.607   10 TB   1123
-arclink (GFZ)            142.511      161.323    0 TB     41
-Total                116.630.450  239.086.574   35 TB       
-===================  ===========  ===========  ======  =====
+.. csv-table:: Requests by method and by type
+   :header-rows: 1
+   :delim: ;
+   :align: center
+
+   Request method     ; Requests    ; Timewindows ; Volume ; Users
+   fdsnws (external)  ;             ;             ;        ; 
+   fdsnws (GFZ)       ;             ;             ;        ; 
+   arclink (external) ;             ;             ;        ; 
+   arclink (GFZ)      ;             ;             ;        ; 
+   Total              ;             ;             ;        ;
 
 
 .. figure archive_3. You can reference it via :numerf:`archive_3`
@@ -319,19 +321,19 @@ In total GEOFON published 4920 events and 936 moment tensor solutions via the we
    Geographic distribution of the published Moment Tensors solutions in 2018.
 
 
-
-Events by magnitude classes in {{ year }}
-
 .. tabularcolumns:: |r|r|
-======  ===========
-Mag     Num. events
-------  -----------
-≥7.5     5
-≥6.5     42
-≥5.5     419
-≥4.5     3818
-All      4920
-======  ===========
+
+.. csv-table:: Events by magnitude classes in {{ year }}
+   :header-rows: 1
+   :delim: ;
+   :align: center
+
+   Mag             ; Num. events
+   :math:`\geq7.5` ; 
+   :math:`\geq6.5` ;
+   :math:`\geq5.5` ;
+   :math:`\geq4.5` ;
+   All             ;
 
 
 Removed "Fake" events are usually characterized by unfavorable azimuthal station
@@ -488,6 +490,12 @@ Dr. Jan Zednik,	GFU	Prague, CZ
 
 Appendices
 ~~~~~~~~~~
+
+.. note that the :width: option is buggy (does not render the same in LaTex and HTML).
+   The solution is to issue a includegraphics directive to force each column in the next
+   `gridfigure` directive to be 33% (1/the number of columns)
+
+.. includegraphics:: width=.33\textwidth
 
 .. gridfigure:: GE Network PSDs ({{ year }})
    :dir: {{ pdfs_dir }}

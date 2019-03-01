@@ -201,13 +201,15 @@ Create a new report template (network report)
 ---------------------------------------------
 
 This is the same operation described in :ref:`createnewtemplate`, but specific for 
-the application installed on the GEOFON server. It can be subdivided into the following steps:
+the application installed on the GEOFON server.
+To create a new empty report, you need the network name, the network start year,
+and then to perform the following steps:
 
-1. Preparation (image files)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1. Preparation
+^^^^^^^^^^^^^^
 
-Assuming the network name is "ZE" and the start year is 2012 (these information are mandatory to
-create a new network report), you first have to create the report default figures, i.e. the
+First, you have to create the report default figures from the
+network name and start year, i.e. the
 noise probability density functions (pdfs)
 and the instrument uptimes figure (if it's not you, ask the GEOFON person responsible to produce them). 
 
@@ -229,7 +231,8 @@ By convention, we use directories of the type "`/home/sysop/tmp_*`".
 2. Create document
 ^^^^^^^^^^^^^^^^^^
 
-Assuming, e.g., the following input figures directory:
+Assuming from, now on that the network name is "ZE", the start year is 2012, and the input figures
+have been created in:
 
 .. code-block:: bash
    
@@ -284,17 +287,58 @@ Create a new GEOFON template (annual report)
 --------------------------------------------
 
 This is the same operation described in :ref:`createnewtemplate`, but specific for 
-the application installed on the GEOFON server. It can be subdivided into the following steps:
+the application installed on the GEOFON server.
+To create a new empty report, you need the report year and then perform the following steps:
 
-1. Create document
+1. Preparation (image files)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Prepare (or ask the responsible) for the report input directory whose content will be processed and
+injected into the document. The directory must contain:
+
+        1) The following image files (extension jpg, jpeg, gif or png) mapped to their
+           caption in the document
+ 
+             - 'archive_1': 'Data archived by year of acquisition'
+             - 'archive_2': 'Cumulative size of the GEOFON archive'
+             - 'archive_3': 'Number of distinct user IDs provided for fdsnws and/or arclink on each day'
+             - 'eqinfo_1': 'Geographic distribution of the published events'
+             - 'eqinfo_2': 'Geographic distribution of the published Moment Tensors solutions'
+             - 'eqinfo_3': 'Event publication (grey dots) and alert delay (big green and xxl red) vs. magnitude'
+             - 'eqinfo_4': 'GEOFON alert delay vs. first automatic publication'
+             - 'eqinfo_5': 'Daily distinct visitors to geofon.gfz-potsdam.de'
+
+        Remember that you can always add/delete figures in the document
+        
+        2) One (and only one) sub-directory of PDFs files. The files will be recognized
+           when starting with the usual naming  <net>.<sta>.<loc>.<cha>.*  and will
+           be sorted alphabetically and disposed in a grid of N rows x 3 columns grid
+
+        3) A csv file with the stations to be displayed on the station availability figure map.
+           The file can also be created by means of popular spredsheet programs (LibreOffice, Excel).
+           The csv must have the columns:
+           
+            'Station', 'Latitude', 'Longitude', 'Availability', 'Maintenance', 'Hardware Shipment', 'Metadata Update'
+        
+           The csv can be comma- or semicolon-separated. In the latter case, number can also be given
+           with the comma as de decimal separator. Columns expected to be numeric are Latitude, Longitude and Availability.
+   
+
+2. Create document
 ^^^^^^^^^^^^^^^^^^
 
-In order to create a new empty network report you **MUST first** :ref:`activatevirtualenv`
+Assuming from, that the year is 2017 and the input files are located in 
+
+.. code-block:: bash
+   
+   /home/sysop/tmp_2017 [directory] 
+
+In order to create a new empty annual report you **MUST first** :ref:`activatevirtualenv`
 and then run :ref:`gfzt`:
 
 .. code-block:: bash
    
-   gfzreport template a --year 2017 -o /data2/gfzreport/annual/source/
+   gfzreport template a --year 2017 -i /home/sysop/tmp_2017 -o /data2/gfzreport/annual/source/
 
 which creates the directory "/data2/gfzreport/annual/source/2017"
 (note that the output ``-o`` option points to the parent folder of the directory).
@@ -307,7 +351,7 @@ Remember that the program prevents overwriting an existing output directory unle
 
    gfzreport template a --help
 
-2. Checks
+3. Checks
 ^^^^^^^^^
 
 * Check visually the result. Go at ``http://<this.machine>/gfzreport/annual`` and check that

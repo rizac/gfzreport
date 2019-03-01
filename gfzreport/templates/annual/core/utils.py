@@ -25,8 +25,14 @@ def relpath(path, reference_path):
 
 img_extensions = set(['jpg', 'png', 'jpeg', 'gif'])
 
-expected_img_files = ('archive_1', 'archive_2', 'archive_3',
-                      'eqinfo_1', 'eqinfo_2', 'eqinfo_3', 'eqinfo_4', 'eqinfo_5')
+expected_img_files = {'archive_1': 'Data archived by year of acquisition',
+                      'archive_2': 'Cumulative size of the GEOFON archive',
+                      'archive_3': 'Number of distinct user IDs provided for fdsnws and/or arclink on each day',
+                      'eqinfo_1': 'Geographic distribution of the published events',
+                      'eqinfo_2': 'Geographic distribution of the published Moment Tensors solutions',
+                      'eqinfo_3': 'Event publication (grey dots) and alert delay (big green and xxl red) vs. magnitude',
+                      'eqinfo_4': 'GEOFON alert delay vs. first automatic publication',
+                      'eqinfo_5': 'Daily distinct visitors to geofon.gfz-potsdam.de'}
 
 
 def get_img_filepaths(srcfolder):

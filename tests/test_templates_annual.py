@@ -274,8 +274,9 @@ def test_netgen_ok_sphinxbuild_ok(): # mock_urlopen, mock_get_dcs):
         assert result.exit_code == 0
         assert "2016" in os.listdir(outpath)
         datapath = os.path.join(outpath, '2016', 'data')
-        filenames = ['archive_1.png', 'archive_2.png', 'archive_3.png', 'eqinfo_1.jpg', 'eqinfo_2.png',
-                     'eqinfo_3.png', 'eqinfo_4.png', 'eqinfo_5.png'] 
+        filenames = ['archive_1.png', 'archive_2.png', 'archive_3.png',
+                     'eqinfo_1.jpg', 'eqinfo_2.png',
+                     'eqinfo_3.png', 'eqinfo_4.png', 'eqinfo_5.png']
         assert sorted(os.listdir(datapath)) == \
             sorted(filenames + ['PDF'])
         with open(os.path.join(outpath, "2016", "report.rst")) as opn:

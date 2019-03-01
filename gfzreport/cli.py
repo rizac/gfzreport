@@ -166,8 +166,8 @@ def templatecommand(*args, **kwargs):
                                   "data files, if any. If given, all options related to data files "
                                   "and the report .rst creation (e.g., -m) will be skipped"))
     _mvdatafiles = option("-m", "--mv_datafiles", is_flag=True, default=False,
-                          help=("Move all specified data files (-n and -i options) instead of "
-                                "copying them (default False when missing)"))
+                          help=("Move all specified data files instead of "
+                                "copying them"))
     _noprompt = option("--noprompt", is_flag=True, default=False,
                        help=("Do not ask before proceeding. The default, when this flag is "
                              "missing, is False (always ask before writing)"))
@@ -285,10 +285,11 @@ def n(out_path, conffiles_only, mv_datafiles, noprompt,
         injected into the document. The directory must contain:
 
         \b
-        1) The following image files (extension jpg, jpeg, gif or png):
-            \b
-            %s
+        1) The following %d image files (extension jpg, jpeg, gif or png): %s
+
+        \b
         Remember that you can always add/delete figures in the document
+
         \b
         2) One (and only one) sub-directory of PDFs files. The files will be recognized
         when starting with the usual naming  <net>.<sta>.<loc>.<cha>.*  and will
@@ -296,10 +297,14 @@ def n(out_path, conffiles_only, mv_datafiles, noprompt,
 
         \b
         3) A csv file with the stations to be displayed on the station availability figure map.
-        The csv must have the columns:
+        The file can also be created by means of popular spredsheet programs (LibreOffice, Excel).
+        The csv must have the columns: %s
         \b
-        %s
-        """ % (expected_img_files, csv_map_columns))
+        The csv can be comma- or semicolon-separated. In the latter case, number can also be given
+        with the comma as de decimal separator
+        """ % (len(expected_img_files),
+               ', '.join('%s (%s)' % (k, v) for k, v in expected_img_files.iteritems()),
+               csv_map_columns))
 def a(out_path, conffiles_only, mv_datafiles, noprompt, year, input_dir):
     """
     Generates the report folder for the given GEOFON annual report. The destination
