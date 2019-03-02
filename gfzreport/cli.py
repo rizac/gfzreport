@@ -280,7 +280,7 @@ def n(out_path, conffiles_only, mv_datafiles, noprompt,
 @templatecommand(short_help="Generates the report folder for the given (Geofon) annual report",
                  context_settings=dict(max_content_width=TERMINAL_HELP_WIDTH))
 @option("-y", '--year', required=True, help="the Report year, e.g. 2016")
-@option("-i", '--input-dir', required=True,
+@option("-i", '--input-dir',  # this arg is not required if -c option is given
         help="""the Report input directory whose content will be processed and
         injected into the document. The directory must contain:
 

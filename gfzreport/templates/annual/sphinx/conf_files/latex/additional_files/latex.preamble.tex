@@ -147,7 +147,8 @@
 	{\footnotesize
 		
 		\rstCitations{\ }  % add empty string at the end so that \vfill maybe works when rstCitations is empty
-		\rstVersion{\ }  % see above
+
+		\ifnotempty{\rstVersion}{Version: \rstVersion{\ }}  % see above
 
 		% lower right corner:
 		\begin{flushright}\vfill
