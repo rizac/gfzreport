@@ -57,7 +57,7 @@ def handle_invalid_usage(error):
 @mainpage.route('/')
 def index():
     return render_template("home.html",
-                           title=current_app.config['DATA_PATH'],
+                           title=os.path.basename(current_app.config['DATA_PATH']),
                            reports=get_reports(current_app))
 
 
