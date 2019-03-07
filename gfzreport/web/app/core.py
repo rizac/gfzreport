@@ -223,7 +223,7 @@ def gitcommit(app, reportdirname, user=None):
     ```
     Name <email>
     ```
-    (https://stackoverflow.com/questions/11579311/git-commit-as-different-user-without-email-or-only-email)
+    https://stackoverflow.com/questions/11579311/git-commit-as-different-user-without-email-or-only-email
     if None or evaluates to False, no author argument will be provided for the commit
     """
     args = gitkwargs(app, reportdirname)

@@ -299,7 +299,7 @@ GEOFON Rapid Earthquake Information
 Published earthquake locations and moment tensor solutions
 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-In total GEOFON published 4920 events and 936 moment tensor solutions via the web pages and other dissemination channels. :numref:`eqinfo_1` shows the geographic distribution of the published events and :numref:`eqinfo_2` the distribution of the moment tensors. 
+
 
 .. figure eqinfo_1. Reference it throughout the document via :numref:`eqinfo_1`
 
@@ -408,8 +408,6 @@ The definitions of these alert types are:
 Impact of the GEOFON web pages
 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-The number of distinct users connecting to geofon.gfz-potsdam.de is of typically ~30.000/day ( :numref:`eqinfo_5` ). Significant traffic is driven to our web server immediately after large events,
-particularly those in Europe, exceeding 60.000 distinct users on peak days ("Distinct" visitors are those with distinct IP address and User-Agent.)
 
 .. figure eqinfo_5. Reference it throughout the document via :numref:`eqinfo_5`
 
