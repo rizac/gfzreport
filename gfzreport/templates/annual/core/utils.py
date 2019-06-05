@@ -76,7 +76,7 @@ def get_pdfs_directive_content(img_filepaths, unique_network_station=True,
     for fle in img_filepaths:
         fname = os.path.basename(fle)
         if unique_network_station:
-            netsta = fname.split('.')[:2].join('.')
+            netsta = '.'.join(fname.split('.')[:2])
             if netsta in netstadone:
                 continue
         if not grid or (all(r for r in grid[-1])):  # last row full or grid empty
@@ -90,17 +90,6 @@ def get_pdfs_directive_content(img_filepaths, unique_network_station=True,
             row[2] = fname
             if unique_network_station:
                 netstadone.add(netsta)
-#         if not grid:
-#             grid.append([fname, '', ''])
-#             continue
-#         row = grid[-1]
-#         if row[0]
-#         for i in xrange(colnum):
-#             if len(grid) and not grid[-1][i]:
-#                 grid[-1][i] = fname
-#                 break
-#         else:
-#             grid.append([fname, '', ''])
 
     ret_df = pd.DataFrame(columns=list(xrange(colnum)), data=grid)
     return ret_df.to_csv(None, sep=delimiter, header=False, index=False,
