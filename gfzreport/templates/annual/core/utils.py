@@ -57,23 +57,50 @@ def get_img_filepaths(srcfolder):
     return files
 
 
-def get_pdfs_directive_content(img_filepaths, delimiter=" ", quotechar='"'):
+def get_pdfs_directive_content(img_filepaths, unique_network_station=True,
+                               delimiter=" ", quotechar='"'):
     """Returns a list of lists of all pdfs found in srcfolder. File names
     must be image files with the format N.S.L.C.<whavever>.ext, where
     ext must be an image extension
 
+    :param unique_network_station: if True (the default), only unique
+        rows (based on the network and station) will be shown. Which is the
+        location choosen to be shown (e.g. N.S.L1.* or N.S.L2.* ?),
+        it depends on what comes first alphabetically. If False, everything
+        will be shown
     """
     img_filepaths = sorted(img_filepaths)
     colnum = 3
     grid = []
+    netstadone = set()
     for fle in img_filepaths:
         fname = os.path.basename(fle)
-        for i in xrange(colnum):
-            if len(grid) and not grid[-1][i]:
-                grid[-1][i] = fname
-                break
+        if unique_network_station:
+            netsta = fname.split('.')[:2].join('.')
+            if netsta in netstadone:
+                continue
+        if not grid or (all(r for r in grid[-1])):  # last row full or grid empty
+            row = ['', '', '']
+            grid.append(row)
+        if not row[0]:
+            row[0] = fname
+        elif not row[1]:
+            row[1] = fname
         else:
-            grid.append([fname, '', ''])
+            row[2] = fname
+            if unique_network_station:
+                netstadone.add(netsta)
+#         if not grid:
+#             grid.append([fname, '', ''])
+#             continue
+#         row = grid[-1]
+#         if row[0]
+#         for i in xrange(colnum):
+#             if len(grid) and not grid[-1][i]:
+#                 grid[-1][i] = fname
+#                 break
+#         else:
+#             grid.append([fname, '', ''])
 
     ret_df = pd.DataFrame(columns=list(xrange(colnum)), data=grid)
     return ret_df.to_csv(None, sep=delimiter, header=False, index=False,

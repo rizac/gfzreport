@@ -484,8 +484,14 @@ Dr. Jan Zednik,	GFU	Prague, CZ
 
 
 
-Appendices
-~~~~~~~~~~
+Probability Density Functions (PDF) for operational GEOFON stations 01.{{ year }} - 12.{{ year }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The PDF displayed in this appendix have been calculated with PQLX
+(reference to software version) only for the primary channels,
+that is generally a Broad-Band sensor at 20 Hz.
+Only operational stations during the year have been included,
+stations that were offline for most of time are not included in this appendix
 
 .. note that the :width: option is buggy (does not render the same in LaTex and HTML).
    The solution is to issue a includegraphics directive to force each column in the next
