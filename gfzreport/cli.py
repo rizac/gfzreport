@@ -4,6 +4,8 @@
 Created on Oct 23, 2017
 @author: riccardo
 '''
+from __future__ import print_function
+
 import os
 import sys
 
@@ -273,7 +275,7 @@ def n(out_path, conffiles_only, mv_datafiles, noprompt,
                         network_station_marker, nonnetwork_station_marker, network_station_color,
                         nonnetwork_station_color))
     except Exception as exc:
-        print("Aborted: %s" % str(exc))
+        print("\nERROR: %s\n" % str(exc))
         sys.exit(1)
 
 
@@ -319,7 +321,7 @@ def a(out_path, conffiles_only, mv_datafiles, noprompt, year, input_dir):
         runner = AnnualTemplater(out_path, conffiles_only, mv_datafiles, not noprompt)
         sys.exit(runner(year, input_dir))
     except Exception as exc:
-        print("Aborted: %s" % str(exc))
+        print("\nERROR: %s\n" % str(exc))
         sys.exit(1)
 
 

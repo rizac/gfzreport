@@ -41,19 +41,27 @@ def get_img_filepaths(srcfolder):
 
         Raises Exception if some file is not found
     """
+    existing_files = set(_ for _ in os.listdir(srcfolder)
+                         if os.path.isfile(os.path.join(srcfolder, _)))
     files = []
     for fle in expected_img_files:
-        msg = 'Image file "%s" not found in "%s"' % (fle, srcfolder)
-        for ext in img_extensions:
-            fpath = os.path.join(srcfolder, "%s.%s" % (fle, ext))
-            if os.path.isfile(fpath):
-                files.append(fpath)
-                break
-            elif os.path.splitext(fle)[0] == fle:  # file found, bad extension
-                msg = 'File "%s" in "%s" should have extension in %s' % \
-                    (fle, srcfolder, str(img_extensions))
+        fles = set("%s.%s" % (fle, ext) for ext in img_extensions)
+        exist_files = existing_files & fles
+        if not exist_files:
+            raise Exception(('Image file "%s" '
+                             'not found in "%s" (allowed formats: '
+                             '%s)') % (fle, srcfolder,
+                                       str(list(img_extensions))))
         else:
-            raise Exception(msg)
+            fpath = list(exist_files)[0]
+            if len(exist_files) > 1:
+                print(("Conflict: found %s, '%s' only will be "
+                       "displayed (random choice)") % (str(list(exist_files)),
+                                                       fpath))
+
+        fpath = os.path.join(srcfolder, fpath)
+        files.append(fpath)
+
     return files
 
 

@@ -69,7 +69,7 @@ def test_netgen_bad_path():
         with invoke(*args) as _:
             result, outpath, args = _
             assert "ZE_2014" not in os.listdir(outpath)
-            assert "Aborted:" in result.output and " empty" in result.output
+            assert "ERROR:" in result.output and " empty" in result.output
             assert result.exit_code != 0
 
 
