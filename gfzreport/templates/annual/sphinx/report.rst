@@ -63,7 +63,7 @@
 
 :version: 1.0
 
-:date: {{ year + 1 }}-03-01
+:date: {{ year | int + 1 }}-03-01
 
 
 .. ^^^^^^
