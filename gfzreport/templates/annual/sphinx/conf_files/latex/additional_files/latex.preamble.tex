@@ -130,7 +130,8 @@
 							\ifnotempty{\rstSubtitle}{\Large \bfseries \color{gfzblue} \rstSubtitle \newline \par}
 							\ifnotempty{\rstSubSubtitle}{\large \bfseries \color{gfzblue} \rstSubSubtitle \newline \par}}
 	 %title footer:
-	\PlaceText{5.8cm}{22cm}{\ifnotempty{\rstStrText}{\Large \rstStrText\ \rstStrNum \newline \par}}
+	\PlaceText{5.8cm}{22cm}{\ifnotempty{\rstStrText}{\Large \rstStrText\ \rstStrNum \newline \par}
+							\ifnotempty{\rstVersion}{Version: \rstVersion} \ifnotempty{\rstDate}{\rstDate}}
 	
 	% FIXME: what are these? (uncomment all but setcounter, which makes sense)
   	% \py@authoraddress \par
@@ -147,8 +148,6 @@
 	{\footnotesize
 		
 		\rstCitations{\ }  % add empty string at the end so that \vfill maybe works when rstCitations is empty
-
-		\ifnotempty{\rstVersion}{Version: \rstVersion{\ }}  % see above
 
 		% lower right corner:
 		\begin{flushright}\vfill
@@ -195,7 +194,7 @@
 						  }
 	 %title footer:
 	\PlaceText{4cm}{23.5cm}{\ifnotempty{\rstStrText}{\Large \rstStrText\ \rstStrNum \newline \par}
-	  					    \ifnotempty{\rstSubSeriesText}{\normalsize \rstSubSeriesText \par}}
+							\ifnotempty{\rstVersion}{Version: \rstVersion} \ifnotempty{\rstDate}{\rstDate}}
 
 	\thispagestyle{empty}
 	\clearpage

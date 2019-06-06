@@ -63,6 +63,9 @@
 
 :version: 1.0
 
+:date: {{ year }}-03-01
+
+
 .. ^^^^^^
 .. TITLE:
 .. ^^^^^^
@@ -94,7 +97,7 @@ GEOFON Annual Report {{ year }}
    In html there is no such processing and the text below will be displayed
    as it is, after removing all asterixs.
 
-:Authors: Angelo Strollo, Thomas Zieke, Karl-Heinz Jäckel, Javier Quinteros, Susanne Hemmleb, Peter Evans, Andres Heinloo, Riccardo Zaccarelli, Joachim Saul, Winfried Hanka and Frederik Tilmann.
+:Authors: Angelo Strollo, Peter Evans, Winfried Hanka, Andres Heinloo, Susanne Hemmleb, Karl-Heinz Jäckel, Javier Quinteros, Joachim Saul, Riccardo Zaccarelli, Thomas Zieke and Frederik Tilmann.
 
 
 .. the citation section. Write here how the user should cite this report, and/or how to cite
@@ -151,7 +154,7 @@ Regular maintenance
 
 .. _map_ge_stations:
 
-.. mapfigure:: GEOFON stations in {{ year }}. Colours denote the data availability (white: 0% to red: 100% availability). Symbols represent the level of corrective maintenance needed: circle for “none”, square for “on site”, triangle (up) for “remote”, triangle (down) for “Remote incl. HW shipment”. An “X” next to the symbol indicates metadata updates.
+.. mapfigure:: GEOFON stations in {{ year }}. Colours denote the data availability (white: 0% to red: 100% availability). Symbols represent the level of maintenance needed: circle for “none”, square for “on site”, triangle (up) for “remote”, triangle (down) for “Remote including HW shipment”. An “X” next to the symbol indicates metadata updates.
    :header-rows: 1
    :align: center
    :delim: space
@@ -483,9 +486,15 @@ Prof. Dr. Max Wyss	International Centre for Earth Simulation, Geneva, CH
 Dr. Jan Zednik,	GFU	Prague, CZ
 
 
+Acknowledgements
+~~~~~~~~~~~~~~~~
+
+
+Appendices
+~~~~~~~~~~
 
 Probability Density Functions (PDF) for operational GEOFON stations 01.{{ year }} - 12.{{ year }}
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 The PDF displayed in this appendix have been calculated with PQLX
 (reference to software version) only for the primary channels,
@@ -511,6 +520,8 @@ stations that were offline for most of time are not included in this appendix
 Annexes
 ~~~~~~~~
 
+Summary of GE maintenance team activities
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
 .. ==============================================================================   
