@@ -5,7 +5,7 @@ Created on Jun 19, 2016
 '''
 import os
 import sys
-import glob
+import pytest
 from click.testing import CliRunner
 from gfzreport.cli import main as gfzreport_main
 from gfzreport.sphinxbuild import get_logfilename as get_build_logfilename
@@ -21,6 +21,7 @@ from _io import BytesIO
 from matplotlib.image import imread
 from urllib2 import URLError
 from shutil import rmtree
+from gfzreport.templates.annual.core.utils import get_stationsmap_directive_content
 
 # global paths defined once
 DATADIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "testdata")
@@ -120,3 +121,31 @@ def test_netgen_ok_sphinxbuild_ok(): # mock_urlopen, mock_get_dcs):
 #     # check if we deleted the temop dir:
 #     assert not os.path.isdir(outpath)
 
+def test_generate_csv():
+    file = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                        "testdata",
+                                        "AH_GEavailability_2018_err.csv"))
+    with pytest.raises(Exception) as exc:
+        get_stationsmap_directive_content(file)
+
+    file = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                        "testdata",
+                                        "AH_GEavailability_2018.csv"))
+    with pytest.raises(Exception) as exc:
+        get_stationsmap_directive_content(file)
+        
+    file = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                        "testdata",
+                                        "AH_GEavailability_2017.csv"))
+    get_stationsmap_directive_content(file)
+    
+    file = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                        "testdata",
+                                        "AH_GEavailability_2017xrizac.csv"))
+    get_stationsmap_directive_content(file)
+    
+    file = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                        "testdata",
+                                        "AH_GEavailability_2018xrizac.csv"))
+    get_stationsmap_directive_content(file)
+        

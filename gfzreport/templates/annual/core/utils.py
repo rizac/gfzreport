@@ -128,20 +128,31 @@ csv_map_columns = ('Station', 'Latitude', 'Longitude', 'Availability',
 directive_map_columns = ('Station', 'Latitude', 'Longitude', 'Marker', 'Color', 'Label')
 
 
-def get_stationsmap_directive_content(csvfile, separator=None):
-    dfr = pd.read_csv(csvfile, sep=',')
+def _read_csv(csvfile, separator):
+    try:
+        dfr = pd.read_csv(csvfile, sep=separator)
+    except Exception as exc:
+        raise Exception(('Malformed csv file "%s". Please check that the '
+                         'file exists and in case read the '
+                         'documentation in order to provide a valid '
+                         'file') % os.path.basename(csvfile))
+
     # try to see if we have the correct columns:
+    # "titlelize" the columns ('station' => 'Station', and so on):
     dfr.columns = map(str.title, dfr.columns)
-
-    if len(set(csv_map_columns) & set(dfr.columns)) < len(csv_map_columns):
-        # ok, try with semicolon:
-        dfr = pd.read_csv(csvfile, sep=';')
-        dfr.columns = map(str.title, dfr.columns)
-
     if len(set(csv_map_columns) & set(dfr.columns)) < len(csv_map_columns):
         raise Exception(('csv file "%s" must contain at least the columns '
                          '(case insensitive): %s') %
                         (os.path.basename(csvfile), str(csv_map_columns)))
+    
+    return dfr
+
+
+def get_stationsmap_directive_content(csvfile, separator=None):
+    try:
+        dfr = _read_csv(csvfile, ',')
+    except:
+        dfr = _read_csv(csvfile, ';')
 
     # convert latitude and longitude to floats:
     for col in csv_map_columns[1:4]:   # ['Latitude', 'Longitude', 'Availability']:
