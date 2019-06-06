@@ -131,7 +131,7 @@
 							\ifnotempty{\rstSubSubtitle}{\large \bfseries \color{gfzblue} \rstSubSubtitle \newline \par}}
 	 %title footer:
 	\PlaceText{5.8cm}{22cm}{\ifnotempty{\rstStrText}{\Large \rstStrText\ \rstStrNum \newline \par}
-							\ifnotempty{\rstVersion}{Version \rstVersion \hspace{1em}} \ifnotempty{\rstDate}{\rstDate}}
+							\ifnotempty{\rstVersion}{\normalsize Version \rstVersion \hspace{1em}} \ifnotempty{\rstDate}{\normalsize \rstDate}}
 	
 	% FIXME: what are these? (uncomment all but setcounter, which makes sense)
   	% \py@authoraddress \par
@@ -194,7 +194,7 @@
 						  }
 	 %title footer:
 	\PlaceText{4cm}{23.5cm}{\ifnotempty{\rstStrText}{\Large \rstStrText\ \rstStrNum \newline \par}
-							\ifnotempty{\rstVersion}{Version \rstVersion \hspace{1em}} \ifnotempty{\rstDate}{\rstDate}}
+							\ifnotempty{\rstVersion}{\normalsize Version \rstVersion \hspace{1em}} \ifnotempty{\rstDate}{\normalsize \rstDate}}
 
 	\thispagestyle{empty}
 	\clearpage
