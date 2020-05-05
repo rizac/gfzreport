@@ -278,17 +278,17 @@ Service uptime
 ===================  =========  ============
 Service               Up        Down/Problem
 -------------------  ---------  ------------
-WebDC                 99.825%	    0.175%
-EIDA Master Table     94.864%       5.136%
-fdsnws-dataselect     98.371%		1.629%
-fdsnws-station        98.212%		1.789%
-routingsvc            99.749%		0.251%
+WebDC                %          %
+EIDA Master Table    %          %
+fdsnws-dataselect    %          %
+fdsnws-station       %          %
+routingsvc           %          %
 -------------------  ---------  ------------
-geofon-proc           99.982%		0.018%
-geofon (ping)         99.980%		0.020%
-geofon (Web pages)    99.813%       0.187%
-geofon (eqinfo)       99.163%		0.837%
-geofon (Seedlink)     99.411%       0.589%
+geofon-proc          %          %	
+geofon (ping)        %          %	
+geofon (Web pages)   %          %	
+geofon (eqinfo)      %          %	
+geofon (Seedlink)    %          %	
 ===================  =========  ============
 
 
@@ -312,7 +312,7 @@ Published earthquake locations and moment tensor solutions
    :width: 100%
    :align: center
 
-   Geographic distribution of the published events in 2018.
+   Geographic distribution of the published events in {{ year }}.
 
 
 .. figure eqinfo_2. Reference it throughout the document via :numref:`eqinfo_1`
@@ -323,7 +323,7 @@ Published earthquake locations and moment tensor solutions
    :width: 100%
    :align: center
 
-   Geographic distribution of the published Moment Tensors solutions in 2018.
+   Geographic distribution of the published Moment Tensors solutions in {{ year }}.
 
 
 .. tabularcolumns:: |r|r|
@@ -420,7 +420,7 @@ Impact of the GEOFON web pages
    :width: 100%
    :align: center
 
-   Daily distinct visitors to geofon.gfz-potsdam.de during 2016. Also shown is the magnitude of the *largest* event recorded on each day, when this exceeds 6.4. (The threshold for 'xxl' alerts is 6.5 in most of the world).
+   Daily distinct visitors to geofon.gfz-potsdam.de during {{ year }}. Also shown is the magnitude of the *largest* event recorded on each day, when this exceeds 6.4. (The threshold for 'xxl' alerts is 6.5 in most of the world).
 
 
 Ongoing cooperation with EMSC
