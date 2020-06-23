@@ -20,6 +20,7 @@ Created on Jan 30, 2017
 import os
 import json
 import urllib2
+import re
 
 from docutils import nodes
 
@@ -35,7 +36,7 @@ _CACHE_FILENAME = "doi_citations_cache_json.log"  # this file will be saved in t
 
 URLOPEN_TIMEOUTS_IN_SEC = (10, 2)  # timeout if we don't have DOI in cache, timeout if we do
 
-DOI_BASE_URL = "https://doi.org/"
+DOI_BASE_URL = "https://data.crosscite.org/"  # OLD:  "https://doi.org/"
 
 # utilities: ==============================================================================
 
@@ -93,7 +94,11 @@ def get_citation_from_web(doi, timeout):
                               headers={'Accept': 'text/x-bibliography', 'style': 'apa',
                                        'locale': 'en-US'})
         response = urllib2.urlopen(req, timeout=timeout)
-        cit = response.read()
+        cit_ = response.read()
+        # there might be html entities in the `cit` str. Do it for simple
+        # stuff like <i></i>, <b></b> etcetera. Thus:
+        cit = re.sub(r'<(\w+)>(.*?)</\1>', '\\2', cit_)
+        # now split citation and url (for the cache?):
         idx = cit.find(DOI_BASE_URL)
         if idx > -1 and cit[idx:].strip().lower().endswith(doi.lower()):
             return cit[:idx].strip(), cit[idx:].strip()
