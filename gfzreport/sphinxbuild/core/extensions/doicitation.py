@@ -98,6 +98,16 @@ def get_citation_from_web(doi, timeout):
         # there might be html entities in the `cit` str. Do it for simple
         # stuff like <i></i>, <b></b> etcetera. Thus:
         cit = re.sub(r'<(\w+)>(.*?)</\1>', '\\2', cit_)
+        # now replace html characters:
+        for replc, findc in [
+            ("&", "&amp;"),
+            ('"', "&quot;"),
+            ("'", "&apos;"),
+            (">", "&gt;"),
+            ("<", "&lt;")
+        ]:
+            cit = cit.replace(findc, replc)
+
         # now split citation and url (for the cache?):
         idx = cit.find(DOI_BASE_URL)
         if idx > -1 and cit[idx:].strip().lower().endswith(doi.lower()):
