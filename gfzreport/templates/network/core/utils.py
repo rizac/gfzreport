@@ -45,7 +45,10 @@ def read_stations(url, timeout=None):
     try:
         response = urllib2.urlopen(url) if timeout is None else \
             urllib2.urlopen(url, timeout=timeout)
-        return read_inventory(BytesIO(response.read()), format='STATIONXML')
+        got = response.read()
+        if ((response.code == 204) and (len(got) == 0)):
+            return None  # Or what???
+        return read_inventory(BytesIO(got), format='STATIONXML')
 #         return response.read() if format_ == 'text' else read_inventory(BytesIO(response.read()),
 #                                                                         format='STATIONXML')
     finally:
