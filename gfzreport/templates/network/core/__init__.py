@@ -153,9 +153,14 @@ def otherstations_df(geofonstations_df, margins_in_deg):
     results = ThreadPool(20).imap_unordered(fetch_inv, fetch_inv_args)
     for inv, url, error in results:
         if error is None:
-            invs.append(inv)
+            if inv is not None:
+                print('OK:', url, len(inv))
+                invs.append(inv)
+            else:
+                print('Warning: empty inventory\n   url:', url)
         else:
             print("Warning: error fetching inventory (%s)\n   url: %s" % (error, url))
+    print('otherstations_df(): obtained', len(inv), 'inventory/ies)')
 
     symbols = cycle(SUPPORTED_MARKERS)
 
@@ -177,7 +182,15 @@ def otherstations_df(geofonstations_df, margins_in_deg):
             restricted = " (restr.)"
         # for temporary networks additional quote years of operation
         if net.code[0] in 'XYZ0123456789':
-            yearrng = " %d-%d" % (net.start_date.year, net.end_date.year)
+            try:
+                yearrng = ' %d-' % (net.start_date.year)
+            except AttributeError:
+                yearrng = ' ??-'
+            try:
+                yearrng += '%d' % (net.end_date.year)
+            except AttributeError:
+                yearrng += '??'
+                print(net)
         else:
             yearrng = ""
         caption = "%s%s%s" % (net.code, yearrng, restricted)
@@ -199,6 +212,7 @@ def otherstations_df(geofonstations_df, margins_in_deg):
 
     dfs = []
     for inv in invs:
+        assert inv is not None
         dframe = todf(inv, func, funclevel='station')  # , sortkey=lambda val: val['Name'])
         if not dframe.empty:
             dfs.append(dframe)
