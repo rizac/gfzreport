@@ -407,14 +407,23 @@ def test_netgen_errors(mock_urlopen, mock_get_dcs):
         assert result.exit_code == 1
         assert 'error while fetching network stations' in result.output
 
-    # first test some edge cases, e.g. responses are empty:
+    # first test some edge cases, e.g. responses for other stations_df (for the map) are empty:
     setupurlread(mock_urlopen, None, '')
     args = ['-n', 'ZE', '-s', '2014', "--noprompt",  "-i", "inst_uptimes/*", "-p", "noise_pdf/sta1*"]
     with invoke(*args) as _:
         result, outpath, args = _
-        assert result.exit_code == 1
+        assert result.exit_code == 0
         # FIXME: we print all errors for all stations, should we? or just an error at the end?
-        assert 'error while fetching other stations within network stations boundaries' in result.output
+        assert 'Warning: error fetching inventory' in result.output
+
+    # FIXME: we should test a case where we issue an error when retrieving other stations,
+    # as before it was:
+    # setupurlread(mock_urlopen, None, '')
+    # with invoke(*args) as _:
+    #    result, outpath, args = _
+    #    assert result.exit_code == 1
+    #    # FIXME: we print all errors for all stations, should we? or just an error at the end?
+    #    assert 'error while fetching other stations within network stations boundaries' in result.output
 
     # responses raise:
     setupurlread(mock_urlopen, Exception('wat?'))
