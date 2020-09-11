@@ -21,12 +21,22 @@ from _io import BytesIO
 from matplotlib.image import imread
 from urllib2 import URLError
 from shutil import rmtree
+from gfzreport.templates.network.core import otherstations_df, geofonstations_df
+
+
+# tests fix for #4 and #2
+def test_otherstations_df():
+    '''Tests for fix #2 anmd fix #4'''
+    # just test that it works with no exception (before, AttributeError was
+    # raised)
+    _ = otherstations_df(geofonstations_df('5M', 2015), None)
 
 # global paths defined once
 DATADIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "testdata")
 
 TEMPLATE_NETWORK = ["template", "n"]
 BUILD = ['build']
+
 
 @contextmanager
 def invoke(*args):

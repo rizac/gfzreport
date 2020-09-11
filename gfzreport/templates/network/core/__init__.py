@@ -107,6 +107,12 @@ def geofonstations_df(network, start_after_year):
 
 
 def otherstations_df(geofonstations_df, margins_in_deg):
+    '''
+    Returns the dataframe representing the network stations found within the
+    boundaries of the given geofon stations. Returned DataFrame can be empty
+    
+    :param geofonstations_df: DataFrame, output of `geofonstations_df`
+    '''
     tonum = pd.to_numeric
     _, _, minlon, minlat, maxlon, maxlat = getbounds(tonum(geofonstations_df['Lon']).min(),
                                                      tonum(geofonstations_df['Lat']).min(),
@@ -177,7 +183,18 @@ def otherstations_df(geofonstations_df, margins_in_deg):
             restricted = " (restr.)"
         # for temporary networks additional quote years of operation
         if net.code[0] in 'XYZ0123456789':
-            yearrng = " %d-%d" % (net.start_date.year, net.end_date.year)
+            # fix for #5  (thanks to pevans). Sometimes years are missing
+            # provide a '??' in case
+            try:
+                ystart = int(net.start_date.year)
+            except AttributeError:
+                ystart = '??'
+            try:
+                yend = net.end_date.year
+            except AttributeError:
+                yend = '??'
+            yearrng = " %s-%s" % (ystart, yend)  # "%s": do not force years to
+            # be int (also in account of the fix above)
         else:
             yearrng = ""
         caption = "%s%s%s" % (net.code, yearrng, restricted)
@@ -204,7 +221,8 @@ def otherstations_df(geofonstations_df, margins_in_deg):
             dfs.append(dframe)
 
     # return stations active in the relative timespan:
-    return pd.concat(dfs, axis=0, ignore_index=True, copy=False)
+    return pd.DataFrame() if not dfs else \
+        pd.concat(dfs, axis=0, ignore_index=True, copy=False)
 
 
 def get_map_df(geofonstations_df, otherstations_df):
@@ -216,7 +234,7 @@ def get_map_df(geofonstations_df, otherstations_df):
 
         :param geofonstations_df: the dataframe representing the stations of the network 
         :param otherstations_df: the dataframe representing all other stations which need to be
-        shown on the map
+        shown on the map. Can be None or an empty DataFrame (will be ingored in this cases)
     """
     # current captions are:
     columns = ['Label', 'Lat', 'Lon', 'Marker', 'Color', 'Legend']
@@ -246,7 +264,10 @@ def get_map_df(geofonstations_df, otherstations_df):
         _sta_df.loc[geofonstations_df['Sensor'] == sens, 'Color'] = col
         _sta_df.loc[geofonstations_df['Sensor'] == sens, 'Legend'] = sens
 
-    ret_df = pd.concat([_sta_df, otherstations_df], axis=0, ignore_index=True, copy=False)[columns]
+    toconcat = [_sta_df]
+    if otherstations_df is not None and not otherstations_df.empty:
+        toconcat += [otherstations_df]
+    ret_df = pd.concat(toconcat, axis=0, ignore_index=True, copy=False)[columns]
     # mark all duplicated Legends as empty except the first(s):
     ret_df.loc[ret_df['Legend'].duplicated(), 'Legend'] = ''
     return ret_df
