@@ -64,7 +64,7 @@ def geofonstations_df(network, start_after_year):
             mydic['Ele'] = int_(cha.elevation)
             mydic['Azi'] = int_(max(mydic['Azi'], cha.azimuth) if 'Azi' in mydic else cha.azimuth)
             mydic['Rate'] = int_(cha.sample_rate)
-            mydic['Sensor'] = cha.sensor.model
+            mydic['Sensor'] = cha.sensor.model or 'unknown sensor model'
             mydic['ID'] = cha.sensor.serial_number
             mydic['Logger'] = cha.data_logger.model
             mydic['Id'] = cha.data_logger.serial_number
