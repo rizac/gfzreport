@@ -1,5 +1,16 @@
-# gfzreport
-A sphinx-based report generation for use at gfz
+# <img align="left" height="30" src="https://www.gfz-potsdam.de/fileadmin/gfz/medien_kommunikation/Infothek/Mediathek/Bilder/GFZ/GFZ_Logo/GFZ-Logo_eng_RGB.svg"> GfzReport <img align="right" height="50" src="https://www.gfz-potsdam.de/fileadmin/gfz/GFZ_Wortmarke_SVG_klein_en_edit.svg">
+
+
+A Sphinx-based report generation tool with online web GUI available.
+
+DISCLAIMER: this software was developed to be used internally at [GEOFON](https://geofon.gfz-potsdam.de) **and** provide a 
+**[publicly available online service for preparing seismic data reports](https://geofon.gfz-potsdam.de/waveform/reportgenerator/)**.
+
+If you are interested in installing or using this software, please consult the contact person(s) at the link above first. 
+
+## Citation
+
+> Zaccarelli, Riccardo (2019): gfzreport - a Python tool and online text editor for creating any kind of report meeting GFZ requirements in HTML and PDF format. GFZ Data Services. https://doi.org/10.5880/GFZ.2.6.2023.006
 
 ## Installation
 
