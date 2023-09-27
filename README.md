@@ -3,10 +3,11 @@
 
 A Sphinx-based report generation tool with online web GUI available.
 
-DISCLAIMER: this software was developed to be used internally at [GEOFON](https://geofon.gfz-potsdam.de) **and** provide a 
-**[publicly available online service for preparing seismic data reports](https://geofon.gfz-potsdam.de/waveform/reportgenerator/)**.
+**DISCLAIMER**: this software currently deployed at [GEOFON](https://geofon.gfz-potsdam.de) to provide a
+**[publicly available online service for preparing seismic data reports](https://geofon.gfz-potsdam.de/waveform/reportgenerator/)**:
+**if you need to provide a similar service for editing and publishing reports, please contact the responsible person(s) at the link above before 
+installing this software**
 
-If you are interested in installing or using this software, please consult the contact person(s) at the link above first. 
 
 ## Citation
 
